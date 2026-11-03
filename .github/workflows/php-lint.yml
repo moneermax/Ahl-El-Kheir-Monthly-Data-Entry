@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '**/*.php'
+      - '**/*.js'
       - 'composer.json'
       - '.github/workflows/php-lint.yml'
   pull_request:
@@ -27,3 +28,5 @@ jobs:
         run: composer validate --no-check-publish
       - name: Lint PHP files
         run: find . -path './.git' -prune -o -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Check JavaScript syntax
+        run: node --check assets/js/whatsapp-import.js
