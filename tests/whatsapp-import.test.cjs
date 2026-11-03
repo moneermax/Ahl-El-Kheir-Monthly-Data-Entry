@@ -19,6 +19,18 @@ assert.equal(entryRecord.date, '2026-11-01');
 assert.equal(entryRecord.entered, 'هناء خلف الله');
 assert.equal(entryRecord.supervisor, 'ح ميساء');
 
+
+const inlineFieldsMessage = 'الكفيل ناصر كباشي احمد ملف 2026 اسم الوالدة عائشة محمد اسم اليتيم سارة محمد';
+const inlineFields = parser.entry(parser.split(inlineFieldsMessage)[0], 0);
+assert.equal(inlineFields.sponsor, 'ناصر كباشي احمد', 'sponsor name must stop before the file label');
+assert.equal(inlineFields.file, '2026', 'file number must be extracted into its own field');
+assert.equal(inlineFields.families[0].mother, 'عائشة محمد', 'mother aliases should be recognized without punctuation separators');
+assert.equal(inlineFields.orphans[0], 'سارة محمد', 'orphan labels should be recognized without punctuation separators');
+assert.equal(parser.hasMotherNames(inlineFields), true, 'a record with a recognized mother name may be loaded');
+
+const missingMother = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اليتيم سارة محمد', 0);
+assert.equal(parser.hasMotherNames(missingMother), false, 'a record without a mother name must not be loadable');
+
 const groupedMessage = 'الكفيل: شركة الخير؛ اليتيم: سعيد وائل؛ الأم: عائشة محمد؛ اليتيم: أحمد محمد؛ الأم: أمل علي؛ اليتيم: سارة محمد';
 const grouped = parser.entry(parser.split(groupedMessage)[0], 0);
 assert.equal(grouped.families.length, 2, 'multiple mothers should remain separate families');
