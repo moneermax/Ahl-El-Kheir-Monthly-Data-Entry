@@ -8,7 +8,7 @@ function val(t, labels) {
  const m=t.match(re); return m?clean(m[1]):'';
 }
 function vals(t,label) {
- const re=new RegExp('(?:^|[؛;\\n|])\\s*(?:\\d+\\s*[/.)-]\\s*)?'+label+'(?:\\s*[:=：-]\\s*|\\s+)([^؛;\\n|]+)','giu');
+ const re=new RegExp('(?:^|[؛;\\n|])\\s*(?:\\d+\\s*[/.)-]\\s*)?(?:'+label+')(?:\\s*[:=：-]\\s*|\\s+)([^؛;\\n|]+)','giu');
  return [...t.matchAll(re)].map(m=>clean(m[1])).filter(Boolean);
 }
 function date(v) {
