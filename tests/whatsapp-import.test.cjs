@@ -33,6 +33,30 @@ assert.equal(hamzaVariant.families[0].mother, 'عائشة محمد', 'mother lab
 const taaMarbutaVariant = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 الوالده عائشة محمد اليتيم سارة محمد', 0);
 assert.equal(taaMarbutaVariant.families[0].mother, 'عائشة محمد', 'mother labels using ه spelling should be recognized');
 
+
+const numberedOrphansAfterMother = `الكفيل : ناصر كباشي احمد  ملف 2026
+الام :حليمه عمر محمد
+1/اليتيم : عائشه محمد
+2/ اليتيم : عبدالحميد محمد
+المبلغ : 20000
+خدمات : 4000
+تاريخ الانضمام: 1/11/2026
+❤️‍🔥🧨
+عن طريق مها
+مشرفه ح مها`;
+const numberedMotherRecord = parser.entry(parser.split(numberedOrphansAfterMother)[0], 0);
+assert.equal(numberedMotherRecord.sponsor, 'ناصر كباشي احمد');
+assert.equal(numberedMotherRecord.file, '2026');
+assert.equal(numberedMotherRecord.families.length, 1);
+assert.equal(numberedMotherRecord.families[0].mother, 'حليمه عمر محمد', 'mother value must stop before numbered orphan labels');
+assert.deepEqual(Array.from(numberedMotherRecord.families[0].orphans), ['عائشه محمد', 'عبدالحميد محمد']);
+assert.equal(numberedMotherRecord.sponsorship, '20000');
+assert.equal(numberedMotherRecord.services, '4000');
+assert.equal(numberedMotherRecord.date, '2026-11-01');
+assert.equal(numberedMotherRecord.entered, 'مها');
+assert.equal(numberedMotherRecord.supervisor, 'ح مها');
+assert.equal(parser.hasMotherNames(numberedMotherRecord), true, 'the exact user message must be loadable after extracting its mother');
+
 const missingMother = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اليتيم سارة محمد', 0);
 assert.equal(parser.hasMotherNames(missingMother), false, 'a record without a mother name must not be loadable');
 
