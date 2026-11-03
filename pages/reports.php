@@ -23,6 +23,61 @@ $newSponsorsStmt = $pdo->prepare('SELECT COUNT(*) FROM (SELECT sponsor_id, MIN(s
 $newSponsorsStmt->execute([$monthStart, $monthEnd]);
 $newSponsors = (int) $newSponsorsStmt->fetchColumn();
 
+$newSponsorDetailStmt = $pdo->prepare("
+ SELECT sp.id AS sponsor_id, sp.sponsor_name, sp.file_number, sp.sponsor_type,
+        first_dates.first_start AS joining_date, mo.id AS mother_id, mo.mother_name,
+        o.orphan_name, COALESCE(me.sponsorship_amount, 0) AS sponsorship_amount,
+        COALESCE(me.services_amount, 0) AS services_amount, me.entered_by, me.supervisor_name
+ FROM (
+  SELECT sponsor_id, MIN(start_date) AS first_start
+  FROM mde_sponsorships
+  GROUP BY sponsor_id
+  HAVING MIN(start_date) BETWEEN ? AND ?
+ ) first_dates
+ JOIN mde_sponsors sp ON sp.id = first_dates.sponsor_id
+ JOIN mde_sponsorships ss ON ss.sponsor_id = sp.id AND ss.start_date = first_dates.first_start
+ JOIN mde_orphans o ON o.id = ss.orphan_id
+ JOIN mde_mothers mo ON mo.id = o.mother_id
+ LEFT JOIN mde_monthly_sponsorship_entries me ON me.sponsorship_id = ss.id AND me.report_month = ?
+ ORDER BY first_dates.first_start, sp.sponsor_name, mo.mother_name, o.orphan_name
+");
+$newSponsorDetailStmt->execute([$monthStart, $monthEnd, $monthStart]);
+$newSponsorDetailRows = $newSponsorDetailStmt->fetchAll();
+$newSponsorDetails = [];
+foreach ($newSponsorDetailRows as $detailRow) {
+    $sponsorId = (int) $detailRow['sponsor_id'];
+    if (!isset($newSponsorDetails[$sponsorId])) {
+        $newSponsorDetails[$sponsorId] = [
+            'sponsor_name' => $detailRow['sponsor_name'],
+            'file_number' => $detailRow['file_number'],
+            'sponsor_type' => $detailRow['sponsor_type'],
+            'joining_date' => $detailRow['joining_date'],
+            'families' => [],
+            'sponsorship_total' => 0,
+            'services_total' => 0,
+            'entered_by' => [],
+            'supervisor_name' => [],
+        ];
+    }
+    $motherId = (int) $detailRow['mother_id'];
+    if (!isset($newSponsorDetails[$sponsorId]['families'][$motherId])) {
+        $newSponsorDetails[$sponsorId]['families'][$motherId] = [
+            'mother_name' => $detailRow['mother_name'],
+            'orphans' => [],
+        ];
+    }
+    $newSponsorDetails[$sponsorId]['families'][$motherId]['orphans'][] = $detailRow['orphan_name'];
+    $newSponsorDetails[$sponsorId]['sponsorship_total'] += (int) $detailRow['sponsorship_amount'];
+    $newSponsorDetails[$sponsorId]['services_total'] += (int) $detailRow['services_amount'];
+    if (trim((string) ($detailRow['entered_by'] ?? '')) !== '') {
+        $newSponsorDetails[$sponsorId]['entered_by'][(string) $detailRow['entered_by']] = true;
+    }
+    if (trim((string) ($detailRow['supervisor_name'] ?? '')) !== '') {
+        $newSponsorDetails[$sponsorId]['supervisor_name'][(string) $detailRow['supervisor_name']] = true;
+    }
+}
+$newSponsorDetails = array_values($newSponsorDetails);
+
 $departureTotalsStmt = $pdo->prepare('SELECT COALESCE(SUM(sponsorship_amount_snapshot),0) AS sponsorship_total, COALESCE(SUM(services_amount_snapshot),0) AS services_total FROM mde_sponsor_departures WHERE departure_date BETWEEN ? AND ?');
 $departureTotalsStmt->execute([$monthStart, $monthEnd]);
 $departureTotals = $departureTotalsStmt->fetch();
@@ -73,6 +128,30 @@ function mde_money(mixed $amount): string { return number_format((int)$amount) .
  <div class="col-6 col-lg-4"><div class="card p-3 h-100"><div class="text-secondary small"><?= mde_h($label) ?></div><div class="h4 mb-0 mt-2"><?= mde_h($value) ?></div></div></div>
  <?php endforeach; ?>
 </div>
+
+<div class="card p-3 mb-4">
+ <h2 class="h5">سجل الكفلاء الجدد</h2>
+ <p class="small text-secondary">يُدرج الكفيل مرة واحدة حسب أول تاريخ كفالة مسجل له خلال الشهر المحدد. الرقم التسلسلي خاص بالكفيل، حتى إذا كان له أكثر من أم أو يتيم.</p>
+ <div class="table-responsive"><table class="table table-striped align-middle">
+  <thead><tr><th>م</th><th>الكفيل</th><th>رقم الملف</th><th>النوع</th><th>تاريخ الانضمام</th><th>الأمهات والأيتام</th><th>إجمالي الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>
+  <?php if (!$newSponsorDetails): ?><tr><td colspan="10" class="text-center text-secondary">لا يوجد كفلاء جدد لهذا الشهر.</td></tr><?php endif; ?>
+  <?php foreach ($newSponsorDetails as $newSponsorIndex => $newSponsor): ?>
+   <tr>
+    <td><?= $newSponsorIndex + 1 ?></td>
+    <td><?= mde_h($newSponsor['sponsor_name']) ?><?php if ($newSponsor['sponsor_type'] === 'tree'): ?> <span class="badge text-bg-success">🌳 شجرة</span><?php endif; ?></td>
+    <td><?= mde_h($newSponsor['file_number']) ?></td>
+    <td><?= $newSponsor['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي' ?></td>
+    <td><?= mde_h($newSponsor['joining_date']) ?></td>
+    <td><?php foreach ($newSponsor['families'] as $newFamily): ?><div><strong><?= mde_h($newFamily['mother_name']) ?>:</strong> <?= mde_h(implode('، ', $newFamily['orphans'])) ?></div><?php endforeach; ?></td>
+    <td><?= mde_money($newSponsor['sponsorship_total']) ?></td>
+    <td><?= mde_money($newSponsor['services_total']) ?></td>
+    <td><?= mde_h(implode('، ', array_keys($newSponsor['entered_by']))) ?></td>
+    <td><?= mde_h(implode('، ', array_keys($newSponsor['supervisor_name']))) ?></td>
+   </tr>
+  <?php endforeach; ?>
+  </tbody></table></div>
+</div>
+
 <div class="card p-3 mb-4">
  <h2 class="h5">تفاصيل الكفالات والخدمات</h2>
  <div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>الكفيل</th><th>الأم</th><th>اليتيم</th><th>الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>
