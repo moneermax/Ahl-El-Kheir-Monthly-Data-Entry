@@ -7,6 +7,14 @@ vm.runInNewContext(fs.readFileSync('assets/js/whatsapp-import.js', 'utf8'), cont
 const parser = context.window.MDEWhatsAppParser;
 assert.ok(parser, 'parser API should be available for tests');
 
+assert.deepEqual(Array.from(parser.allocateEvenly('20000', 2)), ['10000', '10000'], 'an evenly divisible sponsorship total should be split equally');
+assert.deepEqual(Array.from(parser.allocateEvenly('4000', 2)), ['2000', '2000'], 'an evenly divisible service total should be split equally');
+assert.equal(parser.allocateEvenly('20000', 3), null, 'a total with a remainder must require manual allocation');
+assert.equal(parser.allocateEvenly('4001', 2), null, 'service totals with a remainder must require manual allocation');
+assert.deepEqual(Array.from(parser.allocateEvenly('0', 3)), ['0', '0', '0'], 'zero totals should still allocate evenly');
+assert.equal(parser.allocateEvenly('', 2), null, 'missing totals must not be allocated');
+assert.equal(parser.allocateEvenly('100', 0), null, 'allocation must not proceed without orphans');
+
 const entryMessage = 'السلام عليكم؛ الكفيلة = دعاء حسين شمس الدين حسين؛ اليتيم = رنا عبدالله محمد؛ الأم = عائشة عبدالله علي؛ كفالة 5000؛ خدمات 1000؛ 🌳؛ تاريخ الانضمام: 1/11/2026؛ عن طريق هناء خلف الله؛ مشرفه ح ميساء';
 const entryRecord = parser.entry(parser.split(entryMessage)[0], 0);
 assert.equal(entryRecord.sponsor, 'دعاء حسين شمس الدين حسين');
