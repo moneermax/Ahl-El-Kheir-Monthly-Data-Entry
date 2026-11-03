@@ -176,7 +176,7 @@ assert.deepEqual(Array.from(multiMotherNumbered.orphans), ['محمود مزمل 
 assert.equal(multiMotherNumbered.sponsorship, '60000');
 assert.equal(multiMotherNumbered.services, '6000');
 assert.equal(multiMotherNumbered.date, '2026-11-02');
-assert.match(multiMotherNumbered.notes, /مقدم كفالة سنة: سنه/);
+assert.match(multiMotherNumbered.notes, /مقدم كفالة سنة/, 'standalone annual sponsorship note is preserved');
 assert.match(multiMotherNumbered.notes, /كرتونه رمضان: 100،00لكل يتيم/);
 assert.match(multiMotherNumbered.notes, /فرحة عيدين: 100،000 لكل يتيم/);
 assert.match(multiMotherNumbered.notes, /متبقي المبلغ: 108،000 مشروع سندس واستبرق/);
