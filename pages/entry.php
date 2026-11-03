@@ -184,6 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </form>
 
 <template id="sponsorCellsTemplate">
+ <table><tbody><tr>
  <td class="sponsor-span-cell text-center sponsor-sequence-cell"><span class="fw-bold">1</span></td>
  <td class="sponsor-span-cell sponsor-main-cell">
   <label class="form-label required small mb-1">إضافة إلى كفيل موجود (اختياري)</label>
@@ -203,10 +204,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  <td class="sponsor-span-cell"><label class="form-label small" for="enteredBy">بواسطة</label><?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions); ?></td>
  <td class="sponsor-span-cell"><label class="form-label small" for="supervisorName">المشرف</label><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions); ?></td>
  <td class="sponsor-span-cell"><label class="form-label small" for="entryNotes">ملاحظات</label><textarea class="form-control form-control-sm" name="notes" id="entryNotes" rows="5"></textarea></td>
+ </tr></tbody></table>
 </template>
 
 <template id="familyTemplate">
- <tr class="orphan-row family-block" data-family="">
+ <table><tbody><tr class="orphan-row family-block" data-family="">
   <td class="mother-span-cell" rowspan="1">
    <span class="family-title visually-hidden">بيانات الأم 1</span>
    <label class="form-label required small mb-1">اسم الأم</label>
@@ -217,14 +219,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
- </tr>
+ </tr></tbody></table>
 </template>
 <template id="orphanTemplate">
- <tr class="orphan-row">
+ <table><tbody><tr class="orphan-row">
   <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
- </tr>
+ </tr></tbody></table>
 </template>
 <template id="donationTemplate">
  <div class="row g-1 mb-2 donation-row">
