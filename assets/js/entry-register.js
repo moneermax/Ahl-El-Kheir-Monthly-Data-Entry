@@ -1,7 +1,7 @@
 (() => {
  const families=document.getElementById('families');
  const familyTpl=document.getElementById('familyTemplate'),orphanTpl=document.getElementById('orphanTemplate'),donationTpl=document.getElementById('donationTemplate');
- const sponsorCells=[...document.getElementById('sponsorCellsTemplate').content.children];
+ const sponsorCells=[...document.getElementById('sponsorCellsTemplate').content.querySelector('tr').children];
  let nextFamilyId=1;
  function rowsForFamily(id){return [...families.querySelectorAll('.orphan-row[data-family="'+id+'"]')];}
  function syncMergedCells(){
@@ -17,7 +17,7 @@
   }
  }
  function addOrphan(block){
-  const id=block.dataset.family,group=rowsForFamily(id),last=group[group.length-1],row=orphanTpl.content.firstElementChild.cloneNode(true);
+  const id=block.dataset.family,group=rowsForFamily(id),last=group[group.length-1],row=orphanTpl.content.querySelector('tr').cloneNode(true);
   row.dataset.family=id;last.after(row);
  }
  function reindex(){
@@ -41,7 +41,7 @@
   });
   syncMergedCells();
  }
- families.append(familyTpl.content.cloneNode(true));
+ families.append(familyTpl.content.querySelector('tr').cloneNode(true));
  const firstBlock=families.querySelector('.family-block');firstBlock.dataset.family=String(nextFamilyId++);
  syncMergedCells();
  const donations=document.getElementById('donations');
@@ -61,8 +61,8 @@
   return errors.length===0;
  }
  function addFamily(){
-  const fragment=familyTpl.content.cloneNode(true),block=fragment.querySelector('.family-block');
-  block.dataset.family=String(nextFamilyId++);families.append(fragment);reindex();updateAmountTotals();
+  const block=familyTpl.content.querySelector('tr').cloneNode(true);
+  block.dataset.family=String(nextFamilyId++);families.append(block);reindex();updateAmountTotals();
  }
  function syncSponsorMode(){
   const isExisting=!!existing.value;sponsorName.required=!isExisting;sponsorName.disabled=isExisting;
