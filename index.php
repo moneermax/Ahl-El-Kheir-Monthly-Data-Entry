@@ -30,6 +30,8 @@ unset($_SESSION['mde_flash']);
         .nav-link.active{background:#ffffff20;border-radius:.5rem}
         .page-wrap{max-width:1200px}.card{border:0;box-shadow:0 3px 18px #172b3a0d}
         .required:after{content:' *';color:#c0392b}
+        .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
+        .mde-person-dropdown .dropdown-item{text-align:right}
     </style>
 </head>
 <body>
@@ -53,5 +55,6 @@ unset($_SESSION['mde_flash']);
  <?php require $pages[$page]['file']; ?>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/person-dropdown.js"></script>
 </body>
 </html>
