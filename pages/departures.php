@@ -4,11 +4,9 @@ declare(strict_types=1);
 $error = '';
 $old = $_POST ?? [];
 $sponsors = $pdo->query(
-    'SELECT s.id, s.sponsor_name, s.file_number, s.is_active,
-            (SELECT COUNT(*) FROM mde_sponsorships ms
-             WHERE ms.sponsor_id = s.id AND ms.status = \'active\') AS active_sponsorships
-     FROM mde_sponsors s
-     ORDER BY s.sponsor_name'
+    'SELECT id, sponsor_name, file_number, is_active
+     FROM mde_sponsors
+     ORDER BY sponsor_name'
 )->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
