@@ -153,6 +153,36 @@ assert.equal(splitRecords.length, 2, 'multiple sponsor records should be separat
 assert.equal(parser.entry(splitRecords[0], 0).sponsor, 'ناصر كباشي احمد');
 assert.equal(parser.entry(splitRecords[1], 1).sponsor, 'دعاء حسين');
 
+const multiMotherNumberedMessage = `الكفيل جلال سعيد جلال عشري❤️‍🔥
+الام: مروة محمد نصر
+1-اليتيم :محمود مزمل محمد
+الام: وصال هاشم سعد
+2_اليتيم:صابرين ادم ادريس
+3-اليتيم:رناد ادم إدريس
+الكفالة: 60،000
+الخدمات 6،000
+تاريخ الانضمام  2/11/2026
+مقدم كفالة سنه
+كرتونه رمضان100،00لكل يتيم📦
+فرحة عيدين 100،000 لكل يتيم❤️
+متبقي المبلغ 108،000 مشروع سندس واستبرق👻`;
+const multiMotherNumbered = parser.entry(parser.split(multiMotherNumberedMessage)[0], 0);
+assert.equal(multiMotherNumbered.families.length, 2, 'the source message has two distinct mothers');
+assert.equal(multiMotherNumbered.families[0].mother, 'مروة محمد نصر');
+assert.deepEqual(Array.from(multiMotherNumbered.families[0].orphans), ['محمود مزمل محمد'], 'the first mother has one orphan');
+assert.equal(multiMotherNumbered.families[1].mother, 'وصال هاشم سعد');
+assert.deepEqual(Array.from(multiMotherNumbered.families[1].orphans), ['صابرين ادم ادريس', 'رناد ادم إدريس'], 'the second mother has two orphans, including underscore-numbered labels');
+assert.deepEqual(Array.from(multiMotherNumbered.orphans), ['محمود مزمل محمد', 'صابرين ادم ادريس', 'رناد ادم إدريس']);
+assert.equal(multiMotherNumbered.sponsorship, '60000');
+assert.equal(multiMotherNumbered.services, '6000');
+assert.equal(multiMotherNumbered.date, '2026-11-02');
+assert.match(multiMotherNumbered.notes, /مقدم كفالة سنة: سنه/);
+assert.match(multiMotherNumbered.notes, /كرتونه رمضان: 100،00لكل يتيم/);
+assert.match(multiMotherNumbered.notes, /فرحة عيدين: 100،000 لكل يتيم/);
+assert.match(multiMotherNumbered.notes, /متبقي المبلغ: 108،000 مشروع سندس واستبرق/);
+assert.deepEqual(Array.from(parser.allocateEvenly(multiMotherNumbered.sponsorship, multiMotherNumbered.orphans.length)), ['20000', '20000', '20000'], 'the 60000 sponsorship total must allocate across all three orphans');
+assert.deepEqual(Array.from(parser.allocateEvenly(multiMotherNumbered.services, multiMotherNumbered.orphans.length)), ['2000', '2000', '2000'], 'the 6000 services total must allocate across all three orphans');
+
 const departureMessage = 'الكافل: ناصر كباشي احمد؛ رقم الملف 2026؛ تاريخ المغادرة: 2026-11-02؛ آخر سداد: 10/2026؛ عدد الأيتام: 2؛ قيمة الكفالة: 20000؛ قيمة الخدمات: 4000؛ سبب المغادرة: توقف الكفالة';
 const departure = parser.departure(parser.split(departureMessage)[0], 0);
 assert.equal(departure.sponsor, 'ناصر كباشي احمد');
