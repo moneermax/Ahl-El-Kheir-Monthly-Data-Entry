@@ -36,6 +36,71 @@ assert.equal(taaMarbutaVariant.families[0].mother, 'عائشة محمد', 'mothe
 const missingMother = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اليتيم سارة محمد', 0);
 assert.equal(parser.hasMotherNames(missingMother), false, 'a record without a mother name must not be loadable');
 
+
+const whatsappExample1 = `الكفيل : ناصر كباشي احمد  ملف 2026
+1/اليتيم : عائشه محمد
+2/ اليتيم : عبدالحميد محمد
+المبلغ : 20000
+خدمات : 4000
+تاريخ الانضمام: 1/11/2026
+❤️‍🔥🧨
+عن طريق مها
+مشرفه ح مها`;
+const example1 = parser.entry(parser.split(whatsappExample1)[0], 0);
+assert.equal(example1.sponsor, 'ناصر كباشي احمد', 'example 1 sponsor must not absorb the file number');
+assert.equal(example1.file, '2026', 'example 1 file number must be separate');
+assert.deepEqual(Array.from(example1.orphans), ['عائشه محمد', 'عبدالحميد محمد'], 'numbered orphan labels should both be extracted');
+assert.equal(example1.sponsorship, '20000');
+assert.equal(example1.services, '4000');
+assert.equal(example1.date, '2026-11-01');
+assert.equal(example1.entered, 'مها');
+assert.equal(example1.supervisor, 'ح مها');
+assert.equal(parser.hasMotherNames(example1), false, 'example 1 has no mother label and must be blocked');
+
+const whatsappExample2 = `الكفيل :سناء عبدالناصر بابكر
+الام :رويدا بشير السماني
+ الطفل :لنا
+ المبلغ :10.000
+الخدمات 2000
+التاريخ :2/11/2026
+❤️‍🔥
+عن طريق لمياء
+مشرفه ح هبه خلف الله`;
+const example2 = parser.entry(parser.split(whatsappExample2)[0], 0);
+assert.equal(example2.sponsor, 'سناء عبدالناصر بابكر');
+assert.equal(example2.families[0].mother, 'رويدا بشير السماني', 'unhamzated mother label should be parsed');
+assert.deepEqual(Array.from(example2.orphans), ['لنا'], 'child label should be treated as orphan name');
+assert.equal(example2.sponsorship, '10000', 'thousands punctuation should be normalized');
+assert.equal(example2.services, '2000');
+assert.equal(example2.date, '2026-11-02');
+assert.equal(example2.entered, 'لمياء');
+assert.equal(example2.supervisor, 'ح هبه خلف الله');
+assert.equal(parser.hasMotherNames(example2), true);
+
+const whatsappExample3 = `الكفيل :ممدوح عصمت عبدالله
+ الام :وصال هاشم سعد
+ الطفل :تفاؤل
+ المبلغ :20.000
+الخدمات :2000
+التاريخ :2/11/2026
+❤️‍🔥
+ التواصل عن طريق اماني محي الدين ابو الفتوح
+ اي مبلغ اضافي يوضع لتغطية الالتزامات السنويه
+عن طريق لمياء
+مشرفه ح مها`;
+const example3 = parser.entry(parser.split(whatsappExample3)[0], 0);
+assert.equal(example3.sponsor, 'ممدوح عصمت عبدالله');
+assert.equal(example3.families[0].mother, 'وصال هاشم سعد');
+assert.deepEqual(Array.from(example3.orphans), ['تفاؤل']);
+assert.equal(example3.sponsorship, '20000');
+assert.equal(example3.services, '2000');
+assert.equal(example3.date, '2026-11-02');
+assert.equal(example3.entered, 'لمياء', 'the final operational entry-by label should win over the contact phrase');
+assert.equal(example3.supervisor, 'ح مها');
+assert.match(example3.notes, /التواصل عن طريق: اماني محي الدين ابو الفتوح/, 'contact details should be preserved in notes');
+assert.match(example3.notes, /أي مبلغ إضافي يوضع لتغطية الالتزامات السنويه/, 'additional-amount instruction should be preserved in notes');
+assert.equal(parser.hasMotherNames(example3), true);
+
 const groupedMessage = 'الكفيل: شركة الخير؛ اليتيم: سعيد وائل؛ الأم: عائشة محمد؛ اليتيم: أحمد محمد؛ الأم: أمل علي؛ اليتيم: سارة محمد';
 const grouped = parser.entry(parser.split(groupedMessage)[0], 0);
 assert.equal(grouped.families.length, 2, 'multiple mothers should remain separate families');
