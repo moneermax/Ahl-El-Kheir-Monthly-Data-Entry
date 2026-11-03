@@ -14,6 +14,8 @@ assert.equal(parser.allocateEvenly('4001', 2), null, 'service totals with a rema
 assert.deepEqual(Array.from(parser.allocateEvenly('0', 3)), ['0', '0', '0'], 'zero totals should still allocate evenly');
 assert.equal(parser.allocateEvenly('', 2), null, 'missing totals must not be allocated');
 assert.equal(parser.allocateEvenly('100', 0), null, 'allocation must not proceed without orphans');
+assert.equal(parser.allocateEvenly('-100', 2), null, 'negative totals must not be allocated');
+assert.equal(parser.allocateEvenly('9007199254740992', 2), null, 'unsafe integer totals must not be allocated');
 
 const entryMessage = 'السلام عليكم؛ الكفيلة = دعاء حسين شمس الدين حسين؛ اليتيم = رنا عبدالله محمد؛ الأم = عائشة عبدالله علي؛ كفالة 5000؛ خدمات 1000؛ 🌳؛ تاريخ الانضمام: 1/11/2026؛ عن طريق هناء خلف الله؛ مشرفه ح ميساء';
 const entryRecord = parser.entry(parser.split(entryMessage)[0], 0);
