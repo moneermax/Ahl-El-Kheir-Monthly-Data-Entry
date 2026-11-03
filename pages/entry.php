@@ -169,18 +169,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </form>
 <template id="familyTemplate">
  <section class="border rounded-3 p-3 mb-3 family-block bg-light">
-  <div class="d-flex justify-content-between align-items-center mb-2"><strong class="family-title">بيانات الأم</strong><button type="button" class="btn btn-sm btn-outline-danger remove-family">حذف الأسرة</button></div>
-  <label class="form-label required">اسم الأم</label><input class="form-control mb-3 mother-name" required>
-  <div class="orphans"></div><button type="button" class="btn btn-sm btn-outline-primary add-orphan">إضافة يتيم لهذه الأم</button>
+  <div class="row g-2 align-items-end mb-3">
+   <div class="col-md-8"><label class="form-label required mb-1">اسم الأم</label><input class="form-control mother-name" required></div>
+   <div class="col-md-4 d-flex justify-content-md-end gap-2">
+    <span class="badge text-bg-secondary align-self-center family-title">الأم</span>
+    <button type="button" class="btn btn-sm btn-outline-danger remove-family">حذف الأسرة</button>
+   </div>
+  </div>
+  <div class="table-responsive">
+   <table class="table table-sm table-bordered table-hover align-middle mb-2 orphan-entry-table">
+    <thead class="table-light"><tr><th style="width:48px">#</th><th>اسم اليتيم</th><th style="width:190px">قيمة الكفالة</th><th style="width:170px">الخدمات</th><th style="width:76px">إجراء</th></tr></thead>
+    <tbody class="orphans"></tbody>
+   </table>
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-primary add-orphan">إضافة يتيم لهذه الأم</button>
  </section>
 </template>
 <template id="orphanTemplate">
- <div class="row g-2 align-items-end mb-2 orphan-row">
-  <div class="col-md-6"><label class="form-label required">اسم اليتيم</label><input class="form-control orphan-name" required></div>
-  <div class="col-md-2"><label class="form-label required">قيمة الكفالة</label><input type="number" min="0" step="1" class="form-control orphan-amount" value="0" required></div>
-  <div class="col-md-2"><label class="form-label">الخدمات</label><input type="number" min="0" step="1" class="form-control orphan-services" value="0"></div>
-  <div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 remove-orphan">إزالة</button></div>
- </div>
+ <tr class="orphan-row">
+  <td class="text-center orphan-number"></td>
+  <td><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required></td>
+  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
+  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
+  <td><button type="button" class="btn btn-sm btn-outline-danger w-100 remove-orphan" aria-label="إزالة اليتيم">×</button></td>
+ </tr>
 </template>
 <template id="donationTemplate"><div class="row g-2 mb-2 donation-row"><div class="col-md-8"><input class="form-control donation-type" placeholder="نوع التبرع"></div><div class="col-md-3"><input type="number" min="0" step="1" class="form-control donation-amount" placeholder="القيمة"></div><div class="col-md-1"><button type="button" class="btn btn-outline-danger remove-donation">×</button></div></div></template>
 <script>
@@ -193,6 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    block.querySelector('.family-title').textContent='بيانات الأم '+(fi+1);
    block.querySelector('.mother-name').name=`families[${fi}][mother_name]`;
    [...block.querySelectorAll('.orphan-row')].forEach((row,oi)=>{
+    row.querySelector('.orphan-number').textContent=oi+1;
     row.querySelector('.orphan-name').name=`families[${fi}][orphans][${oi}][name]`;
     row.querySelector('.orphan-amount').name=`families[${fi}][orphans][${oi}][amount]`;
     row.querySelector('.orphan-services').name=`families[${fi}][orphans][${oi}][services]`;
