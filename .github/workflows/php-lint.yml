@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - '**/*.php'
+      - '**/*.js'
       - 'composer.json'
       - '.github/workflows/php-lint.yml'
 
