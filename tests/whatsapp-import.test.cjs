@@ -68,7 +68,7 @@ assert.equal(numberedMotherRecord.supervisor, 'مها', 'the role descriptor ح 
 assert.equal(parser.hasMotherNames(numberedMotherRecord), true, 'the exact user message must be loadable after extracting its mother');
 
 
-const continuationOrphansMessage = \`الكفيلة: رندا سرالختم خوجلي
+const continuationOrphansMessage = `الكفيلة: رندا سرالختم خوجلي
 ملف 24
 الام: خالدة بابكر عبدالعال
 اليتيم: تقي سيف الدين
@@ -94,7 +94,7 @@ const continuationOrphansMessage = \`الكفيلة: رندا سرالختم خ�
 الخدمات :22000
 التاريخ 3/11/2026
 عن طريق ميساء
-مشرفة ح ميساء\`;
+مشرفة ح ميساء`;
 const continuationRecord = parser.entry(parser.split(continuationOrphansMessage)[0], 0);
 assert.equal(continuationRecord.families.length, 9, 'the source message has nine mothers');
 assert.deepEqual(Array.from(continuationRecord.families[1].orphans), ['محمد بابكر', 'افضال بابكر'], 'an indented orphan continuation belongs to the preceding mother');
