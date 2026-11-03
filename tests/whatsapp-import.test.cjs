@@ -27,7 +27,7 @@ assert.equal(entryRecord.services, '1000');
 assert.equal(entryRecord.type, 'tree');
 assert.equal(entryRecord.date, '2026-11-01');
 assert.equal(entryRecord.entered, 'هناء خلف الله');
-assert.equal(entryRecord.supervisor, 'ح ميساء');
+assert.equal(entryRecord.supervisor, 'ميساء', 'the ح after مشرفه is a role descriptor, not part of the supervisor name');
 
 
 const inlineFieldsMessage = 'الكفيل ناصر كباشي احمد ملف 2026 اسم الوالدة عائشة محمد اسم اليتيم سارة محمد';
@@ -64,7 +64,7 @@ assert.equal(numberedMotherRecord.sponsorship, '20000');
 assert.equal(numberedMotherRecord.services, '4000');
 assert.equal(numberedMotherRecord.date, '2026-11-01');
 assert.equal(numberedMotherRecord.entered, 'مها');
-assert.equal(numberedMotherRecord.supervisor, 'ح مها');
+assert.equal(numberedMotherRecord.supervisor, 'مها', 'the role descriptor ح must not be included in the supervisor name');
 assert.equal(parser.hasMotherNames(numberedMotherRecord), true, 'the exact user message must be loadable after extracting its mother');
 
 const missingMother = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اليتيم سارة محمد', 0);
@@ -88,7 +88,7 @@ assert.equal(example1.sponsorship, '20000');
 assert.equal(example1.services, '4000');
 assert.equal(example1.date, '2026-11-01');
 assert.equal(example1.entered, 'مها');
-assert.equal(example1.supervisor, 'ح مها');
+assert.equal(example1.supervisor, 'مها');
 assert.equal(parser.hasMotherNames(example1), false, 'example 1 has no mother label and must be blocked');
 
 const whatsappExample2 = `الكفيل :سناء عبدالناصر بابكر
@@ -108,7 +108,7 @@ assert.equal(example2.sponsorship, '10000', 'thousands punctuation should be nor
 assert.equal(example2.services, '2000');
 assert.equal(example2.date, '2026-11-02');
 assert.equal(example2.entered, 'لمياء');
-assert.equal(example2.supervisor, 'ح هبه خلف الله');
+assert.equal(example2.supervisor, 'هبه خلف الله');
 assert.equal(parser.hasMotherNames(example2), true);
 
 const whatsappExample3 = `الكفيل :ممدوح عصمت عبدالله
@@ -130,10 +130,13 @@ assert.equal(example3.sponsorship, '20000');
 assert.equal(example3.services, '2000');
 assert.equal(example3.date, '2026-11-02');
 assert.equal(example3.entered, 'لمياء', 'the final operational entry-by label should win over the contact phrase');
-assert.equal(example3.supervisor, 'ح مها');
+assert.equal(example3.supervisor, 'مها');
 assert.match(example3.notes, /التواصل عن طريق: اماني محي الدين ابو الفتوح/, 'contact details should be preserved in notes');
 assert.match(example3.notes, /أي مبلغ إضافي يوضع لتغطية الالتزامات السنويه/, 'additional-amount instruction should be preserved in notes');
 assert.equal(parser.hasMotherNames(example3), true);
+
+const supervisorWithoutDescriptor = parser.entry('الكفيل: اختبار؛ الأم: أم اختبار؛ اليتيم: يتيم اختبار؛ مشرفه مها', 0);
+assert.equal(supervisorWithoutDescriptor.supervisor, 'مها', 'the parser should also accept a supervisor name without the ح descriptor');
 
 const groupedMessage = 'الكفيل: شركة الخير؛ اليتيم: سعيد وائل؛ الأم: عائشة محمد؛ اليتيم: أحمد محمد؛ الأم: أمل علي؛ اليتيم: سارة محمد';
 const grouped = parser.entry(parser.split(groupedMessage)[0], 0);
