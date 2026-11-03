@@ -213,8 +213,8 @@ if ($q !== '') {
       <div class="col-md-2"><label class="form-label small">تاريخ الإدخال</label><input type="date" class="form-control" name="entry_date" value="<?=mde_h($link['entry_date'])?>" required></div>
       <div class="col-md-2"><label class="form-label small">الكفالة</label><input type="number" min="0" step="1" class="form-control" name="sponsorship_amount" value="<?=(int)$link['sponsorship_amount']?>" required></div>
       <div class="col-md-2"><label class="form-label small">الخدمات</label><input type="number" min="0" step="1" class="form-control" name="services_amount" value="<?=(int)$link['services_amount']?>" required></div>
-      <div class="col-md-2"><label class="form-label small">بواسطة</label><select class="form-select" name="entered_by"><option value="">—</option><?php foreach($mdeEnteredByOptions as $person): ?><option value="<?=mde_h($person)?>" <?=$link['entered_by']===$person?'selected':''?>><?=mde_h($person)?></option><?php endforeach; ?></select></div>
-      <div class="col-md-2"><label class="form-label small">المشرف</label><select class="form-select" name="supervisor_name"><option value="">—</option><?php foreach($mdeSupervisorOptions as $person): ?><option value="<?=mde_h($person)?>" <?=$link['supervisor_name']===$person?'selected':''?>><?=mde_h($person)?></option><?php endforeach; ?></select></div>
+      <div class="col-md-2"><label class="form-label small">بواسطة</label><?php mde_person_dropdown('manageEnteredBy', 'entered_by', $mdeEnteredByOptions, '—', (string) ($link['entered_by'] ?? '')); ?></div>
+      <div class="col-md-2"><label class="form-label small">المشرف</label><?php mde_person_dropdown('manageSupervisor', 'supervisor_name', $mdeSupervisorOptions, '—', (string) ($link['supervisor_name'] ?? '')); ?></div>
       <div class="col-md-2"><label class="form-label small">ملاحظات</label><input class="form-control" name="notes" value="<?=mde_h($link['monthly_notes'])?>"></div>
      </div>
      <button class="btn btn-outline-primary btn-sm mt-3" type="submit">حفظ تعديل الشهر</button>
