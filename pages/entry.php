@@ -147,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <div class="table-responsive entry-register-wrap">
 <table class="table table-bordered table-sm align-middle entry-register mb-2" id="entryRegister">
+ <colgroup><col style="width:48px"><col style="width:220px"><col style="width:135px"><col style="width:185px"><col style="width:220px"><col style="width:125px"><col style="width:110px"><col style="width:155px"><col style="width:95px"><col style="width:125px"><col style="width:125px"><col style="width:230px"></colgroup>
  <thead>
   <tr>
    <th rowspan="2" class="text-center">الرقم</th>
@@ -185,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <template id="sponsorCellsTemplate">
  <table><tbody><tr>
- <td class="sponsor-span-cell text-center sponsor-sequence-cell"><span class="fw-bold">1</span></td>
+ <td class="sponsor-span-cell text-center sponsor-sequence-cell"><span class="fw-bold" title="يُحدَّد الرقم التسلسلي في التقرير الشهري">—</span></td>
  <td class="sponsor-span-cell sponsor-main-cell">
   <label class="form-label required small mb-1">إضافة إلى كفيل موجود (اختياري)</label>
   <select class="form-select form-select-sm mb-2" name="existing_sponsor_id" id="existingSponsor"><option value="">— تسجيل كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select>
