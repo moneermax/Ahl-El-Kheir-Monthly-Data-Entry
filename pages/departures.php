@@ -254,11 +254,11 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         </div>
         <div class="col-md-6">
             <label class="form-label" for="enteredBy">بواسطة</label>
-            <select class="form-select" name="entered_by" id="enteredBy"><option value="">اختر الاسم</option><?php foreach ($mdeEnteredByOptions as $person): ?><option value="<?= mde_h($person) ?>" <?= ($old['entered_by'] ?? '') === $person ? 'selected' : '' ?>><?= mde_h($person) ?></option><?php endforeach; ?></select>
+            <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'اختر الاسم', (string) ($old['entered_by'] ?? '')); ?>
         </div>
         <div class="col-md-6">
             <label class="form-label" for="supervisorName">المشرف</label>
-            <select class="form-select" name="supervisor_name" id="supervisorName"><option value="">اختر الاسم</option><?php foreach ($mdeSupervisorOptions as $person): ?><option value="<?= mde_h($person) ?>" <?= ($old['supervisor_name'] ?? '') === $person ? 'selected' : '' ?>><?= mde_h($person) ?></option><?php endforeach; ?></select>
+            <?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'اختر الاسم', (string) ($old['supervisor_name'] ?? '')); ?>
         </div>
         <div class="col-12">
             <label class="form-label" for="departureReason">سبب المغادرة</label>
