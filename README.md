@@ -31,6 +31,7 @@ The application opens directly at its entry page. There is no login system, as r
 - Record monthly sponsorship and service amounts per sponsorship. When a source gives a combined family total, split it into per-orphan amounts and ensure the per-orphan values add back to the supplied total.
 - Search by sponsor, mother, or orphan and edit master data or a specific monthly entry from the data-management page. Edits are recorded in an audit log; records are not physically deleted.
 - Record other donations separately.
+- The entry form follows the source-message workflow: sponsor and file details, mothers and orphans, combined-total checks and per-orphan allocation, then sponsor type, joining date, entry operator, and supervisor. Optional other donations remain a separate section. This is a presentation-only change; database fields, validation, and report/export column mappings are unchanged.
 - Record sponsor departure with date, file number, last-paid month, orphan count, and financial snapshots. Active sponsorships are ended without deleting historical records.
 - Monthly reports and PDF, XLSX, and CSV exports.
 
