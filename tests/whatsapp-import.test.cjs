@@ -67,6 +67,48 @@ assert.equal(numberedMotherRecord.entered, 'مها');
 assert.equal(numberedMotherRecord.supervisor, 'مها', 'the role descriptor ح must not be included in the supervisor name');
 assert.equal(parser.hasMotherNames(numberedMotherRecord), true, 'the exact user message must be loadable after extracting its mother');
 
+
+const continuationOrphansMessage = \`الكفيلة: رندا سرالختم خوجلي
+ملف 24
+الام: خالدة بابكر عبدالعال
+اليتيم: تقي سيف الدين
+الام: زبيدة الحاج احمد
+اليتيم: محمد بابكر
+         افضال بابكر
+الام: انتصار قسم السيد
+اليتيم: مزار صبري
+الام: نجلاء موسي احمد
+اليتيم: رتاج مهند كمال
+الام: مني الخير بابكر
+اليتيم: علي عصام علي
+الام: سارة محمد الحسن
+اليتيم: احمد نصر الدين
+الام: انعام علي سرالختم
+اليتيم: مدثر جمال الدين
+         متاب جمال الدين
+الام: آمنة الشريف طيفور
+اليتيم: علي محمد احمد
+الام: افكار هاشم مجذوب
+اليتيم: متوكل محمد الشيخ
+المبلغ: 220000
+الخدمات :22000
+التاريخ 3/11/2026
+عن طريق ميساء
+مشرفة ح ميساء\`;
+const continuationRecord = parser.entry(parser.split(continuationOrphansMessage)[0], 0);
+assert.equal(continuationRecord.families.length, 9, 'the source message has nine mothers');
+assert.deepEqual(Array.from(continuationRecord.families[1].orphans), ['محمد بابكر', 'افضال بابكر'], 'an indented orphan continuation belongs to the preceding mother');
+assert.deepEqual(Array.from(continuationRecord.families[6].orphans), ['مدثر جمال الدين', 'متاب جمال الدين'], 'a second indented orphan continuation belongs to its preceding mother');
+assert.equal(continuationRecord.orphans.length, 11, 'all eleven orphans must be counted');
+assert.equal(continuationRecord.sponsorship, '220000');
+assert.equal(continuationRecord.services, '22000');
+assert.deepEqual(Array.from(parser.allocateEvenly(continuationRecord.sponsorship, continuationRecord.orphans.length)), Array(11).fill('20000'), 'the combined sponsorship total must split into 20,000 per orphan');
+assert.deepEqual(Array.from(parser.allocateEvenly(continuationRecord.services, continuationRecord.orphans.length)), Array(11).fill('2000'), 'the combined services total must split into 2,000 per orphan');
+assert.equal(continuationRecord.date, '2026-11-03');
+assert.equal(continuationRecord.entered, 'ميساء');
+assert.equal(continuationRecord.supervisor, 'ميساء');
+assert.equal(parser.hasMotherNames(continuationRecord), true, 'the complete message must be eligible for loading');
+
 const missingMother = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اليتيم سارة محمد', 0);
 assert.equal(parser.hasMotherNames(missingMother), false, 'a record without a mother name must not be loadable');
 
