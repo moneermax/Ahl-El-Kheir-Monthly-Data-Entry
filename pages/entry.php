@@ -156,8 +156,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="col-md-4"><label class="form-label required" for="entryDate">تاريخ الانضمام</label><input type="date" class="form-control" name="entry_date" id="entryDate" required value="<?= date('Y-m-d') ?>"></div>
  </div>
  <div class="row g-3 mt-1">
-  <div class="col-md-6"><label class="form-label" for="enteredBy">بواسطة</label><select class="form-select" name="entered_by" id="enteredBy"><option value="">اختر الاسم</option><?php foreach ($mdeEnteredByOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
-  <div class="col-md-6"><label class="form-label" for="supervisorName">المشرف</label><select class="form-select" name="supervisor_name" id="supervisorName"><option value="">اختر الاسم</option><?php foreach ($mdeSupervisorOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
+  <div class="col-md-6"><label class="form-label" for="enteredBy">بواسطة</label><?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions); ?></div>
+  <div class="col-md-6"><label class="form-label" for="supervisorName">المشرف</label><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions); ?></div>
  </div>
 </div>
 <div class="row g-3 mb-3">
