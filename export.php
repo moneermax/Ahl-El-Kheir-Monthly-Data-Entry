@@ -198,7 +198,7 @@ if ($format === 'pdf') {
     $html .= '<h3>الكفالات والخدمات</h3><table border="1" cellpadding="4"><thead><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>نوع الكفيل</th><th>الأم</th><th>اليتيم</th><th>قيمة الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>';
     foreach ($rows as $row) {
         $html .= '<tr>';
-        foreach ([$row['sponsor_name'], ($row['sponsor_type'] === 'tree' ? '🌳 شجرة' : 'فردي'), $row['mother_name'], $row['orphan_name'], number_format((int)$row['sponsorship_amount']), number_format((int)$row['services_amount']), $row['entered_by'], $row['supervisor_name']] as $value) {
+        foreach ([$row['sponsor_name'], ($row['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي'), $row['mother_name'], $row['orphan_name'], number_format((int)$row['sponsorship_amount']), number_format((int)$row['services_amount']), $row['entered_by'], $row['supervisor_name']] as $value) {
             $html .= '<td>' . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . '</td>';
         }
         $html .= '</tr>';
