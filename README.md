@@ -33,6 +33,8 @@ The application opens directly at its entry page. There is no login system, as r
 - Record other donations separately.
 - The entry form follows the source-message workflow: sponsor and file details, mothers and orphans, combined-total checks and per-orphan allocation, then sponsor type, joining date, entry operator, and supervisor. Optional other donations remain a separate section. This is a presentation-only change; database fields, validation, and report/export column mappings are unchanged.
 - Record sponsor departure with date, file number, last-paid month, orphan count, and financial snapshots. Active sponsorships are ended without deleting historical records.
+- Paste WhatsApp messages into either the new-sponsorship or sponsor-departure form. A shared browser-local parser extracts recognizable fields, separates multiple sponsor records into a review queue, and preserves the remaining queue across individual saves in the current browser tab. Nothing is sent to an external AI/service and parsing never saves data.
+- WhatsApp extraction is deliberately conservative: missing or ambiguous fields remain for manual review. Combined sponsorship/service totals are loaded only as reference totals; per-orphan allocations are never invented and must be entered and reconciled manually. Review every extracted value and use the form's normal Save button.
 - Monthly reports and PDF, XLSX, and CSV exports.
 
 ## Database
