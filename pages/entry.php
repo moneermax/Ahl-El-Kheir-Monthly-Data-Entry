@@ -2,12 +2,17 @@
 declare(strict_types=1);
 
 $error = '';
-$existingSponsors = $pdo->query('SELECT id, sponsor_name FROM mde_sponsors ORDER BY sponsor_name')->fetchAll();
+require_once __DIR__ . '/../includes/reference_options.php';
+$existingSponsors = $pdo->query('SELECT id, sponsor_name, sponsor_type FROM mde_sponsors ORDER BY sponsor_name')->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         mde_verify_csrf();
         $sponsorName = trim((string) ($_POST['sponsor_name'] ?? ''));
         $fileNumber = trim((string) ($_POST['file_number'] ?? ''));
+        $sponsorType = (string) ($_POST['sponsor_type'] ?? 'individual');
+        if (!in_array($sponsorType, ['individual', 'tree'], true)) {
+            throw new InvalidArgumentException('اختر نوع الكفيل بصورة صحيحة.');
+        }
         $selectedSponsorId = filter_var($_POST['existing_sponsor_id'] ?? null, FILTER_VALIDATE_INT);
         $entryDate = (string) ($_POST['entry_date'] ?? '');
         $enteredBy = trim((string) ($_POST['entered_by'] ?? ''));
@@ -28,10 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
             }
             $sponsorId = $selectedSponsorId;
-            $pdo->prepare('UPDATE mde_sponsors SET is_active = 1, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$fileNumber, $sponsorId]);
+            $pdo->prepare('UPDATE mde_sponsors SET is_active = 1, sponsor_type = ?, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$sponsorType, $fileNumber, $sponsorId]);
         } else {
-            $stmt = $pdo->prepare('INSERT INTO mde_sponsors (sponsor_name, file_number) VALUES (?, ?)');
-            $stmt->execute([$sponsorName, $fileNumber ?: null]);
+            $stmt = $pdo->prepare('INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number) VALUES (?, ?, ?)');
+            $stmt->execute([$sponsorName, $sponsorType, $fileNumber ?: null]);
             $sponsorId = (int) $pdo->lastInsertId();
         }
 
@@ -97,18 +102,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <form method="post" class="card p-3 p-md-4">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
 <div class="row g-3 mb-4">
- <div class="col-md-6"><label class="form-label">إضافة إلى كفيل موجود (اختياري)</label><select class="form-select" name="existing_sponsor_id" id="existingSponsor"><option value="">— تسجيل كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select></div>
+ <div class="col-md-6"><label class="form-label">إضافة إلى كفيل موجود (اختياري)</label><select class="form-select" name="existing_sponsor_id" id="existingSponsor"><option value="">— تسجيل كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select></div>
  <div class="col-md-6"><label class="form-label" id="sponsorNameLabel">اسم الكفيل الجديد</label><input class="form-control" name="sponsor_name" id="sponsorName" maxlength="255"></div>
+ <div class="col-md-3"><label class="form-label required" for="sponsorType">نوع الكفيل</label><select class="form-select" name="sponsor_type" id="sponsorType" required><option value="individual">فردي</option><option value="tree">🌳 شجرة (داخلي)</option></select></div>
  <div class="col-md-3"><label class="form-label">رقم الملف (إن وجد)</label><input class="form-control" name="file_number" maxlength="100"></div>
  <div class="col-md-3"><label class="form-label required">تاريخ الانضمام</label><input type="date" class="form-control" name="entry_date" required value="<?= date('Y-m-d') ?>"></div>
- <div class="col-md-3"><label class="form-label">بواسطة</label><input class="form-control" name="entered_by"></div>
- <div class="col-md-6"><label class="form-label">المشرف</label><input class="form-control" name="supervisor_name"></div>
- <div class="col-12"><label class="form-label">ملاحظات عامة</label><textarea class="form-control" name="notes" rows="2"></textarea></div>
 </div>
 <div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">الأمهات والأيتام</h2><button type="button" class="btn btn-outline-success btn-sm" id="addFamily">إضافة أم أخرى</button></div>
 <div id="families"></div>
 <hr><div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">تبرعات أخرى (اختياري)</h2><button type="button" class="btn btn-outline-secondary btn-sm" id="addDonation">إضافة تبرع</button></div>
 <div id="donations"></div>
+<div class="row g-3 mt-2">
+ <div class="col-md-6"><label class="form-label" for="enteredBy">بواسطة</label><select class="form-select" name="entered_by" id="enteredBy"><option value="">اختر الاسم</option><?php foreach ($mdeEnteredByOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
+ <div class="col-md-6"><label class="form-label" for="supervisorName">المشرف</label><select class="form-select" name="supervisor_name" id="supervisorName"><option value="">اختر الاسم</option><?php foreach ($mdeSupervisorOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
+ <div class="col-12"><label class="form-label" for="entryNotes">ملاحظات عامة</label><textarea class="form-control" name="notes" id="entryNotes" rows="2"></textarea></div>
+</div>
 <div class="mt-4"><button class="btn btn-success px-5" type="submit">حفظ البيانات</button></div>
 </form>
 <template id="familyTemplate">
@@ -156,8 +164,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if(e.target.matches('.remove-orphan')){const block=e.target.closest('.family-block');e.target.closest('.orphan-row').remove();if(!block.querySelector('.orphan-row'))addOrphan(block);reindex();}
   if(e.target.matches('.remove-donation')){e.target.closest('.donation-row').remove();reindex();}
  });
- const existing=document.getElementById('existingSponsor'), sponsorName=document.getElementById('sponsorName');
- function syncSponsorMode(){const isExisting=!!existing.value;sponsorName.required=!isExisting;sponsorName.disabled=isExisting;if(isExisting)sponsorName.value='';}
+ const existing=document.getElementById('existingSponsor'), sponsorName=document.getElementById('sponsorName'), sponsorType=document.getElementById('sponsorType');
+ function syncSponsorMode(){
+  const isExisting=!!existing.value;
+  sponsorName.required=!isExisting;
+  sponsorName.disabled=isExisting;
+  if(isExisting){
+   sponsorName.value='';
+   const option=existing.selectedOptions[0];
+   sponsorType.value=option.dataset.type || 'individual';
+  }else{
+   sponsorType.value='individual';
+  }
+ }
  existing.addEventListener('change',syncSponsorMode);syncSponsorMode();
  addFamily();
 })();
