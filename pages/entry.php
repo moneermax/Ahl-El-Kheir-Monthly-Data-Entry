@@ -317,7 +317,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   if(e.target.matches('.remove-orphan')){
    const row=e.target.closest('.orphan-row'),id=row.dataset.family;
-   if(rowsForFamily(id).length>1)row.remove();
+   if(rowsForFamily(id).length>1){
+    if(row.classList.contains('family-block')){const next=row.nextElementSibling,motherCell=row.querySelector('.mother-span-cell');next.insertBefore(motherCell,next.firstElementChild);next.classList.add('family-block');}
+    row.remove();
+   }
    reindexAndUpdate();
   }
   if(e.target.matches('.remove-donation')){e.target.closest('.donation-row').remove();reindex();}
