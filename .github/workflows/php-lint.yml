@@ -1,0 +1,29 @@
+name: PHP Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.php'
+      - 'composer.json'
+      - '.github/workflows/php-lint.yml'
+  pull_request:
+    paths:
+      - '**/*.php'
+      - 'composer.json'
+      - '.github/workflows/php-lint.yml'
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, zip
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+      - name: Lint PHP files
+        run: find . -path './.git' -prune -o -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
