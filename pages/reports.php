@@ -28,7 +28,7 @@ $departureTotalsStmt->execute([$monthStart, $monthEnd]);
 $departureTotals = $departureTotalsStmt->fetch();
 
 $listStmt = $pdo->prepare("
- SELECT sp.sponsor_name, mo.mother_name, o.orphan_name, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name
+ SELECT sp.sponsor_name, sp.sponsor_type, mo.mother_name, o.orphan_name, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name
  FROM mde_monthly_sponsorship_entries me
  JOIN mde_sponsorships ss ON ss.id=me.sponsorship_id
  JOIN mde_sponsors sp ON sp.id=ss.sponsor_id
@@ -77,7 +77,7 @@ function mde_money(mixed $amount): string { return number_format((int)$amount) .
  <h2 class="h5">تفاصيل الكفالات والخدمات</h2>
  <div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>الكفيل</th><th>الأم</th><th>اليتيم</th><th>الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>
  <?php if (!$rows): ?><tr><td colspan="7" class="text-center text-secondary">لا توجد بيانات لهذا الشهر.</td></tr><?php endif; ?>
- <?php foreach($rows as $row): ?><tr><td><?=mde_h($row['sponsor_name'])?></td><td><?=mde_h($row['mother_name'])?></td><td><?=mde_h($row['orphan_name'])?></td><td><?=mde_money($row['sponsorship_amount'])?></td><td><?=mde_money($row['services_amount'])?></td><td><?=mde_h($row['entered_by'])?></td><td><?=mde_h($row['supervisor_name'])?></td></tr><?php endforeach; ?>
+ <?php foreach($rows as $row): ?><tr><td><span class="<?= $row['sponsor_type'] === 'tree' ? 'text-success fw-bold' : '' ?>"><?=mde_h($row['sponsor_name'])?></span><?php if ($row['sponsor_type'] === 'tree'): ?> <span class="badge rounded-pill text-bg-success" title="كفيل داخلي من نوع شجرة">🌳 شجرة</span><?php endif; ?></td><td><?=mde_h($row['mother_name'])?></td><td><?=mde_h($row['orphan_name'])?></td><td><?=mde_money($row['sponsorship_amount'])?></td><td><?=mde_money($row['services_amount'])?></td><td><?=mde_h($row['entered_by'])?></td><td><?=mde_h($row['supervisor_name'])?></td></tr><?php endforeach; ?>
  </tbody></table></div>
 </div>
 <div class="row g-3">
