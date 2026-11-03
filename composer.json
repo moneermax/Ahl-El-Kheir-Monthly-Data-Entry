@@ -1,0 +1,16 @@
+{
+  "name": "moneermax/ahl-el-kheir-monthly-data-entry",
+  "description": "Standalone local Arabic monthly sponsor and orphan data-entry and reporting tool.",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-zip": "*",
+    "tecnickcom/tcpdf": "^6.7"
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {}
+  }
+}
