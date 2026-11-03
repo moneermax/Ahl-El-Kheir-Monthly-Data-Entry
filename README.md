@@ -53,7 +53,7 @@ Main tables:
 
 ## CSV reference files
 
-The two original CSV files are retained under \`reference-csv/\` without importing their rows. They are reference material only; the application database starts with its schema and new entries.
+The two original CSV files are retained under \`reference-csv/\` without importing their rows. They are reference material only; the application database starts with its schema and new entries. The shared dropdown choices for the “بواسطة” and supervisor fields are maintained in `includes/reference_options.php` and are used by both the entry and data-management pages.
 
 ## Requirements
 
