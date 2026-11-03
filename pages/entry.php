@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div id="families"></div>
 <div class="card border border-success-subtle bg-success-subtle p-3 mb-3">
  <h3 class="h6 mb-2">مراجعة إجمالي المبالغ الواردة</h3>
- <p class="small text-secondary mb-3">أدخل الإجمالي المشترك الوارد من المصدر (إن توفر). وزّع المبلغ يدوياً على الأيتام؛ لن يقسمه النظام تلقائياً. سيتحقق من تطابق مجموع مبالغ الأيتام مع الإجمالي.</p>
+ <p class="small text-secondary mb-3">أدخل الإجمالي المشترك الوارد من المصدر (إن توفر). إذا كان قابلاً للقسمة بالتساوي على عدد الأيتام فسيُوزّع تلقائياً؛ وإذا تبقى كسر فستحتاج إلى إدخال مبالغ الأيتام يدوياً. سيتحقق النظام من تطابق مجموع المبالغ مع الإجمالي.</p>
  <div class="row g-3">
   <div class="col-md-4"><label class="form-label">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedSponsorship" name="expected_sponsorship_total" placeholder="اختياري"></div>
   <div class="col-md-4"><label class="form-label">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedServices" name="expected_services_total" placeholder="اختياري"></div>
