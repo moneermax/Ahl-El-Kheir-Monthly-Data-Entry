@@ -69,7 +69,8 @@ The two original CSV files are retained under \`reference-csv/\` without importi
 
 - A report month is stored as the first calendar day of that month.
 - Sponsorship, service, and other-donation values belong to an explicit report month.
-- Departures are grouped by the actual departure date.
+- A sponsor is classified as new only in the month containing that sponsor's earliest recorded sponsorship start date. The new-sponsor register includes all of that sponsor's family relationships, not only relationships that began on the exact earliest start date.
+- Departures are grouped by the actual departure date, independently of the date the departure was entered. Historical departures must not overwrite a later reactivation or later sponsorship activity.
 - Historical monthly entries remain reportable after a sponsorship ends.
 - Amounts are integer SDG units; no floating-point arithmetic is used.
 
