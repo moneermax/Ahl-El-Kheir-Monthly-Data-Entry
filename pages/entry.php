@@ -19,6 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $supervisor = trim((string) ($_POST['supervisor_name'] ?? ''));
         $notes = trim((string) ($_POST['notes'] ?? ''));
         $families = $_POST['families'] ?? [];
+        if (!is_array($families)) {
+            throw new InvalidArgumentException('بيانات الأسر غير صالحة.');
+        }
 
         $expectedSponsorship = trim((string) ($_POST['expected_sponsorship_total'] ?? ''));
         $expectedServices = trim((string) ($_POST['expected_services_total'] ?? ''));
