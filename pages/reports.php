@@ -35,7 +35,7 @@ $newSponsorDetailStmt = $pdo->prepare("
   HAVING MIN(start_date) BETWEEN ? AND ?
  ) first_dates
  JOIN mde_sponsors sp ON sp.id = first_dates.sponsor_id
- JOIN mde_sponsorships ss ON ss.sponsor_id = sp.id AND ss.start_date = first_dates.first_start
+ JOIN mde_sponsorships ss ON ss.sponsor_id = sp.id
  JOIN mde_orphans o ON o.id = ss.orphan_id
  JOIN mde_mothers mo ON mo.id = o.mother_id
  LEFT JOIN mde_monthly_sponsorship_entries me ON me.sponsorship_id = ss.id AND me.report_month = ?
