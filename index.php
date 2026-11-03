@@ -32,6 +32,21 @@ unset($_SESSION['mde_flash']);
         .required:after{content:' *';color:#c0392b}
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
+        .entry-register-wrap{max-width:100%;overflow-x:auto;border:1px solid #d9e0e5;border-radius:.5rem}
+        .entry-register{min-width:1540px;table-layout:fixed;font-size:.78rem;background:#fff}
+        .entry-register th{background:#eaf0ee;color:#203a34;text-align:center;vertical-align:middle;font-weight:700;white-space:normal}
+        .entry-register td{padding:.4rem;vertical-align:top}
+        .entry-register .sponsor-span-cell{background:#f7faf8;vertical-align:top}
+        .entry-register .mother-span-cell{background:#f1f5f3;min-width:175px}
+        .entry-register .sponsor-sequence-cell{width:48px;font-size:1rem}
+        .entry-register .sponsor-main-cell{width:210px}
+        .entry-register .donation-span-cell{min-width:220px}
+        .entry-register .orphan-name-cell{min-width:210px}
+        .entry-register .form-control,.entry-register .form-select{font-size:.78rem;min-width:0}
+        .entry-register .mde-person-dropdown .form-select{white-space:normal;height:auto;min-height:38px}
+        .entry-register textarea{min-height:110px}
+        .entry-register .btn{white-space:nowrap}
+
     </style>
 </head>
 <body>
