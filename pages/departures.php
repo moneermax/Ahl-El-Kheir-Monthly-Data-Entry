@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? 'تم تسجيل الكفيل الجديد ومغادرته في عملية واحدة، مع حفظ بياناته وسجل المغادرة.'
                 : 'تم تسجيل مغادرة الكفيل وإنهاء كفالاته النشطة مع الاحتفاظ بالسجلات التاريخية.'
         );
-        mde_redirect('departures');
+        mde_redirect('departures', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
