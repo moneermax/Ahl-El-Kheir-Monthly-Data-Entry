@@ -4,8 +4,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const norm = v => String(v||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\u0640/g,'').replace(/\s+/g,' ').trim().toLowerCase();
 const clean = v => String(v||'').replace(/^[\s:：=؛;,،\-]+|[\s:：=؛;,،\-]+$/g,'').trim();
 function val(t, labels) {
- const esc=x=>x.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
- const re=new RegExp('(?:^|[؛;\\n|])\\s*(?:'+labels.map(esc).join('|')+')\\s*[:=：-]\\s*([\\s\\S]*?)(?=(?:[؛;\\n|])\\s*[^؛;\\n|:=：]{1,40}\\s*[:=：]|$)','iu');
+ const re=new RegExp('(?:^|[؛;\\n|])\\s*(?:'+labels.join('|')+')\\s*[:=：-]\\s*([\\s\\S]*?)(?=(?:[؛;\\n|])\\s*[^؛;\\n|:=：]{1,40}\\s*[:=：]|$)','iu');
  const m=t.match(re); return m?clean(m[1]):'';
 }
 function vals(t,label) {
