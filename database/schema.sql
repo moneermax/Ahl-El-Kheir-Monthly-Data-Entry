@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS mde_sponsors (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sponsor_name VARCHAR(255) NOT NULL,
     file_number VARCHAR(100) NULL,
+    sponsor_type ENUM('individual','tree') NOT NULL DEFAULT 'individual',
     phone VARCHAR(50) NULL,
     address VARCHAR(500) NULL,
     notes TEXT NULL,
@@ -147,4 +148,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2);
