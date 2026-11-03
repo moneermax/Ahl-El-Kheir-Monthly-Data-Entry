@@ -24,7 +24,7 @@ The application opens directly at its entry page. There is no login system, as r
 
 ## Features
 
-- Register a new sponsor or add sponsorships to an existing sponsor, with optional sponsor file number.
+- Register a new sponsor or add sponsorships to an existing sponsor, with optional sponsor file number and sponsor type (individual or internal tree).
 - Enter multiple mothers for one sponsor, with one or more orphans under each mother.
 - Each orphan belongs to one mother; one mother can have multiple orphans.
 - Each sponsor/orphan relationship is stored separately, so one sponsor can sponsor multiple orphans and one orphan can have multiple sponsors.
@@ -36,6 +36,8 @@ The application opens directly at its entry page. There is no login system, as r
 ## Database
 
 The SQL installation script is `database/schema.sql`. It creates the dedicated schema and tables using InnoDB, utf8mb4, foreign keys, integer SDG amounts, and restrictive deletes to preserve history. Application requests never execute DDL.
+
+For an existing installation, apply each migration in `database/migrations/` exactly once, in version order, using the dedicated `ahl_el_kheir_monthly_data` database.
 
 Main tables:
 - `mde_sponsors`
