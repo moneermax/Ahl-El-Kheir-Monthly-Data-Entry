@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $error = '';
+require_once __DIR__ . '/../includes/reference_options.php';
 $q = trim((string) ($_GET['q'] ?? $_POST['q'] ?? ''));
 
 function mde_log_change(PDO $pdo, string $type, int $id, array $before, array $after): void
@@ -138,8 +139,7 @@ if ($q !== '') {
     $matches = array_map('intval', $find->fetchAll(PDO::FETCH_COLUMN));
 }
 
-$enteredOptions = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء'];
-$supervisorOptions = ['ساره', 'فاطمه', 'مها', 'مياده', 'مياده ساره', 'ميساء', 'مها ميساء', 'هبه', 'هناء'];
+
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
  <h1 class="h3 mb-0">بحث وإدارة البيانات</h1>
@@ -213,8 +213,8 @@ $supervisorOptions = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميا�
       <div class="col-md-2"><label class="form-label small">تاريخ الإدخال</label><input type="date" class="form-control" name="entry_date" value="<?=mde_h($link['entry_date'])?>" required></div>
       <div class="col-md-2"><label class="form-label small">الكفالة</label><input type="number" min="0" step="1" class="form-control" name="sponsorship_amount" value="<?=(int)$link['sponsorship_amount']?>" required></div>
       <div class="col-md-2"><label class="form-label small">الخدمات</label><input type="number" min="0" step="1" class="form-control" name="services_amount" value="<?=(int)$link['services_amount']?>" required></div>
-      <div class="col-md-2"><label class="form-label small">بواسطة</label><select class="form-select" name="entered_by"><option value="">—</option><?php foreach($enteredOptions as $person): ?><option value="<?=mde_h($person)?>" <?=$link['entered_by']===$person?'selected':''?>><?=mde_h($person)?></option><?php endforeach; ?></select></div>
-      <div class="col-md-2"><label class="form-label small">المشرف</label><select class="form-select" name="supervisor_name"><option value="">—</option><?php foreach($supervisorOptions as $person): ?><option value="<?=mde_h($person)?>" <?=$link['supervisor_name']===$person?'selected':''?>><?=mde_h($person)?></option><?php endforeach; ?></select></div>
+      <div class="col-md-2"><label class="form-label small">بواسطة</label><select class="form-select" name="entered_by"><option value="">—</option><?php foreach($mdeEnteredByOptions as $person): ?><option value="<?=mde_h($person)?>" <?=$link['entered_by']===$person?'selected':''?>><?=mde_h($person)?></option><?php endforeach; ?></select></div>
+      <div class="col-md-2"><label class="form-label small">المشرف</label><select class="form-select" name="supervisor_name"><option value="">—</option><?php foreach($mdeSupervisorOptions as $person): ?><option value="<?=mde_h($person)?>" <?=$link['supervisor_name']===$person?'selected':''?>><?=mde_h($person)?></option><?php endforeach; ?></select></div>
       <div class="col-md-2"><label class="form-label small">ملاحظات</label><input class="form-control" name="notes" value="<?=mde_h($link['monthly_notes'])?>"></div>
      </div>
      <button class="btn btn-outline-primary btn-sm mt-3" type="submit">حفظ تعديل الشهر</button>
