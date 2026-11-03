@@ -141,6 +141,20 @@ CREATE TABLE IF NOT EXISTS mde_sponsor_departures (
       REFERENCES mde_sponsors(id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Stores before/after snapshots for corrections made through the data-management page.
+CREATE TABLE IF NOT EXISTS mde_change_log (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    entity_type ENUM('sponsor','mother','orphan','monthly_entry') NOT NULL,
+    entity_id BIGINT UNSIGNED NOT NULL,
+    action VARCHAR(40) NOT NULL DEFAULT 'update',
+    before_data LONGTEXT NOT NULL,
+    after_data LONGTEXT NOT NULL,
+    changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_mde_change_log_entity (entity_type, entity_id),
+    KEY idx_mde_change_log_changed_at (changed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Keeps a small, explicit record of schema installation/version for this tool.
 CREATE TABLE IF NOT EXISTS mde_schema_version (
     version INT UNSIGNED NOT NULL,
@@ -148,4 +162,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3);
