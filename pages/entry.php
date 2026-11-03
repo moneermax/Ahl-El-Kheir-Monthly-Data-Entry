@@ -206,20 +206,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </template>
 
 <template id="familyTemplate">
- <tbody class="family-block">
-  <tr class="orphan-row">
-   <td class="mother-span-cell" rowspan="1">
-    <span class="family-title visually-hidden">بيانات الأم 1</span>
-    <label class="form-label required small mb-1">اسم الأم</label>
-    <input class="form-control form-control-sm mother-name" required>
-    <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2 add-orphan">إضافة يتيم</button>
-    <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 remove-family">حذف الأم</button>
-   </td>
-   <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
-   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
-   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
-  </tr>
- </tbody>
+ <tr class="orphan-row family-block" data-family="">
+  <td class="mother-span-cell" rowspan="1">
+   <span class="family-title visually-hidden">بيانات الأم 1</span>
+   <label class="form-label required small mb-1">اسم الأم</label>
+   <input class="form-control form-control-sm mother-name" required>
+   <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2 add-orphan">إضافة يتيم</button>
+   <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 remove-family">حذف الأم</button>
+  </td>
+  <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
+  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
+  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
+ </tr>
 </template>
 <template id="orphanTemplate">
  <tr class="orphan-row">
@@ -240,37 +238,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  const families=document.getElementById('families');
  const familyTpl=document.getElementById('familyTemplate'),orphanTpl=document.getElementById('orphanTemplate'),donationTpl=document.getElementById('donationTemplate');
  const sponsorCells=[...document.getElementById('sponsorCellsTemplate').content.children];
+ let nextFamilyId=1;
+ function rowsForFamily(id){return [...families.querySelectorAll('.orphan-row[data-family="'+id+'"]')];}
  function syncMergedCells(){
   sponsorCells.forEach(cell=>cell.remove());
   const blocks=[...families.querySelectorAll('.family-block')];
-  const totalRows=blocks.reduce((sum,block)=>sum+block.querySelectorAll('.orphan-row').length,0);
-  blocks.forEach(block=>{const rows=block.querySelectorAll('.orphan-row'),motherCell=block.querySelector('.mother-span-cell');if(motherCell)motherCell.rowSpan=rows.length;});
-  if(blocks.length){const firstRow=blocks[0].querySelector('.orphan-row'),motherCell=firstRow.querySelector('.mother-span-cell');sponsorCells.forEach(cell=>{cell.rowSpan=totalRows;firstRow.insertBefore(cell,motherCell);});}
+  const allRows=[...families.querySelectorAll('.orphan-row')];
+  blocks.forEach(block=>{const group=rowsForFamily(block.dataset.family),motherCell=block.querySelector('.mother-span-cell');if(motherCell)motherCell.rowSpan=group.length;});
+  if(blocks.length&&allRows.length){
+   const firstRow=allRows[0],motherCell=firstRow.querySelector('.mother-span-cell');
+   sponsorCells.slice(0,3).forEach(cell=>{cell.rowSpan=allRows.length;firstRow.insertBefore(cell,motherCell);});
+   let anchor=firstRow.querySelector('.orphan-services').closest('td');
+   sponsorCells.slice(3).forEach(cell=>{cell.rowSpan=allRows.length;anchor.after(cell);anchor=cell;});
+  }
  }
- families.append(familyTpl.content.cloneNode(true));
- syncMergedCells();
- const donations=document.getElementById('donations');
- const expectedSponsorship=document.getElementById('expectedSponsorship'),expectedServices=document.getElementById('expectedServices');
- const actualSponsorship=document.getElementById('actualSponsorship'),actualServices=document.getElementById('actualServices'),amountCheck=document.getElementById('amountCheck');
- const entryForm=document.getElementById('entryForm');
- const existing=document.getElementById('existingSponsor'),sponsorName=document.getElementById('sponsorName'),sponsorType=document.getElementById('sponsorType');
- function addOrphan(block){block.append(orphanTpl.content.cloneNode(true));}
+ function addOrphan(block){
+  const id=block.dataset.family,group=rowsForFamily(id),last=group[group.length-1],row=orphanTpl.content.firstElementChild.cloneNode(true);
+  row.dataset.family=id;last.after(row);
+ }
  function reindex(){
-  [...families.querySelectorAll('.family-block')].forEach((block,fi)=>{
-   const title=block.querySelector('.family-title');if(title)title.textContent='بيانات الأم '+(fi+1);
-   const mother=block.querySelector('.mother-name');if(mother)mother.name='families['+fi+'][mother_name]';
-   [...block.querySelectorAll('.orphan-row')].forEach((row,oi)=>{
+  const blocks=[...families.querySelectorAll('.family-block')];
+  blocks.forEach((block,fi)=>{
+   const id=block.dataset.family,title=block.querySelector('.family-title'),mother=block.querySelector('.mother-name');
+   if(title)title.textContent='بيانات الأم '+(fi+1);
+   if(mother)mother.name='families['+fi+'][mother_name]';
+   rowsForFamily(id).forEach((row,oi)=>{
     row.querySelector('.orphan-name').name='families['+fi+'][orphans]['+oi+'][name]';
     row.querySelector('.orphan-amount').name='families['+fi+'][orphans]['+oi+'][amount]';
     row.querySelector('.orphan-services').name='families['+fi+'][orphans]['+oi+'][services]';
    });
   });
+  const donations=document.getElementById('donations');
   [...donations.querySelectorAll('.donation-row')].forEach((row,i)=>{
    row.querySelector('.donation-type').name='donation_type['+i+']';
    row.querySelector('.donation-amount').name='donation_amount['+i+']';
   });
   syncMergedCells();
  }
+ families.append(familyTpl.content.cloneNode(true));
+ const firstBlock=families.querySelector('.family-block');firstBlock.dataset.family=String(nextFamilyId++);
+ syncMergedCells();
+ const donations=document.getElementById('donations');
+ const expectedSponsorship=document.getElementById('expectedSponsorship'),expectedServices=document.getElementById('expectedServices');
+ const actualSponsorship=document.getElementById('actualSponsorship'),actualServices=document.getElementById('actualServices'),amountCheck=document.getElementById('amountCheck');
+ const entryForm=document.getElementById('entryForm');
+ const existing=document.getElementById('existingSponsor'),sponsorName=document.getElementById('sponsorName'),sponsorType=document.getElementById('sponsorType');
  function updateAmountTotals(){
   let sponsorship=0,services=0;
   families.querySelectorAll('.orphan-row').forEach(row=>{sponsorship+=Math.max(0,Number(row.querySelector('.orphan-amount').value)||0);services+=Math.max(0,Number(row.querySelector('.orphan-services').value)||0);});
@@ -282,20 +294,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   amountCheck.className=errors.length?'small mt-2 text-danger fw-bold':'small mt-2 text-success';
   return errors.length===0;
  }
- function addFamily(){families.append(familyTpl.content.cloneNode(true));reindex();updateAmountTotals();}
+ function addFamily(){
+  const fragment=familyTpl.content.cloneNode(true),block=fragment.querySelector('.family-block');
+  block.dataset.family=String(nextFamilyId++);families.append(fragment);reindex();updateAmountTotals();
+ }
  function syncSponsorMode(){
   const isExisting=!!existing.value;sponsorName.required=!isExisting;sponsorName.disabled=isExisting;
   if(isExisting){sponsorName.value='';sponsorType.value=existing.selectedOptions[0].dataset.type||'individual';}
   else sponsorType.value='individual';
  }
- reindex();updateAmountTotals();syncSponsorMode();
+ function reindexAndUpdate(){reindex();updateAmountTotals();}
+ reindexAndUpdate();syncSponsorMode();
  document.getElementById('addFamily').addEventListener('click',addFamily);
  document.getElementById('addFamilyBottom').addEventListener('click',addFamily);
  document.getElementById('addDonation').addEventListener('click',()=>{donations.append(donationTpl.content.cloneNode(true));reindex();});
  document.addEventListener('click',e=>{
-  if(e.target.matches('.add-orphan')){addOrphan(e.target.closest('.family-block'));reindex();updateAmountTotals();}
-  if(e.target.matches('.remove-family')){if(families.querySelectorAll('.family-block').length>1)e.target.closest('.family-block').remove();reindex();updateAmountTotals();}
-  if(e.target.matches('.remove-orphan')){const block=e.target.closest('.family-block');if(block.querySelectorAll('.orphan-row').length>1)e.target.closest('.orphan-row').remove();reindex();updateAmountTotals();}
+  if(e.target.matches('.add-orphan')){addOrphan(e.target.closest('.family-block'));reindexAndUpdate();}
+  if(e.target.matches('.remove-family')){
+   const block=e.target.closest('.family-block'),id=block.dataset.family;
+   if(families.querySelectorAll('.family-block').length>1)rowsForFamily(id).forEach(row=>row.remove());
+   reindexAndUpdate();
+  }
+  if(e.target.matches('.remove-orphan')){
+   const row=e.target.closest('.orphan-row'),id=row.dataset.family;
+   if(rowsForFamily(id).length>1)row.remove();
+   reindexAndUpdate();
+  }
   if(e.target.matches('.remove-donation')){e.target.closest('.donation-row').remove();reindex();}
  });
  families.addEventListener('input',updateAmountTotals);expectedSponsorship.addEventListener('input',updateAmountTotals);expectedServices.addEventListener('input',updateAmountTotals);
