@@ -20,6 +20,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notes = trim((string) ($_POST['notes'] ?? ''));
         $families = $_POST['families'] ?? [];
 
+        $expectedSponsorship = trim((string) ($_POST['expected_sponsorship_total'] ?? ''));
+        $expectedServices = trim((string) ($_POST['expected_services_total'] ?? ''));
+        $actualSponsorship = 0;
+        $actualServices = 0;
+        foreach ($families as $family) {
+            foreach (($family['orphans'] ?? []) as $orphan) {
+                $amountCheck = filter_var($orphan['amount'] ?? null, FILTER_VALIDATE_INT);
+                $servicesCheck = filter_var($orphan['services'] ?? 0, FILTER_VALIDATE_INT);
+                if ($amountCheck === false || $amountCheck < 0 || $servicesCheck === false || $servicesCheck < 0) {
+                    throw new InvalidArgumentException('راجع مبالغ الأيتام؛ يجب أن تكون أعداداً صحيحة غير سالبة.');
+                }
+                $actualSponsorship += $amountCheck;
+                $actualServices += $servicesCheck;
+            }
+        }
+        foreach (['إجمالي الكفالة' => $expectedSponsorship, 'إجمالي الخدمات' => $expectedServices] as $label => $expected) {
+            if ($expected !== '' && (filter_var($expected, FILTER_VALIDATE_INT) === false || (int) $expected < 0)) {
+                throw new InvalidArgumentException($label . ' الوارد يجب أن يكون عدداً صحيحاً غير سالب.');
+            }
+        }
+        if ($expectedSponsorship !== '' && $actualSponsorship !== (int) $expectedSponsorship) {
+            throw new InvalidArgumentException('مجموع الكفالات الموزعة على الأيتام لا يطابق إجمالي الكفالة الوارد.');
+        }
+        if ($expectedServices !== '' && $actualServices !== (int) $expectedServices) {
+            throw new InvalidArgumentException('مجموع الخدمات الموزعة على الأيتام لا يطابق إجمالي الخدمات الوارد.');
+        }
+
         if ((!$selectedSponsorId && $sponsorName === '') || count($families) < 1) {
             throw new InvalidArgumentException('اختر كفيلاً موجوداً أو أدخل اسم كفيل جديد، وأضف بيانات أسرة واحدة على الأقل.');
         }
@@ -114,8 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  <h3 class="h6 mb-2">مراجعة إجمالي المبالغ الواردة</h3>
  <p class="small text-secondary mb-3">أدخل الإجمالي المشترك الوارد من المصدر (إن توفر). وزّع المبلغ يدوياً على الأيتام؛ لن يقسمه النظام تلقائياً. سيتحقق من تطابق مجموع مبالغ الأيتام مع الإجمالي.</p>
  <div class="row g-3">
-  <div class="col-md-4"><label class="form-label">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedSponsorship" placeholder="اختياري"></div>
-  <div class="col-md-4"><label class="form-label">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedServices" placeholder="اختياري"></div>
+  <div class="col-md-4"><label class="form-label">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedSponsorship" name="expected_sponsorship_total" placeholder="اختياري"></div>
+  <div class="col-md-4"><label class="form-label">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedServices" name="expected_services_total" placeholder="اختياري"></div>
   <div class="col-md-4"><div class="small">المجموع الموزع حالياً</div><div class="fw-bold">الكفالة: <span id="actualSponsorship">0</span></div><div class="fw-bold">الخدمات: <span id="actualServices">0</span></div></div>
  </div>
  <div class="small mt-2" id="amountCheck" aria-live="polite">يمكنك ترك الإجماليين فارغين إذا لم يرد إجمالي مشترك في المصدر.</div>
