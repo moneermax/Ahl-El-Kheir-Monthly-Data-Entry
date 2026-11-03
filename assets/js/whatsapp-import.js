@@ -18,7 +18,7 @@ const FIELD_LABELS = [
 ].sort((a,b)=>b.length-a.length);
 const escapeRegex = s => s.replace(/[.*+?^\${}()|[\]\\]/g,'\\$&');
 const fieldStop = FIELD_LABELS.map(escapeRegex).join('|');
-const valueEnd = '(?=\\s+(?:'+fieldStop+')\\s*(?:[:=：-]|\\s)|[؛;\\n|]|$)';
+const valueEnd = '(?=\\s+(?:\\d+\\s*[/.)-]\\s*)?(?:'+fieldStop+')\\s*(?:[:=：-]|\\s)|[؛;\\n|]|$)';
 function val(t, labels) {
  const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+labels.join('|')+')(?:\\s*[:=：-]\\s*|\\s+)([^؛;\\n|]+?)'+valueEnd,'iu');
  const m=t.match(re); return m?clean(m[1]):'';
