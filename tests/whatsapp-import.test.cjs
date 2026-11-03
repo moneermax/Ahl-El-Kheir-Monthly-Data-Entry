@@ -28,6 +28,11 @@ assert.equal(inlineFields.families[0].mother, 'عائشة محمد', 'mother ali
 assert.equal(inlineFields.orphans[0], 'سارة محمد', 'orphan labels should be recognized without punctuation separators');
 assert.equal(parser.hasMotherNames(inlineFields), true, 'a record with a recognized mother name may be loaded');
 
+const hamzaVariant = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اسم الام عائشة محمد اسم اليتيم سارة محمد', 0);
+assert.equal(hamzaVariant.families[0].mother, 'عائشة محمد', 'mother labels without hamza should be recognized');
+const taaMarbutaVariant = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 الوالده عائشة محمد اليتيم سارة محمد', 0);
+assert.equal(taaMarbutaVariant.families[0].mother, 'عائشة محمد', 'mother labels using ه spelling should be recognized');
+
 const missingMother = parser.entry('الكفيل ناصر كباشي احمد ملف 2026 اليتيم سارة محمد', 0);
 assert.equal(parser.hasMotherNames(missingMother), false, 'a record without a mother name must not be loadable');
 
