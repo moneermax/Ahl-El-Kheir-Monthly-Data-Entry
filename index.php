@@ -3,12 +3,13 @@ declare(strict_types=1);
 require __DIR__ . '/includes/bootstrap.php';
 
 $page = (string) ($_GET['page'] ?? 'entry');
-$allowed = ['entry', 'departures', 'reports'];
+$allowed = ['entry', 'manage', 'departures', 'reports'];
 if (!in_array($page, $allowed, true)) {
     $page = 'entry';
 }
 $pages = [
     'entry' => ['title' => 'إدخال الكفالات الجديدة', 'file' => __DIR__ . '/pages/entry.php'],
+    'manage' => ['title' => 'بحث وإدارة البيانات', 'file' => __DIR__ . '/pages/manage.php'],
     'departures' => ['title' => 'تسجيل مغادرة كفيل', 'file' => __DIR__ . '/pages/departures.php'],
     'reports' => ['title' => 'التقارير الشهرية', 'file' => __DIR__ . '/pages/reports.php'],
 ];
