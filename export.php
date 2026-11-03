@@ -14,7 +14,7 @@ $monthStart = $monthDate->format('Y-m-01');
 $monthEnd = $monthDate->modify('last day of this month')->format('Y-m-d');
 
 $stmt = $pdo->prepare("
- SELECT sp.sponsor_name, mo.mother_name, o.orphan_name,
+ SELECT sp.sponsor_name, sp.sponsor_type, mo.mother_name, o.orphan_name,
         me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name
  FROM mde_monthly_sponsorship_entries me
  JOIN mde_sponsorships ss ON ss.id=me.sponsorship_id
@@ -60,10 +60,10 @@ if ($format === 'xlsx') {
     $sheetRows[] = [['التقرير الشهري - ' . $filenameMonth, 's']];
     $sheetRows[] = [];
     $sheetRows[] = [['الكفالات والخدمات', 's']];
-    $sheetRows[] = [['الكفيل','s'],['الأم','s'],['اليتيم','s'],['قيمة الكفالة','s'],['الخدمات','s'],['بواسطة','s'],['المشرف','s']];
+    $sheetRows[] = [['الكفيل','s'],['نوع الكفيل','s'],['الأم','s'],['اليتيم','s'],['قيمة الكفالة','s'],['الخدمات','s'],['بواسطة','s'],['المشرف','s']];
     foreach ($rows as $row) {
         $sheetRows[] = [
-            [$row['sponsor_name'],'s'],[$row['mother_name'],'s'],[$row['orphan_name'],'s'],
+            [$row['sponsor_name'],'s'],[$row['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي','s'],[$row['mother_name'],'s'],[$row['orphan_name'],'s'],
             [(int)$row['sponsorship_amount'],'n'],[(int)$row['services_amount'],'n'],
             [$row['entered_by'],'s'],[$row['supervisor_name'],'s']
         ];
@@ -155,9 +155,9 @@ if ($format === 'csv') {
     fputcsv($out, ['التقرير الشهري', $filenameMonth]);
     fputcsv($out, []);
     fputcsv($out, ['الكفالات والخدمات']);
-    fputcsv($out, ['الكفيل', 'الأم', 'اليتيم', 'قيمة الكفالة', 'الخدمات', 'بواسطة', 'المشرف']);
+    fputcsv($out, ['الكفيل', 'نوع الكفيل', 'الأم', 'اليتيم', 'قيمة الكفالة', 'الخدمات', 'بواسطة', 'المشرف']);
     foreach ($rows as $row) {
-        fputcsv($out, [$csvText($row['sponsor_name']), $csvText($row['mother_name']), $csvText($row['orphan_name']), $row['sponsorship_amount'], $row['services_amount'], $csvText($row['entered_by']), $csvText($row['supervisor_name'])]);
+        fputcsv($out, [$csvText($row['sponsor_name']), ($row['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي'), $csvText($row['mother_name']), $csvText($row['orphan_name']), $row['sponsorship_amount'], $row['services_amount'], $csvText($row['entered_by']), $csvText($row['supervisor_name'])]);
     }
     fputcsv($out, []);
     fputcsv($out, ['التبرعات الأخرى']);
@@ -195,10 +195,10 @@ if ($format === 'pdf') {
     $pdf->SetFont('dejavusans', '', 8);
     $pdf->AddPage();
     $html = '<h2 style="text-align:center">التقرير الشهري - ' . htmlspecialchars($filenameMonth, ENT_QUOTES, 'UTF-8') . '</h2>';
-    $html .= '<h3>الكفالات والخدمات</h3><table border="1" cellpadding="4"><thead><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>الأم</th><th>اليتيم</th><th>قيمة الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>';
+    $html .= '<h3>الكفالات والخدمات</h3><table border="1" cellpadding="4"><thead><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>نوع الكفيل</th><th>الأم</th><th>اليتيم</th><th>قيمة الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>';
     foreach ($rows as $row) {
         $html .= '<tr>';
-        foreach ([$row['sponsor_name'], $row['mother_name'], $row['orphan_name'], number_format((int)$row['sponsorship_amount']), number_format((int)$row['services_amount']), $row['entered_by'], $row['supervisor_name']] as $value) {
+        foreach ([$row['sponsor_name'], ($row['sponsor_type'] === 'tree' ? '🌳 شجرة' : 'فردي'), $row['mother_name'], $row['orphan_name'], number_format((int)$row['sponsorship_amount']), number_format((int)$row['services_amount']), $row['entered_by'], $row['supervisor_name']] as $value) {
             $html .= '<td>' . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . '</td>';
         }
         $html .= '</tr>';
