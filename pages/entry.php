@@ -110,6 +110,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">الأمهات والأيتام</h2><button type="button" class="btn btn-outline-success btn-sm" id="addFamily">إضافة أم أخرى</button></div>
 <div id="families"></div>
+<div class="card border border-success-subtle bg-success-subtle p-3 mb-3">
+ <h3 class="h6 mb-2">مراجعة إجمالي المبالغ الواردة</h3>
+ <p class="small text-secondary mb-3">أدخل الإجمالي المشترك الوارد من المصدر (إن توفر). وزّع المبلغ يدوياً على الأيتام؛ لن يقسمه النظام تلقائياً. سيتحقق من تطابق مجموع مبالغ الأيتام مع الإجمالي.</p>
+ <div class="row g-3">
+  <div class="col-md-4"><label class="form-label">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedSponsorship" placeholder="اختياري"></div>
+  <div class="col-md-4"><label class="form-label">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedServices" placeholder="اختياري"></div>
+  <div class="col-md-4"><div class="small">المجموع الموزع حالياً</div><div class="fw-bold">الكفالة: <span id="actualSponsorship">0</span></div><div class="fw-bold">الخدمات: <span id="actualServices">0</span></div></div>
+ </div>
+ <div class="small mt-2" id="amountCheck" aria-live="polite">يمكنك ترك الإجماليين فارغين إذا لم يرد إجمالي مشترك في المصدر.</div>
+</div>
 <hr><div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">تبرعات أخرى (اختياري)</h2><button type="button" class="btn btn-outline-secondary btn-sm" id="addDonation">إضافة تبرع</button></div>
 <div id="donations"></div>
 <div class="row g-3 mt-2">
@@ -155,15 +165,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    row.querySelector('.donation-amount').name=`donation_amount[${i}]`;
   });
  }
- function addFamily(){const node=familyTpl.content.cloneNode(true),block=node.querySelector('.family-block');families.append(node);addOrphan(block);reindex();}
+ function addFamily(){const node=familyTpl.content.cloneNode(true),block=node.querySelector('.family-block');families.append(node);addOrphan(block);reindex();updateAmountTotals();}
  document.getElementById('addFamily').addEventListener('click',addFamily);
  document.getElementById('addDonation').addEventListener('click',()=>{donations.append(donationTpl.content.cloneNode(true));reindex();});
  document.addEventListener('click',e=>{
-  if(e.target.matches('.add-orphan')){addOrphan(e.target.closest('.family-block'));reindex();}
-  if(e.target.matches('.remove-family')){e.target.closest('.family-block').remove();reindex();}
-  if(e.target.matches('.remove-orphan')){const block=e.target.closest('.family-block');e.target.closest('.orphan-row').remove();if(!block.querySelector('.orphan-row'))addOrphan(block);reindex();}
+  if(e.target.matches('.add-orphan')){addOrphan(e.target.closest('.family-block'));reindex();updateAmountTotals();}
+  if(e.target.matches('.remove-family')){e.target.closest('.family-block').remove();reindex();updateAmountTotals();}
+  if(e.target.matches('.remove-orphan')){const block=e.target.closest('.family-block');e.target.closest('.orphan-row').remove();if(!block.querySelector('.orphan-row'))addOrphan(block);reindex();updateAmountTotals();}
   if(e.target.matches('.remove-donation')){e.target.closest('.donation-row').remove();reindex();}
  });
+
+ const expectedSponsorship=document.getElementById('expectedSponsorship');
+ const expectedServices=document.getElementById('expectedServices');
+ const actualSponsorship=document.getElementById('actualSponsorship');
+ const actualServices=document.getElementById('actualServices');
+ const amountCheck=document.getElementById('amountCheck');
+ const entryForm=document.querySelector('form.card');
+ function updateAmountTotals(){
+  let sponsorship=0,services=0;
+  families.querySelectorAll('.orphan-row').forEach(row=>{
+   sponsorship+=Math.max(0,Number(row.querySelector('.orphan-amount').value)||0);
+   services+=Math.max(0,Number(row.querySelector('.orphan-services').value)||0);
+  });
+  actualSponsorship.textContent=sponsorship.toLocaleString('en-US');
+  actualServices.textContent=services.toLocaleString('en-US');
+  const expectedS=expectedSponsorship.value===''?null:Number(expectedSponsorship.value);
+  const expectedV=expectedServices.value===''?null:Number(expectedServices.value);
+  const errors=[];
+  if(expectedS!==null && sponsorship!==expectedS) errors.push('إجمالي الكفالة الموزع لا يطابق الإجمالي الوارد');
+  if(expectedV!==null && services!==expectedV) errors.push('إجمالي الخدمات الموزع لا يطابق الإجمالي الوارد');
+  amountCheck.textContent=errors.length?errors.join('، '):'الإجماليات متطابقة أو لم يتم إدخال إجمالي مرجعي.';
+  amountCheck.className=errors.length?'small mt-2 text-danger fw-bold':'small mt-2 text-success';
+  return errors.length===0;
+ }
+ families.addEventListener('input',updateAmountTotals);
+ expectedSponsorship.addEventListener('input',updateAmountTotals);
+ expectedServices.addEventListener('input',updateAmountTotals);
+ entryForm.addEventListener('submit',event=>{
+  if(!updateAmountTotals()){event.preventDefault();amountCheck.scrollIntoView({behavior:'smooth',block:'center'});}
+ });
+
  const existing=document.getElementById('existingSponsor'), sponsorName=document.getElementById('sponsorName'), sponsorType=document.getElementById('sponsorType');
  function syncSponsorMode(){
   const isExisting=!!existing.value;
@@ -179,5 +220,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  }
  existing.addEventListener('change',syncSponsorMode);syncSponsorMode();
  addFamily();
+ updateAmountTotals();
 })();
 </script>
