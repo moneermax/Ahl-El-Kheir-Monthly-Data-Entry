@@ -134,9 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="row g-3 mb-4">
  <div class="col-md-6"><label class="form-label">إضافة إلى كفيل موجود (اختياري)</label><select class="form-select" name="existing_sponsor_id" id="existingSponsor"><option value="">— تسجيل كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select></div>
  <div class="col-md-6"><label class="form-label" id="sponsorNameLabel">اسم الكفيل الجديد</label><input class="form-control" name="sponsor_name" id="sponsorName" maxlength="255"></div>
- <div class="col-md-3"><label class="form-label required" for="sponsorType">نوع الكفيل</label><select class="form-select" name="sponsor_type" id="sponsorType" required><option value="individual">فردي</option><option value="tree">🌳 شجرة (داخلي)</option></select></div>
- <div class="col-md-3"><label class="form-label">رقم الملف (إن وجد)</label><input class="form-control" name="file_number" maxlength="100"></div>
- <div class="col-md-3"><label class="form-label required">تاريخ الانضمام</label><input type="date" class="form-control" name="entry_date" required value="<?= date('Y-m-d') ?>"></div>
+ <div class="col-md-4"><label class="form-label">رقم الملف (إن وجد)</label><input class="form-control" name="file_number" maxlength="100"></div>
 </div>
 <div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">الأمهات والأيتام</h2><button type="button" class="btn btn-outline-success btn-sm" id="addFamily">إضافة أم أخرى</button></div>
 <div id="families"></div>
@@ -150,13 +148,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  </div>
  <div class="small mt-2" id="amountCheck" aria-live="polite">يمكنك ترك الإجماليين فارغين إذا لم يرد إجمالي مشترك في المصدر.</div>
 </div>
-<hr><div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">تبرعات أخرى (اختياري)</h2><button type="button" class="btn btn-outline-secondary btn-sm" id="addDonation">إضافة تبرع</button></div>
-<div id="donations"></div>
-<div class="row g-3 mt-2">
- <div class="col-md-6"><label class="form-label" for="enteredBy">بواسطة</label><select class="form-select" name="entered_by" id="enteredBy"><option value="">اختر الاسم</option><?php foreach ($mdeEnteredByOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
- <div class="col-md-6"><label class="form-label" for="supervisorName">المشرف</label><select class="form-select" name="supervisor_name" id="supervisorName"><option value="">اختر الاسم</option><?php foreach ($mdeSupervisorOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
+<div class="card border p-3 mb-3">
+ <h3 class="h6 mb-3">بيانات الكفالة</h3>
+ <div class="row g-3">
+  <div class="col-md-4"><label class="form-label required" for="sponsorType">نوع الكفيل</label><select class="form-select" name="sponsor_type" id="sponsorType" required><option value="individual">فردي</option><option value="tree">🌳 شجرة (داخلي)</option></select></div>
+  <div class="col-md-4"><label class="form-label required" for="entryDate">تاريخ الانضمام</label><input type="date" class="form-control" name="entry_date" id="entryDate" required value="<?= date('Y-m-d') ?>"></div>
+ </div>
+ <div class="row g-3 mt-1">
+  <div class="col-md-6"><label class="form-label" for="enteredBy">بواسطة</label><select class="form-select" name="entered_by" id="enteredBy"><option value="">اختر الاسم</option><?php foreach ($mdeEnteredByOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
+  <div class="col-md-6"><label class="form-label" for="supervisorName">المشرف</label><select class="form-select" name="supervisor_name" id="supervisorName"><option value="">اختر الاسم</option><?php foreach ($mdeSupervisorOptions as $person): ?><option value="<?= mde_h($person) ?>"><?= mde_h($person) ?></option><?php endforeach; ?></select></div>
+ </div>
+</div>
+<div class="row g-3 mb-3">
  <div class="col-12"><label class="form-label" for="entryNotes">ملاحظات عامة</label><textarea class="form-control" name="notes" id="entryNotes" rows="2"></textarea></div>
 </div>
+<hr><div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h5">تبرعات أخرى (اختياري)</h2><button type="button" class="btn btn-outline-secondary btn-sm" id="addDonation">إضافة تبرع</button></div>
+<div id="donations"></div>
 <div class="mt-4"><button class="btn btn-success px-5" type="submit">حفظ البيانات</button></div>
 </form>
 <template id="familyTemplate">
