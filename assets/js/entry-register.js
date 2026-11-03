@@ -25,7 +25,9 @@
   blocks.forEach((block,fi)=>{
    const id=block.dataset.family,title=block.querySelector('.family-title'),mother=block.querySelector('.mother-name');
    if(title)title.textContent='بيانات الأم '+(fi+1);
+   const removeFamily=block.querySelector('.remove-family');if(removeFamily)removeFamily.disabled=blocks.length<=1;
    if(mother)mother.name='families['+fi+'][mother_name]';
+   rowsForFamily(id).forEach(row=>{const removeOrphan=row.querySelector('.remove-orphan');if(removeOrphan)removeOrphan.disabled=rowsForFamily(id).length<=1;});
    rowsForFamily(id).forEach((row,oi)=>{
     row.querySelector('.orphan-name').name='families['+fi+'][orphans]['+oi+'][name]';
     row.querySelector('.orphan-amount').name='families['+fi+'][orphans]['+oi+'][amount]';
