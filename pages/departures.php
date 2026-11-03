@@ -155,6 +155,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
 <p class="text-muted mb-3">يمكنك تسجيل مغادرة كفيل موجود أو إدخال كفيل جديد لم يسبق تسجيله في هذه الأداة.</p>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
 
+<?php $whatsappImportProfile = 'departure'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
 <form method="post" class="card p-3 p-md-4">
     <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
 
