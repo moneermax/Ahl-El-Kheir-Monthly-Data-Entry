@@ -19,6 +19,15 @@ assert.equal(entryRecord.date, '2026-11-01');
 assert.equal(entryRecord.entered, 'هناء خلف الله');
 assert.equal(entryRecord.supervisor, 'ح ميساء');
 
+const groupedMessage = 'الكفيل: شركة الخير؛ اليتيم: سعيد وائل؛ الأم: عائشة محمد؛ اليتيم: أحمد محمد؛ الأم: أمل علي؛ اليتيم: سارة محمد';
+const grouped = parser.entry(parser.split(groupedMessage)[0], 0);
+assert.equal(grouped.families.length, 2, 'multiple mothers should remain separate families');
+assert.equal(grouped.families[0].mother, 'عائشة محمد');
+assert.equal(grouped.families[0].orphans[0], 'سعيد وائل', 'compound Arabic names must not be split on و');
+assert.equal(grouped.families[0].orphans[1], 'أحمد محمد');
+assert.equal(grouped.families[1].mother, 'أمل علي');
+assert.equal(grouped.families[1].orphans[0], 'سارة محمد');
+
 const multiMessage = 'الكفيل: ناصر كباشي احمد؛ الأم: عائشة محمد؛ 1/اليتيم: أحمد محمد؛ 2/اليتيم: عبدالحميد محمد؛ كفالة 20000؛ الكفيل: دعاء حسين؛ الأم: أمل محمد؛ اليتيم: سارة محمد؛ كفالة 5000';
 const splitRecords = parser.split(multiMessage);
 assert.equal(splitRecords.length, 2, 'multiple sponsor records should be separated');
