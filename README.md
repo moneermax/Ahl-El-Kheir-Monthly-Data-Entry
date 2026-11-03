@@ -56,7 +56,7 @@ Main tables:
 
 ## CSV reference files
 
-The two original CSV files are retained under \`reference-csv/\` without importing their rows. They are reference material only; the application database starts with its schema and new entries. The shared dropdown choices for the “بواسطة” and supervisor fields are maintained in `includes/reference_options.php` and are used by both the entry and data-management pages.
+The two original CSV files are retained under \`reference-csv/\` without importing their rows. They are reference material only; the application database starts with its schema and new entries. The shared “بواسطة” and supervisor choices are maintained in `includes/reference_options.php` and reused across entry, departure, and data-management pages. These two fields use Bootstrap dropdown controls backed by hidden form values to avoid inconsistent native select-popup behavior; the combined supervisor cell from the source CSV is not treated as an individual person.
 
 ## Requirements
 
