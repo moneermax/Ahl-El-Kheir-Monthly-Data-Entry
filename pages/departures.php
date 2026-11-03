@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $error = '';
+require_once __DIR__ . '/../includes/reference_options.php';
 $old = $_POST ?? [];
 $sponsors = $pdo->query(
     'SELECT id, sponsor_name, file_number, is_active
@@ -43,6 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $fileNumber = trim((string) ($_POST['file_number'] ?? ''));
+        $newSponsorType = (string) ($_POST['new_sponsor_type'] ?? 'individual');
+        if (!in_array($newSponsorType, ['individual', 'tree'], true)) {
+            throw new InvalidArgumentException('اختر نوع الكفيل بصورة صحيحة.');
+        }
         $pdo->beginTransaction();
 
         if ($mode === 'existing') {
@@ -79,11 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $insertSponsor = $pdo->prepare(
-                'INSERT INTO mde_sponsors (sponsor_name, file_number, phone, address, notes, is_active)
-                 VALUES (?, ?, ?, ?, ?, 0)'
+                'INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number, phone, address, notes, is_active)
+                 VALUES (?, ?, ?, ?, ?, ?, 0)'
             );
             $insertSponsor->execute([
                 $sponsorName,
+                $newSponsorType,
                 $fileNumber !== '' ? $fileNumber : null,
                 trim((string) ($_POST['new_sponsor_phone'] ?? '')) ?: null,
                 trim((string) ($_POST['new_sponsor_address'] ?? '')) ?: null,
@@ -200,6 +206,10 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                 <input class="form-control" name="new_sponsor_name" id="newSponsorName" maxlength="255" value="<?= mde_h($old['new_sponsor_name'] ?? '') ?>" <?= $selectedMode === 'new' ? 'required' : 'disabled' ?>>
             </div>
             <div class="col-md-6">
+                <label class="form-label required" for="newSponsorType">نوع الكفيل</label>
+                <select class="form-select" name="new_sponsor_type" id="newSponsorType" <?= $selectedMode === 'new' ? '' : 'disabled' ?>><option value="individual">فردي</option><option value="tree" <?= ($old['new_sponsor_type'] ?? 'individual') === 'tree' ? 'selected' : '' ?>>🌳 شجرة (داخلي)</option></select>
+            </div>
+            <div class="col-md-6">
                 <label class="form-label" for="newFileNumber">رقم الملف</label>
                 <input class="form-control" name="file_number" id="newFileNumber" maxlength="100" value="<?= mde_h($old['file_number'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
             </div>
@@ -243,11 +253,11 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         </div>
         <div class="col-md-6">
             <label class="form-label" for="enteredBy">بواسطة</label>
-            <input class="form-control" name="entered_by" id="enteredBy" maxlength="190" value="<?= mde_h($old['entered_by'] ?? '') ?>">
+            <select class="form-select" name="entered_by" id="enteredBy"><option value="">اختر الاسم</option><?php foreach ($mdeEnteredByOptions as $person): ?><option value="<?= mde_h($person) ?>" <?= ($old['entered_by'] ?? '') === $person ? 'selected' : '' ?>><?= mde_h($person) ?></option><?php endforeach; ?></select>
         </div>
         <div class="col-md-6">
             <label class="form-label" for="supervisorName">المشرف</label>
-            <input class="form-control" name="supervisor_name" id="supervisorName" maxlength="190" value="<?= mde_h($old['supervisor_name'] ?? '') ?>">
+            <select class="form-select" name="supervisor_name" id="supervisorName"><option value="">اختر الاسم</option><?php foreach ($mdeSupervisorOptions as $person): ?><option value="<?= mde_h($person) ?>" <?= ($old['supervisor_name'] ?? '') === $person ? 'selected' : '' ?>><?= mde_h($person) ?></option><?php endforeach; ?></select>
         </div>
         <div class="col-12">
             <label class="form-label" for="departureReason">سبب المغادرة</label>
@@ -282,6 +292,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         sponsorSelect.required = !isNew;
         newName.disabled = !isNew;
         newName.required = isNew;
+        document.getElementById('newSponsorType').disabled = !isNew;
         newFields.querySelectorAll('input:not(#newSponsorName), textarea').forEach((field) => {
             field.disabled = !isNew;
         });
