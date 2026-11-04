@@ -10,161 +10,156 @@ if (!$monthDate || $monthDate->format('Y-m') !== $monthInput) {
     http_response_code(400);
     exit('Invalid report month.');
 }
+if (!in_array($format, ['xlsx', 'csv', 'pdf'], true)) {
+    http_response_code(400);
+    exit('Unsupported export format.');
+}
 $monthStart = $monthDate->format('Y-m-01');
 $monthEnd = $monthDate->modify('last day of this month')->format('Y-m-d');
+$filenameMonth = $monthDate->format('Y-m');
+$year = $monthDate->format('Y');
 
-$stmt = $pdo->prepare("
- SELECT sp.sponsor_name, sp.sponsor_type, mo.mother_name, o.orphan_name,
-        me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name
- FROM mde_monthly_sponsorship_entries me
- JOIN mde_sponsorships ss ON ss.id=me.sponsorship_id
- JOIN mde_sponsors sp ON sp.id=ss.sponsor_id
- JOIN mde_orphans o ON o.id=ss.orphan_id
- JOIN mde_mothers mo ON mo.id=o.mother_id
- WHERE me.report_month=?
- ORDER BY sp.sponsor_name, mo.mother_name, o.orphan_name
-");
-$stmt->execute([$monthStart]);
-$rows = $stmt->fetchAll();
-
-$departuresStmt = $pdo->prepare("
- SELECT sp.sponsor_name, d.file_number_snapshot, d.departure_date, d.orphan_count_snapshot,
-        d.sponsorship_amount_snapshot, d.services_amount_snapshot, d.last_paid_month
- FROM mde_sponsor_departures d
- JOIN mde_sponsors sp ON sp.id=d.sponsor_id
- WHERE d.departure_date BETWEEN ? AND ?
- ORDER BY d.departure_date, sp.sponsor_name
-");
-$departuresStmt->execute([$monthStart, $monthEnd]);
-$departures = $departuresStmt->fetchAll();
-
-$donationsStmt = $pdo->prepare("
- SELECT sp.sponsor_name, mo.mother_name, o.orphan_name,
-        d.donation_type, d.donation_date, d.amount, d.notes
- FROM mde_monthly_other_donations d
- LEFT JOIN mde_sponsors sp ON sp.id=d.sponsor_id
- LEFT JOIN mde_sponsorships ss ON ss.id=d.sponsorship_id
- LEFT JOIN mde_orphans o ON o.id=ss.orphan_id
- LEFT JOIN mde_mothers mo ON mo.id=o.mother_id
- WHERE d.report_month=?
- ORDER BY d.donation_type, sp.sponsor_name, mo.mother_name, o.orphan_name
-");
-$donationsStmt->execute([$monthStart]);
-$donations = $donationsStmt->fetchAll();
-
-
-$newSponsorStmt = $pdo->prepare("
- SELECT sp.id AS sponsor_id, sp.sponsor_name, sp.file_number, sp.sponsor_type,
-        first_dates.first_start AS joining_date, mo.id AS mother_id, mo.mother_name,
-        o.orphan_name, COALESCE(me.sponsorship_amount, 0) AS sponsorship_amount,
-        COALESCE(me.services_amount, 0) AS services_amount, me.entered_by, me.supervisor_name
+$newStmt = $pdo->prepare("
+ SELECT sp.id AS sponsor_id, sp.sponsor_name, ss.id AS sponsorship_id,
+        first_dates.first_start AS joining_date, mo.id AS mother_id,
+        mo.mother_name, o.orphan_name,
+        COALESCE(me.sponsorship_amount, 0) AS sponsorship_amount,
+        COALESCE(me.services_amount, 0) AS services_amount,
+        COALESCE(me.entered_by, '') AS entered_by,
+        COALESCE(me.supervisor_name, '') AS supervisor_name,
+        COALESCE(me.notes, '') AS notes
  FROM (
-  SELECT sponsor_id, MIN(start_date) AS first_start
-  FROM mde_sponsorships
-  GROUP BY sponsor_id
-  HAVING MIN(start_date) BETWEEN ? AND ?
+   SELECT sponsor_id, MIN(start_date) AS first_start
+   FROM mde_sponsorships
+   GROUP BY sponsor_id
+   HAVING MIN(start_date) BETWEEN ? AND ?
  ) first_dates
  JOIN mde_sponsors sp ON sp.id = first_dates.sponsor_id
  JOIN mde_sponsorships ss ON ss.sponsor_id = sp.id
  JOIN mde_orphans o ON o.id = ss.orphan_id
  JOIN mde_mothers mo ON mo.id = o.mother_id
- LEFT JOIN mde_monthly_sponsorship_entries me ON me.sponsorship_id = ss.id AND me.report_month = ?
+ LEFT JOIN mde_monthly_sponsorship_entries me
+   ON me.sponsorship_id = ss.id AND me.report_month = ?
  ORDER BY first_dates.first_start, sp.sponsor_name, mo.mother_name, o.orphan_name
 ");
-$newSponsorStmt->execute([$monthStart, $monthEnd, $monthStart]);
-$newSponsorRawRows = $newSponsorStmt->fetchAll();
-$newSponsors = [];
-foreach ($newSponsorRawRows as $detailRow) {
-    $sponsorId = (int) $detailRow['sponsor_id'];
-    if (!isset($newSponsors[$sponsorId])) {
-        $newSponsors[$sponsorId] = [
-            'sponsor_name' => $detailRow['sponsor_name'],
-            'file_number' => $detailRow['file_number'],
-            'sponsor_type' => $detailRow['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي',
-            'joining_date' => $detailRow['joining_date'],
-            'families' => [],
-            'sponsorship_total' => 0,
-            'services_total' => 0,
-            'entered_by' => [],
-            'supervisor_name' => [],
-        ];
-    }
-    $motherId = (int) $detailRow['mother_id'];
-    if (!isset($newSponsors[$sponsorId]['families'][$motherId])) {
-        $newSponsors[$sponsorId]['families'][$motherId] = [
-            'mother_name' => $detailRow['mother_name'],
-            'orphans' => [],
-        ];
-    }
-    $newSponsors[$sponsorId]['families'][$motherId]['orphans'][] = $detailRow['orphan_name'];
-    $newSponsors[$sponsorId]['sponsorship_total'] += (int) $detailRow['sponsorship_amount'];
-    $newSponsors[$sponsorId]['services_total'] += (int) $detailRow['services_amount'];
-    if (trim((string) ($detailRow['entered_by'] ?? '')) !== '') {
-        $newSponsors[$sponsorId]['entered_by'][(string) $detailRow['entered_by']] = true;
-    }
-    if (trim((string) ($detailRow['supervisor_name'] ?? '')) !== '') {
-        $newSponsors[$sponsorId]['supervisor_name'][(string) $detailRow['supervisor_name']] = true;
+$newStmt->execute([$monthStart, $monthEnd, $monthStart]);
+$newRows = $newStmt->fetchAll();
+
+$donationStmt = $pdo->prepare("
+ SELECT sponsor_id, sponsorship_id, donation_type, amount
+ FROM mde_monthly_other_donations
+ WHERE report_month = ?
+ ORDER BY donation_type, amount
+");
+$donationStmt->execute([$monthStart]);
+$donationsBySponsorship = [];
+$legacyDonationsBySponsor = [];
+foreach ($donationStmt->fetchAll() as $donation) {
+    $sponsorId = (int) ($donation['sponsor_id'] ?? 0);
+    $sponsorshipId = (int) ($donation['sponsorship_id'] ?? 0);
+    $label = trim((string) $donation['donation_type']) . ' - ' . number_format((int) $donation['amount']);
+    if ($sponsorshipId > 0) {
+        $donationsBySponsorship[$sponsorshipId][] = $label;
+    } elseif ($sponsorId > 0) {
+        $legacyDonationsBySponsor[$sponsorId][] = $label;
     }
 }
-$newSponsors = array_values($newSponsors);
-$formatFamilyDetails = static function (array $families): string {
-    $parts = [];
-    foreach ($families as $family) {
-        $parts[] = $family['mother_name'] . ': ' . implode('، ', $family['orphans']);
-    }
-    return implode(' | ', $parts);
-};
 
-$filenameMonth = $monthDate->format('Y-m');
+$sponsors = [];
+foreach ($newRows as $row) {
+    $sponsorId = (int) $row['sponsor_id'];
+    if (!isset($sponsors[$sponsorId])) {
+        $sponsors[$sponsorId] = [
+            'sponsor_name' => $row['sponsor_name'],
+            'joining_date' => $row['joining_date'],
+            'rows' => [],
+        ];
+    }
+    $row['other_donations'] = implode('، ', $donationsBySponsorship[(int) $row['sponsorship_id']] ?? []);
+    $sponsors[$sponsorId]['rows'][] = $row;
+}
+foreach ($sponsors as $sponsorId => &$sponsor) {
+    if (!empty($sponsor['rows']) && !empty($legacyDonationsBySponsor[(int) $sponsorId])) {
+        $existing = $sponsor['rows'][0]['other_donations'];
+        $legacy = implode('، ', $legacyDonationsBySponsor[(int) $sponsorId]);
+        $sponsor['rows'][0]['other_donations'] = $existing === '' ? $legacy : $existing . '؛ ' . $legacy;
+    }
+}
+unset($sponsor);
+$sponsors = array_values($sponsors);
+
+$departureStmt = $pdo->prepare("
+ SELECT d.file_number_snapshot, sp.sponsor_name, d.departure_date,
+        d.orphan_count_snapshot, d.sponsorship_amount_snapshot,
+        d.services_amount_snapshot, d.last_paid_month, d.notes
+ FROM mde_sponsor_departures d
+ JOIN mde_sponsors sp ON sp.id = d.sponsor_id
+ WHERE d.departure_date BETWEEN ? AND ?
+ ORDER BY d.departure_date, sp.sponsor_name
+");
+$departureStmt->execute([$monthStart, $monthEnd]);
+$departures = $departureStmt->fetchAll();
+
+$dateText = static function (?string $value): string {
+    if (!$value) return '';
+    $date = DateTimeImmutable::createFromFormat('Y-m-d', substr($value, 0, 10));
+    return $date ? $date->format('d/m/Y') : $value;
+};
+$amountText = static fn(mixed $value): string => number_format((int) $value);
+$escape = static fn(mixed $value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+$newHeaders = ['الرقم','إسم الكفيل','تاريخ الإنضمام','إسم الأم','إسم اليتيم','قيمة الكفالة','الخدمات','تبرعات أخرى (نوع التبرع والقيمة)','بواسطة','المشرف','ملاحظات'];
+$departureHeaders = ['الرقم','ملف','إسم الكفيل','تاريخ المغادرة','عدد الأيتام','قيمة الكفالة','خدمات','آخر سداد','ملاحظات'];
+$newFlatRows = [];
+$serial = 0;
+foreach ($sponsors as $sponsor) {
+    $serial++;
+    foreach ($sponsor['rows'] as $row) {
+        $newFlatRows[] = [
+            $serial, $sponsor['sponsor_name'], $dateText($sponsor['joining_date']),
+            $row['mother_name'], $row['orphan_name'], (int) $row['sponsorship_amount'],
+            (int) $row['services_amount'], $row['other_donations'], $row['entered_by'],
+            $row['supervisor_name'], $row['notes'],
+        ];
+    }
+}
+$departureFlatRows = [];
+foreach ($departures as $i => $row) {
+    $departureFlatRows[] = [
+        $i + 1, $row['file_number_snapshot'], $row['sponsor_name'],
+        $dateText($row['departure_date']), (int) $row['orphan_count_snapshot'],
+        (int) $row['sponsorship_amount_snapshot'], (int) $row['services_amount_snapshot'],
+        $row['last_paid_month'], $row['notes'],
+    ];
+}
+
+if ($format === 'csv') {
+    $csvSafe = static function (mixed $value): string {
+        $value = (string) ($value ?? '');
+        return preg_match('/^[\s]*[=+@-]/u', $value) ? "'" . $value : $value;
+    };
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="monthly-registers-' . $filenameMonth . '.csv"');
+    echo "\xEF\xBB\xBF";
+    $out = fopen('php://output', 'wb');
+    fputcsv($out, ['تقرير شهر', $monthDate->format('m/Y')]);
+    fputcsv($out, []);
+    fputcsv($out, ['كفلاء جدد ' . $year]);
+    fputcsv($out, $newHeaders);
+    foreach ($newFlatRows as $row) fputcsv($out, array_map($csvSafe, $row));
+    fputcsv($out, []);
+    fputcsv($out, ['كفلاء طلعوا ' . $year]);
+    fputcsv($out, $departureHeaders);
+    foreach ($departureFlatRows as $row) fputcsv($out, array_map($csvSafe, $row));
+    fclose($out);
+    exit;
+}
 
 if ($format === 'xlsx') {
     if (!class_exists(ZipArchive::class)) {
         http_response_code(503);
-        exit('امتداد ZIP غير مفعل في PHP؛ استخدم تصدير CSV مؤقتاً أو فعّل ZipArchive.');
+        exit('امتداد ZIP غير مفعل في PHP.');
     }
-
-    $sheetRows = [];
-    $sheetRows[] = [['التقرير الشهري - ' . $filenameMonth, 's']];
-    $sheetRows[] = [];
-    $sheetRows[] = [['الكفالات والخدمات', 's']];
-    $sheetRows[] = [['الكفيل','s'],['نوع الكفيل','s'],['الأم','s'],['اليتيم','s'],['قيمة الكفالة','s'],['الخدمات','s'],['بواسطة','s'],['المشرف','s']];
-    foreach ($rows as $row) {
-        $sheetRows[] = [
-            [$row['sponsor_name'],'s'],[$row['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي','s'],[$row['mother_name'],'s'],[$row['orphan_name'],'s'],
-            [(int)$row['sponsorship_amount'],'n'],[(int)$row['services_amount'],'n'],
-            [$row['entered_by'],'s'],[$row['supervisor_name'],'s']
-        ];
-    }
-    $sheetRows[] = [];
-    $sheetRows[] = [['سجل الكفلاء الجدد','s']];
-    $sheetRows[] = [['م','s'],['الكفيل','s'],['رقم الملف','s'],['نوع الكفيل','s'],['تاريخ الانضمام','s'],['الأمهات والأيتام','s'],['إجمالي الكفالة','s'],['إجمالي الخدمات','s'],['بواسطة','s'],['المشرف','s']];
-    foreach ($newSponsors as $newSponsorIndex => $newSponsor) {
-        $sheetRows[] = [
-            [$newSponsorIndex + 1,'n'],[$newSponsor['sponsor_name'],'s'],[$newSponsor['file_number'],'s'],
-            [$newSponsor['sponsor_type'],'s'],[$newSponsor['joining_date'],'s'],[$formatFamilyDetails($newSponsor['families']),'s'],
-            [(int)$newSponsor['sponsorship_total'],'n'],[(int)$newSponsor['services_total'],'n'],
-            [implode('، ', array_keys($newSponsor['entered_by'])),'s'],[implode('، ', array_keys($newSponsor['supervisor_name'])),'s']
-        ];
-    }
-    $sheetRows[] = [];
-    $sheetRows[] = [['التبرعات الأخرى','s']];
-    $sheetRows[] = [['الكفيل','s'],['الأم','s'],['اليتيم','s'],['نوع التبرع','s'],['التاريخ','s'],['القيمة','s'],['ملاحظات','s']];
-    foreach ($donations as $row) {
-        $sheetRows[] = [
-            [$row['sponsor_name'],'s'],[$row['mother_name'] ?? '—','s'],[$row['orphan_name'] ?? '—','s'],
-            [$row['donation_type'],'s'],[$row['donation_date'],'s'],[(int)$row['amount'],'n'],[$row['notes'],'s']
-        ];
-    }
-    $sheetRows[] = [];
-    $sheetRows[] = [['مغادرات الكفلاء','s']];
-    $sheetRows[] = [['الكفيل','s'],['رقم الملف','s'],['تاريخ المغادرة','s'],['عدد الأيتام','s'],['قيمة الكفالة','s'],['الخدمات','s'],['آخر سداد','s']];
-    foreach ($departures as $row) {
-        $sheetRows[] = [
-            [$row['sponsor_name'],'s'],[$row['file_number_snapshot'],'s'],[$row['departure_date'],'s'],[(int)$row['orphan_count_snapshot'],'n'],
-            [(int)$row['sponsorship_amount_snapshot'],'n'],[(int)$row['services_amount_snapshot'],'n'],[$row['last_paid_month'],'s']
-        ];
-    }
-
     $columnName = static function (int $number): string {
         $name = '';
         while ($number > 0) {
@@ -174,152 +169,133 @@ if ($format === 'xlsx') {
         }
         return $name;
     };
-    $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-    $sheetXml .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="1"/></sheetViews><sheetFormatPr defaultRowHeight="18"/><sheetData>';
-    foreach ($sheetRows as $rowIndex => $cells) {
-        $excelRow = $rowIndex + 1;
-        $sheetXml .= '<row r="' . $excelRow . '">';
-        foreach ($cells as $columnIndex => $cell) {
-            $reference = $columnName($columnIndex + 1) . $excelRow;
-            $value = $cell[0] ?? '';
-            $type = $cell[1] ?? 's';
-            if ($type === 'n' && $value !== null && $value !== '') {
-                $sheetXml .= '<c r="' . $reference . '"><v>' . (int)$value . '</v></c>';
-            } else {
-                $safe = htmlspecialchars((string)($value ?? ''), ENT_XML1 | ENT_COMPAT, 'UTF-8');
-                $sheetXml .= '<c r="' . $reference . '" t="inlineStr"><is><t xml:space="preserve">' . $safe . '</t></is></c>';
+    $makeSheet = static function (array $headers, array $rows, string $title, int $columnCount, bool $mergeGroups = false) use ($columnName): string {
+        $allRows = [array_merge([$title], array_fill(0, $columnCount - 1, '')), $headers, ...$rows];
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+        $xml .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="1"/></sheetViews><sheetFormatPr defaultRowHeight="22"/><sheetData>';
+        $mergeRefs = [];
+        foreach ($allRows as $ri => $cells) {
+            $rowNum = $ri + 1;
+            $xml .= '<row r="' . $rowNum . '">';
+            foreach ($cells as $ci => $value) {
+                $ref = $columnName($ci + 1) . $rowNum;
+                $style = $ri === 0 ? 1 : ($ri === 1 ? 2 : 0);
+                if (is_int($value)) {
+                    $xml .= '<c r="' . $ref . '" s="' . $style . '"><v>' . $value . '</v></c>';
+                } else {
+                    $safe = htmlspecialchars((string) ($value ?? ''), ENT_XML1 | ENT_COMPAT, 'UTF-8');
+                    $xml .= '<c r="' . $ref . '" s="' . $style . '" t="inlineStr"><is><t xml:space="preserve">' . $safe . '</t></is></c>';
+                }
+            }
+            $xml .= '</row>';
+        }
+        $xml .= '</sheetData>';
+        if ($mergeGroups && count($rows) > 0) {
+            foreach ([1, 2] as $colIndex) {
+                $start = 3;
+                $lastValue = null;
+                for ($i = 0; $i < count($rows); $i++) {
+                    $value = $rows[$i][$colIndex] ?? '';
+                    if ($lastValue !== null && $value !== $lastValue) {
+                        if ($start < $i + 2) $mergeRefs[] = $columnName($colIndex + 1) . $start . ':' . $columnName($colIndex + 1) . ($i + 2);
+                        $start = $i + 3;
+                    }
+                    $lastValue = $value;
+                }
+                if ($lastValue !== null && $start < count($rows) + 2) {
+                    $mergeRefs[] = $columnName($colIndex + 1) . $start . ':' . $columnName($colIndex + 1) . (count($rows) + 2);
+                }
             }
         }
-        $sheetXml .= '</row>';
-    }
-    $sheetXml .= '</sheetData></worksheet>';
-
-    $tmpFile = tempnam(sys_get_temp_dir(), 'mde_xlsx_');
-    if ($tmpFile === false) {
-        http_response_code(500);
-        exit('تعذر إنشاء ملف Excel مؤقت.');
-    }
-    $zip = new ZipArchive();
-    if ($zip->open($tmpFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        @unlink($tmpFile);
-        http_response_code(500);
-        exit('تعذر تجهيز ملف Excel.');
-    }
-    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
-    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
-    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="التقرير الشهري" sheetId="1" r:id="rId1"/></sheets></workbook>');
-    $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
-    $zip->addFromString('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="1"><xf xfId="0"/></cellXfs></styleSheet>');
-    $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
-    $zip->close();
-
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment; filename="monthly-report-' . $filenameMonth . '.xlsx"');
-    header('Content-Length: ' . filesize($tmpFile));
-    readfile($tmpFile);
-    @unlink($tmpFile);
-    exit;
-}
-
-if ($format === 'csv') {
-    $csvText = static function (mixed $value): string {
-        $text = (string)($value ?? '');
-        return preg_match('/^[\\s]*[=+@-]/u', $text) ? "'" . $text : $text;
+        if ($mergeRefs) {
+            $xml .= '<mergeCells count="' . count($mergeRefs) . '">';
+            foreach ($mergeRefs as $ref) $xml .= '<mergeCell ref="' . $ref . '"/>';
+            $xml .= '</mergeCells>';
+        }
+        $xml .= '</worksheet>';
+        return $xml;
     };
-    header('Content-Type: text/csv; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="monthly-report-' . $filenameMonth . '.csv"');
-    echo "\xEF\xBB\xBF";
-    $out = fopen('php://output', 'wb');
-    fputcsv($out, ['التقرير الشهري', $filenameMonth]);
-    fputcsv($out, []);
-    fputcsv($out, ['الكفالات والخدمات']);
-    fputcsv($out, ['الكفيل', 'نوع الكفيل', 'الأم', 'اليتيم', 'قيمة الكفالة', 'الخدمات', 'بواسطة', 'المشرف']);
-    foreach ($rows as $row) {
-        fputcsv($out, [$csvText($row['sponsor_name']), ($row['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي'), $csvText($row['mother_name']), $csvText($row['orphan_name']), $row['sponsorship_amount'], $row['services_amount'], $csvText($row['entered_by']), $csvText($row['supervisor_name'])]);
+
+    $newRowsForXlsx = [];
+    $globalRow = 0;
+    foreach ($sponsors as $sponsor) {
+        foreach ($sponsor['rows'] as $index => $row) {
+            $newRowsForXlsx[] = [
+                $index === 0 ? $sponsor['sponsor_name'] : '',
+                $index === 0 ? $dateText($sponsor['joining_date']) : '',
+                $row['mother_name'], $row['orphan_name'],
+                (int) $row['sponsorship_amount'], (int) $row['services_amount'],
+                $row['other_donations'], $row['entered_by'], $row['supervisor_name'], $row['notes'],
+            ];
+            $globalRow++;
+        }
     }
-    fputcsv($out, []);
-    fputcsv($out, ['سجل الكفلاء الجدد']);
-    fputcsv($out, ['م', 'الكفيل', 'رقم الملف', 'نوع الكفيل', 'تاريخ الانضمام', 'الأمهات والأيتام', 'إجمالي الكفالة', 'إجمالي الخدمات', 'بواسطة', 'المشرف']);
-    foreach ($newSponsors as $newSponsorIndex => $newSponsor) {
-        fputcsv($out, [
-            $newSponsorIndex + 1, $csvText($newSponsor['sponsor_name']), $csvText($newSponsor['file_number']),
-            $newSponsor['sponsor_type'], $newSponsor['joining_date'], $csvText($formatFamilyDetails($newSponsor['families'])),
-            $newSponsor['sponsorship_total'], $newSponsor['services_total'],
-            $csvText(implode('، ', array_keys($newSponsor['entered_by']))),
-            $csvText(implode('، ', array_keys($newSponsor['supervisor_name'])))
-        ]);
+    // Keep the sponsor sequence as the first column; merge it over its orphan rows.
+    $newRowsForXlsx = [];
+    foreach ($sponsors as $index => $sponsor) {
+        foreach ($sponsor['rows'] as $rowIndex => $row) {
+            $newRowsForXlsx[] = [
+                $rowIndex === 0 ? $index + 1 : '',
+                $rowIndex === 0 ? $sponsor['sponsor_name'] : '',
+                $rowIndex === 0 ? $dateText($sponsor['joining_date']) : '',
+                $row['mother_name'], $row['orphan_name'],
+                (int) $row['sponsorship_amount'], (int) $row['services_amount'],
+                $row['other_donations'], $row['entered_by'], $row['supervisor_name'], $row['notes'],
+            ];
+        }
     }
-    fputcsv($out, []);
-    fputcsv($out, ['التبرعات الأخرى']);
-    fputcsv($out, ['الكفيل', 'الأم', 'اليتيم', 'نوع التبرع', 'التاريخ', 'القيمة', 'ملاحظات']);
-    foreach ($donations as $row) {
-        fputcsv($out, [$csvText($row['sponsor_name']), $csvText($row['mother_name'] ?? '—'), $csvText($row['orphan_name'] ?? '—'), $csvText($row['donation_type']), $row['donation_date'], $row['amount'], $csvText($row['notes'])]);
-    }
-    fputcsv($out, []);
-    fputcsv($out, ['مغادرات الكفلاء']);
-    fputcsv($out, ['الكفيل', 'رقم الملف', 'تاريخ المغادرة', 'عدد الأيتام', 'قيمة الكفالة', 'الخدمات', 'آخر سداد']);
-    foreach ($departures as $row) {
-        fputcsv($out, [$csvText($row['sponsor_name']), $csvText($row['file_number_snapshot']), $row['departure_date'], $row['orphan_count_snapshot'], $row['sponsorship_amount_snapshot'], $row['services_amount_snapshot'], $row['last_paid_month']]);
-    }
-    fclose($out);
+    $sheet1 = $makeSheet($newHeaders, $newRowsForXlsx, 'كفلاء جدد ' . $year, 11, true);
+    $sheet2 = $makeSheet($departureHeaders, $departureFlatRows, 'كفلاء طلعوا ' . $year, 9, false);
+    $tmp = tempnam(sys_get_temp_dir(), 'mde_report_');
+    if ($tmp === false) { http_response_code(500); exit('تعذر إنشاء ملف مؤقت.'); }
+    $zip = new ZipArchive();
+    if ($zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) { @unlink($tmp); http_response_code(500); exit('تعذر إنشاء ملف Excel.'); }
+    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="كفلاء جدد" sheetId="1" r:id="rId1"/><sheet name="كفلاء طلعوا" sheetId="2" r:id="rId2"/></sheets></workbook>');
+    $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    $zip->addFromString('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF17365D"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF6DF78"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF9AA8B7"/></left><right style="thin"><color rgb="FF9AA8B7"/></right><top style="thin"><color rgb="FF9AA8B7"/></top><bottom style="thin"><color rgb="FF9AA8B7"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf xfId="0" fontId="0" fillId="0" borderId="1" applyBorder="1"/><xf xfId="0" fontId="1" fillId="2" borderId="1" applyFill="1" applyFont="1" applyBorder="1" alignment="1"/><xf xfId="0" fontId="2" fillId="1" borderId="1" applyFill="1" applyFont="1" applyBorder="1" alignment="1"/></cellXfs></styleSheet>');
+    $zip->addFromString('xl/worksheets/sheet1.xml', $sheet1);
+    $zip->addFromString('xl/worksheets/sheet2.xml', $sheet2);
+    $zip->close();
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="monthly-registers-' . $filenameMonth . '.xlsx"');
+    header('Content-Length: ' . filesize($tmp));
+    readfile($tmp);
+    @unlink($tmp);
     exit;
 }
 
-if ($format === 'pdf') {
-    $autoload = __DIR__ . '/vendor/autoload.php';
-    if (!is_file($autoload)) {
-        http_response_code(503);
-        exit('PDF export requires Composer dependencies. Run: composer install');
-    }
-    require_once $autoload;
-    if (!class_exists('TCPDF')) {
-        http_response_code(503);
-        exit('TCPDF dependency is missing. Run: composer install');
-    }
-    $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-    $pdf->SetCreator('Ahl El Kheir Monthly Data Entry');
-    $pdf->SetTitle('Monthly report ' . $filenameMonth);
-    $pdf->SetMargins(8, 10, 8);
-    $pdf->SetAutoPageBreak(true, 12);
-    $pdf->setRTL(true);
-    $pdf->SetFont('dejavusans', '', 8);
-    $pdf->AddPage();
-    $html = '<h2 style="text-align:center">التقرير الشهري - ' . htmlspecialchars($filenameMonth, ENT_QUOTES, 'UTF-8') . '</h2>';
-    $html .= '<h3>الكفالات والخدمات</h3><table border="1" cellpadding="4"><thead><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>نوع الكفيل</th><th>الأم</th><th>اليتيم</th><th>قيمة الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr></thead><tbody>';
-    foreach ($rows as $row) {
-        $html .= '<tr>';
-        foreach ([$row['sponsor_name'], ($row['sponsor_type'] === 'tree' ? 'شجرة' : 'فردي'), $row['mother_name'], $row['orphan_name'], number_format((int)$row['sponsorship_amount']), number_format((int)$row['services_amount']), $row['entered_by'], $row['supervisor_name']] as $value) {
-            $html .= '<td>' . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . '</td>';
-        }
-        $html .= '</tr>';
-    }
-    $html .= '</tbody></table><h3>سجل الكفلاء الجدد</h3><table border="1" cellpadding="4"><tr style="font-weight:bold;background-color:#eeeeee"><th>م</th><th>الكفيل</th><th>رقم الملف</th><th>النوع</th><th>تاريخ الانضمام</th><th>الأمهات والأيتام</th><th>إجمالي الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th></tr>';
-    foreach ($newSponsors as $newSponsorIndex => $newSponsor) {
-        $values = [
-            $newSponsorIndex + 1, $newSponsor['sponsor_name'], $newSponsor['file_number'],
-            $newSponsor['sponsor_type'], $newSponsor['joining_date'], $formatFamilyDetails($newSponsor['families']),
-            number_format((int)$newSponsor['sponsorship_total']), number_format((int)$newSponsor['services_total']),
-            implode('، ', array_keys($newSponsor['entered_by'])), implode('، ', array_keys($newSponsor['supervisor_name']))
-        ];
-        $html .= '<tr>';
-        foreach ($values as $value) {
-            $html .= '<td>' . htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8') . '</td>';
-        }
-        $html .= '</tr>';
-    }
-    $html .= '</table><h3>التبرعات الأخرى حسب اليتيم</h3><table border="1" cellpadding="4"><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>الأم</th><th>اليتيم</th><th>نوع التبرع</th><th>التاريخ</th><th>القيمة</th></tr>';
-    foreach ($donations as $row) {
-        $html .= '<tr><td>' . htmlspecialchars((string)$row['sponsor_name'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)($row['mother_name'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)($row['orphan_name'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['donation_type'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['donation_date'], ENT_QUOTES, 'UTF-8') . '</td><td>' . number_format((int)$row['amount']) . '</td></tr>';
-    }
-    $html .= '</table><h3>مغادرات الكفلاء</h3><table border="1" cellpadding="4"><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>رقم الملف</th><th>تاريخ المغادرة</th><th>عدد الأيتام</th><th>قيمة الكفالة</th><th>الخدمات</th><th>آخر سداد</th></tr>';
-    foreach ($departures as $row) {
-        $html .= '<tr><td>' . htmlspecialchars((string)$row['sponsor_name'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['file_number_snapshot'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['departure_date'], ENT_QUOTES, 'UTF-8') . '</td><td>' . (int)$row['orphan_count_snapshot'] . '</td><td>' . number_format((int)$row['sponsorship_amount_snapshot']) . '</td><td>' . number_format((int)$row['services_amount_snapshot']) . '</td><td>' . htmlspecialchars((string)$row['last_paid_month'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
-    }
-    $html .= '</table>';
-    $pdf->writeHTML($html, true, false, true, false, '');
-    $pdf->Output('monthly-report-' . $filenameMonth . '.pdf', 'D');
-    exit;
+$autoload = __DIR__ . '/vendor/autoload.php';
+if (!is_file($autoload)) { http_response_code(503); exit('PDF export requires Composer dependencies.'); }
+require_once $autoload;
+if (!class_exists('TCPDF')) { http_response_code(503); exit('TCPDF dependency is missing.'); }
+$pdf = new TCPDF('L', 'mm', 'A3', true, 'UTF-8', false);
+$pdf->SetCreator('Ahl El Kheir Monthly Data Entry');
+$pdf->SetTitle('Monthly registers ' . $filenameMonth);
+$pdf->SetMargins(8, 10, 8);
+$pdf->SetAutoPageBreak(true, 12);
+$pdf->setRTL(true);
+$pdf->SetFont('dejavusans', '', 8);
+$pdf->AddPage();
+$html = '<h2 style="text-align:center;background-color:#f6df78;padding:8px">تقرير شهر ' . $escape($monthDate->format('m/Y')) . '</h2>';
+$html .= '<h3>كفلاء جدد ' . $escape($year) . '</h3><table border="1" cellpadding="4"><tr style="background-color:#17365d;color:#ffffff;font-weight:bold">';
+foreach ($newHeaders as $header) $html .= '<th>' . $escape($header) . '</th>';
+$html .= '</tr>';
+foreach ($newFlatRows as $row) {
+    $html .= '<tr>';
+    foreach ($row as $value) $html .= '<td>' . $escape(is_int($value) ? $amountText($value) : $value) . '</td>';
+    $html .= '</tr>';
 }
-
-http_response_code(400);
-echo 'Unsupported export format.';
+$html .= '</table><br/><h3>كفلاء طلعوا ' . $escape($year) . '</h3><table border="1" cellpadding="4"><tr style="background-color:#17365d;color:#ffffff;font-weight:bold">';
+foreach ($departureHeaders as $header) $html .= '<th>' . $escape($header) . '</th>';
+$html .= '</tr>';
+foreach ($departureFlatRows as $row) {
+    $html .= '<tr>';
+    foreach ($row as $value) $html .= '<td>' . $escape(is_int($value) ? $amountText($value) : $value) . '</td>';
+    $html .= '</tr>';
+}
+$html .= '</table>';
+$pdf->writeHTML($html, true, false, true, false, '');
+$pdf->Output('monthly-registers-' . $filenameMonth . '.pdf', 'D');
+exit;
