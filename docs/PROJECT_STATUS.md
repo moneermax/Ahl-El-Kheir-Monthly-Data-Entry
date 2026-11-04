@@ -119,3 +119,11 @@ The data-management page now supports deleting a selected sponsor together with 
 Orphan and mother master records are deliberately retained, as are any sponsorship relationships those orphans have with other sponsors. Sponsor-level legacy donations and sponsorship-linked donations are both included in the deletion scope. A failed delete rolls back the entire transaction.
 
 Existing databases must apply migration 006 after migrations 004 and 005 to allow departure deletion snapshots. Fresh installations receive the expanded audit enum from `database/schema.sql`. Automated checks and live MariaDB/browser deletion tests are pending; do not treat the feature as runtime-verified until those tests are completed.
+
+## Monthly report separation and totals — 2026-11-04
+
+- The entry register footer displays live totals for the currently entered sponsorship and service amounts.
+- Each sponsor group in the data-management search register displays totals for the monthly rows shown in that group.
+- Monthly reporting is split into separate navigation pages for new sponsors and sponsor departures. Each report retains its own month selector and report-specific Excel, CSV, PDF, and print actions; the legacy `?page=reports` URL opens the new-sponsor report.
+- Both report tables display sponsorship and services totals. CSV and PDF downloads contain only the selected register and include totals. XLSX downloads keep the original workbook template but hide the unselected worksheet and add totals to the new-sponsor worksheet as well as the existing departure worksheet.
+- No schema change or database migration is required.
