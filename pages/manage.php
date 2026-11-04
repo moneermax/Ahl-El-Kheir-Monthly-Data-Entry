@@ -162,6 +162,7 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 '. ستبقى سجلات الأمهات والأيتام وهوياتهم وعلاقاتهم بكفلاء آخرين. هل أنت متأكد؟';
             echo '<form method="post" class="d-inline" onsubmit="return confirm(this.dataset.confirm)" data-confirm="' . mde_h($deleteConfirm) . '">';
             echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_sponsor"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
+            foreach ($deleteCounts as $countKey => $countValue) echo '<input type="hidden" name="expected_delete_counts[' . $countKey . ']" value="' . $countValue . '">';
             echo '<button type="submit" class="btn btn-outline-danger btn-sm">حذف الكفيل وسجلاته</button></form>';
             echo '<button type="button" class="btn btn-outline-primary btn-sm manage-edit-toggle">تعديل هذا الكفيل</button>';
             echo '<button type="submit" form="' . $sponsorForm . '" class="btn btn-success btn-sm manage-save d-none">حفظ التعديلات</button>';
@@ -334,6 +335,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $departureStmt = $pdo->prepare('SELECT * FROM mde_sponsor_departures WHERE sponsor_id = ? FOR UPDATE');
                 $departureStmt->execute([$sponsorIdForDelete]);
                 $departureRows = $departureStmt->fetchAll();
+
+                $expectedCounts = $_POST['expected_delete_counts'] ?? [];
+                $actualCounts = [
+                    'relationships' => count($relationshipRows),
+                    'monthly_entries' => count($entryRows),
+                    'donations' => count($donationRows),
+                    'departures' => count($departureRows),
+                ];
+                foreach ($actualCounts as $countKey => $actualCount) {
+                    $expectedCount = filter_var($expectedCounts[$countKey] ?? null, FILTER_VALIDATE_INT);
+                    if ($expectedCount === false || $expectedCount !== $actualCount) {
+                        throw new InvalidArgumentException('تغيرت سجلات هذا الكفيل منذ عرض التأكيد. لم يُحذف شيء؛ أعد البحث ثم راجع الأعداد الجديدة.');
+                    }
+                }
 
                 foreach ($entryRows as $entry) mde_manage_delete_log($pdo, 'monthly_entry', (int) $entry['id'], $entry);
                 foreach ($donationRows as $donation) mde_manage_delete_log($pdo, 'donation', (int) $donation['id'], $donation);
