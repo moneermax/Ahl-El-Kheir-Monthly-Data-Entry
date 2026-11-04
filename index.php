@@ -32,23 +32,20 @@ unset($_SESSION['mde_flash']);
         .required:after{content:' *';color:#c0392b}
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
-        .entry-register-wrap{width:100%;max-width:100%;overflow:visible;border:1px solid #d9e0e5;border-radius:.5rem}
-        .entry-register{width:100%;min-width:0;table-layout:fixed;font-size:.68rem;background:#fff;margin-bottom:0}
+        .entry-register-wrap{max-width:100%;overflow-x:auto;border:1px solid #d9e0e5;border-radius:.5rem}
+        .entry-register{min-width:1773px;table-layout:fixed;font-size:.78rem;background:#fff}
         .entry-register th{background:#eaf0ee;color:#203a34;text-align:center;vertical-align:middle;font-weight:700;white-space:normal}
-        .entry-register td{padding:.2rem;vertical-align:top;overflow-wrap:anywhere}
+        .entry-register td{padding:.4rem;vertical-align:top}
         .entry-register .sponsor-span-cell{background:#f7faf8;vertical-align:top}
-        .entry-register .mother-span-cell{background:#f1f5f3;min-width:0}
-        .entry-register .sponsor-sequence-cell{font-size:.75rem}
-        .entry-register .sponsor-main-cell{min-width:0}
-        .entry-register .donation-span-cell{min-width:0}
-        .entry-register .orphan-name-cell{min-width:0}
-        .entry-register .form-control,.entry-register .form-select{font-size:.68rem;min-width:0;width:100%;padding:.2rem .25rem;line-height:1.25}
-        .entry-register .mde-person-dropdown .form-select{white-space:normal;height:auto;min-height:28px}
-        .entry-register textarea{min-height:58px;height:58px}
-        .entry-register .btn{white-space:normal;font-size:.62rem;padding:.18rem .25rem;line-height:1.2}
-        .entry-register label{font-size:.64rem!important;margin-bottom:.12rem!important;line-height:1.2}
-        .entry-register .form-control,.entry-register .form-select{border-radius:.2rem}
-        @media(max-width:767.98px){.entry-register{font-size:.58rem}.entry-register td{padding:.12rem}.entry-register .form-control,.entry-register .form-select{font-size:.58rem;padding:.12rem}.entry-register label{font-size:.56rem!important}.entry-register .btn{font-size:.54rem;padding:.12rem}}
+        .entry-register .mother-span-cell{background:#f1f5f3;min-width:175px}
+        .entry-register .sponsor-sequence-cell{width:48px;font-size:1rem}
+        .entry-register .sponsor-main-cell{width:210px}
+        .entry-register .donation-span-cell{min-width:220px}
+        .entry-register .orphan-name-cell{min-width:210px}
+        .entry-register .form-control,.entry-register .form-select{font-size:.78rem;min-width:0}
+        .entry-register .mde-person-dropdown .form-select{white-space:normal;height:auto;min-height:38px}
+        .entry-register textarea{min-height:110px}
+        .entry-register .btn{white-space:nowrap}
 
     </style>
 </head>
