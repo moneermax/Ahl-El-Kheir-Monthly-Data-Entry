@@ -156,12 +156,10 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
             echo '<div class="fw-bold">' . mde_h($sponsor['sponsor_name']) . ($sponsor['sponsor_type'] === 'tree' ? ' <span class="badge text-bg-success">🌳 شجرة</span>' : '') . ' <span class="small text-secondary">#' . $sid . '</span></div>';
             echo '<div class="d-flex gap-2 align-items-center"><span class="small text-secondary">' . $rowCount . ' صف</span>';
             $deleteCounts = mde_manage_sponsor_delete_counts($pdo, (int) $sid);
-            $deleteConfirm = 'سيتم حذف الكفيل «' . $sponsor['sponsor_name'] . '» وكل سجلاته التابعة نهائياً:' . "\\n" .
-                'علاقات الكفالة: ' . $deleteCounts['relationships'] . "\\n" .
-                'الإدخالات الشهرية: ' . $deleteCounts['monthly_entries'] . "\\n" .
-                'التبرعات الأخرى: ' . $deleteCounts['donations'] . "\\n" .
-                'سجلات المغادرة: ' . $deleteCounts['departures'] . "\\n\\n" .
-                'ستبقى سجلات الأمهات والأيتام وهوياتهم وعلاقاتهم بكفلاء آخرين دون حذف. هل أنت متأكد؟';
+            $deleteConfirm = 'حذف الكفيل «' . $sponsor['sponsor_name'] . '» نهائياً مع سجلاته التابعة: علاقات الكفالة ' . $deleteCounts['relationships'] .
+                '، الإدخالات الشهرية ' . $deleteCounts['monthly_entries'] . '، التبرعات الأخرى ' . $deleteCounts['donations'] .
+                '، سجلات المغادرة ' . $deleteCounts['departures'] .
+                '. ستبقى سجلات الأمهات والأيتام وهوياتهم وعلاقاتهم بكفلاء آخرين. هل أنت متأكد؟';
             echo '<form method="post" class="d-inline" onsubmit="return confirm(this.dataset.confirm)" data-confirm="' . mde_h($deleteConfirm) . '">';
             echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_sponsor"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
             echo '<button type="submit" class="btn btn-outline-danger btn-sm">حذف الكفيل وسجلاته</button></form>';
