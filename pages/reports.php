@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+$reportType = $reportType ?? 'new';
+if (!in_array($reportType, ['new', 'departures'], true)) $reportType = 'new';
+$reportTitle = $reportType === 'new' ? 'تقرير الكفلاء الجدد' : 'تقرير الكفلاء المغادرين';
+
 $monthInput = (string) ($_GET['month'] ?? date('Y-m'));
 $monthDate = DateTimeImmutable::createFromFormat('!Y-m', $monthInput);
 if (!$monthDate || $monthDate->format('Y-m') !== $monthInput) {
@@ -83,6 +87,14 @@ foreach ($sponsors as $sponsorId => &$sponsor) {
 }
 unset($sponsor);
 $sponsors = array_values($sponsors);
+$newSponsorshipTotal = 0;
+$newServicesTotal = 0;
+foreach ($sponsors as $sponsorGroup) {
+    foreach ($sponsorGroup['rows'] as $sponsorRow) {
+        $newSponsorshipTotal += (int) $sponsorRow['sponsorship_amount'];
+        $newServicesTotal += (int) $sponsorRow['services_amount'];
+    }
+}
 
 $departureStmt = $pdo->prepare("
  SELECT d.file_number_snapshot, sp.sponsor_name, d.departure_date,
@@ -95,6 +107,8 @@ $departureStmt = $pdo->prepare("
 ");
 $departureStmt->execute([$monthStart, $monthEnd]);
 $departures = $departureStmt->fetchAll();
+$departureSponsorshipTotal = array_sum(array_map(static fn(array $row): int => (int) $row['sponsorship_amount_snapshot'], $departures));
+$departureServicesTotal = array_sum(array_map(static fn(array $row): int => (int) $row['services_amount_snapshot'], $departures));
 
 function mde_report_date(?string $value): string {
     if (!$value) return '';
@@ -117,22 +131,23 @@ function mde_report_amount(mixed $value): string {
 @media print { .report-controls,.sidebar,.navbar { display:none!important; } .report-register { font-size:10px; } }
 </style>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 report-controls">
- <h1 class="h3 mb-0">التقرير الشهري</h1>
+ <h1 class="h3 mb-0"><?= mde_h($reportTitle) ?></h1>
  <div class="d-flex flex-wrap gap-2">
   <form method="get" class="d-flex gap-2">
-   <input type="hidden" name="page" value="reports">
+   <input type="hidden" name="page" value="<?= $reportType === 'new' ? 'reports-new' : 'reports-departures' ?>">
    <input type="month" name="month" class="form-control" value="<?= mde_h($monthInput) ?>">
    <button class="btn btn-primary" type="submit">عرض</button>
   </form>
-  <a class="btn btn-success" href="export.php?format=xlsx&amp;month=<?= mde_h($monthInput) ?>">Excel</a>
-  <a class="btn btn-outline-success" href="export.php?format=csv&amp;month=<?= mde_h($monthInput) ?>">CSV</a>
-  <a class="btn btn-outline-danger" href="export.php?format=pdf&amp;month=<?= mde_h($monthInput) ?>">PDF</a>
+  <a class="btn btn-success" href="export.php?format=xlsx&amp;month=<?= mde_h($monthInput) ?>&amp;report=<?= mde_h($reportType) ?>">Excel</a>
+  <a class="btn btn-outline-success" href="export.php?format=csv&amp;month=<?= mde_h($monthInput) ?>&amp;report=<?= mde_h($reportType) ?>">CSV</a>
+  <a class="btn btn-outline-danger" href="export.php?format=pdf&amp;month=<?= mde_h($monthInput) ?>&amp;report=<?= mde_h($reportType) ?>">PDF</a>
   <button class="btn btn-outline-secondary" type="button" onclick="window.print()">طباعة</button>
  </div>
 </div>
 
 <div class="report-register">
  <div class="month-band">تقرير شهر <?= mde_h($monthLabel) ?></div>
+ <?php if ($reportType === 'new'): ?>
  <h2 class="h5 mb-2">كفلاء جدد <?= mde_h($monthDate->format('Y')) ?></h2>
  <div class="table-responsive">
   <table class="table table-sm align-middle">
@@ -164,9 +179,11 @@ function mde_report_amount(mixed $value): string {
    <?php endforeach; ?>
    <?php if (!$sponsors): ?><tr><td colspan="11" class="text-center">لا توجد سجلات كفلاء جدد لهذا الشهر.</td></tr><?php endif; ?>
    </tbody>
+   <tfoot><tr class="table-success fw-bold"><th colspan="5" class="text-end">الإجمالي</th><th><?= mde_report_amount($newSponsorshipTotal) ?></th><th><?= mde_report_amount($newServicesTotal) ?></th><th colspan="4"></th></tr></tfoot>
   </table>
  </div>
 
+ <?php else: ?>
  <h2 class="h5 mb-2">كفلاء طلعوا <?= mde_h($monthDate->format('Y')) ?></h2>
  <div class="table-responsive">
   <table class="table table-sm align-middle">
@@ -187,6 +204,8 @@ function mde_report_amount(mixed $value): string {
    <?php endforeach; ?>
    <?php if (!$departures): ?><tr><td colspan="9" class="text-center">لا توجد مغادرات لهذا الشهر.</td></tr><?php endif; ?>
    </tbody>
+   <tfoot><tr class="table-success fw-bold"><th colspan="5" class="text-end">الإجمالي</th><th><?= mde_report_amount($departureSponsorshipTotal) ?></th><th><?= mde_report_amount($departureServicesTotal) ?></th><th colspan="2"></th></tr></tfoot>
   </table>
  </div>
+ <?php endif; ?>
 </div>
