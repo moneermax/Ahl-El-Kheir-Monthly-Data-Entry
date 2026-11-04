@@ -57,14 +57,11 @@ $legacyDonationsBySponsor = [];
 foreach ($donationStmt->fetchAll() as $donation) {
     $sponsorId = (int) ($donation['sponsor_id'] ?? 0);
     $sponsorshipId = (int) ($donation['sponsorship_id'] ?? 0);
-    $item = [
-        'type' => trim((string) $donation['donation_type']),
-        'amount' => (int) $donation['amount'],
-    ];
+    $label = trim((string) $donation['donation_type']) . ' - ' . number_format((int) $donation['amount']);
     if ($sponsorshipId > 0) {
-        $donationsBySponsorship[$sponsorshipId][] = $item;
+        $donationsBySponsorship[$sponsorshipId][] = $label;
     } elseif ($sponsorId > 0) {
-        $legacyDonationsBySponsor[$sponsorId][] = $item;
+        $legacyDonationsBySponsor[$sponsorId][] = $label;
     }
 }
 
@@ -78,23 +75,14 @@ foreach ($newRows as $row) {
             'rows' => [],
         ];
     }
-    $row['other_donation_items'] = $donationsBySponsorship[(int) $row['sponsorship_id']] ?? [];
-    $row['other_donations'] = implode('، ', array_map(
-        static fn(array $item): string => trim($item['type']) . ' - ' . number_format((int) $item['amount']),
-        $row['other_donation_items']
-    ));
+    $row['other_donations'] = implode('، ', $donationsBySponsorship[(int) $row['sponsorship_id']] ?? []);
     $sponsors[$sponsorId]['rows'][] = $row;
 }
 foreach ($sponsors as $sponsorId => &$sponsor) {
     if (!empty($sponsor['rows']) && !empty($legacyDonationsBySponsor[(int) $sponsorId])) {
-        $sponsor['rows'][0]['other_donation_items'] = array_merge(
-            $sponsor['rows'][0]['other_donation_items'] ?? [],
-            $legacyDonationsBySponsor[(int) $sponsorId]
-        );
-        $sponsor['rows'][0]['other_donations'] = implode('، ', array_map(
-            static fn(array $item): string => trim($item['type']) . ' - ' . number_format((int) $item['amount']),
-            $sponsor['rows'][0]['other_donation_items']
-        ));
+        $existing = $sponsor['rows'][0]['other_donations'];
+        $legacy = implode('، ', $legacyDonationsBySponsor[(int) $sponsorId]);
+        $sponsor['rows'][0]['other_donations'] = $existing === '' ? $legacy : $existing . '؛ ' . $legacy;
     }
 }
 unset($sponsor);
@@ -168,8 +156,104 @@ if ($format === 'csv') {
 }
 
 if ($format === 'xlsx') {
-    require_once __DIR__ . '/includes/xlsx_template_export.php';
-    mde_output_template_xlsx($sponsors, $departures, $monthDate, $filenameMonth);
+    if (!class_exists(ZipArchive::class)) {
+        http_response_code(503);
+        exit('امتداد ZIP غير مفعل في PHP.');
+    }
+    $columnName = static function (int $number): string {
+        $name = '';
+        while ($number > 0) {
+            $remainder = ($number - 1) % 26;
+            $name = chr(65 + $remainder) . $name;
+            $number = intdiv($number - 1, 26);
+        }
+        return $name;
+    };
+    $makeSheet = static function (array $headers, array $rows, string $title, int $columnCount, array $mergeRefs = []) use ($columnName): string {
+        $allRows = [array_merge([$title], array_fill(0, $columnCount - 1, '')), $headers, ...$rows];
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+        $xml .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="1"/></sheetViews><sheetFormatPr defaultRowHeight="22"/><sheetData>';
+        foreach ($allRows as $ri => $cells) {
+            $rowNum = $ri + 1;
+            $xml .= '<row r="' . $rowNum . '">';
+            foreach ($cells as $ci => $value) {
+                $ref = $columnName($ci + 1) . $rowNum;
+                $style = $ri === 0 ? 1 : ($ri === 1 ? 2 : 0);
+                if (is_int($value)) {
+                    $xml .= '<c r="' . $ref . '" s="' . $style . '"><v>' . $value . '</v></c>';
+                } else {
+                    $safe = htmlspecialchars((string) ($value ?? ''), ENT_XML1 | ENT_COMPAT, 'UTF-8');
+                    $xml .= '<c r="' . $ref . '" s="' . $style . '" t="inlineStr"><is><t xml:space="preserve">' . $safe . '</t></is></c>';
+                }
+            }
+            $xml .= '</row>';
+        }
+        $xml .= '</sheetData>';
+        if ($mergeRefs) {
+            $xml .= '<mergeCells count="' . count($mergeRefs) . '">';
+            foreach ($mergeRefs as $ref) $xml .= '<mergeCell ref="' . $ref . '"/>';
+            $xml .= '</mergeCells>';
+        }
+        $xml .= '</worksheet>';
+        return $xml;
+    };
+
+    $newRowsForXlsx = [];
+    $mergeRefs = [];
+    $excelRow = 3;
+    foreach ($sponsors as $index => $sponsor) {
+        $count = count($sponsor['rows']);
+        if ($count > 1) {
+            foreach (['A', 'B', 'C'] as $column) $mergeRefs[] = $column . $excelRow . ':' . $column . ($excelRow + $count - 1);
+        }
+        $motherGroups = [];
+        foreach ($sponsor['rows'] as $row) {
+            $motherId = (string) $row['mother_id'];
+            $motherGroups[$motherId] = ($motherGroups[$motherId] ?? 0) + 1;
+        }
+        $motherStarted = [];
+        foreach ($sponsor['rows'] as $rowIndex => $row) {
+            $motherId = (string) $row['mother_id'];
+            $newRowsForXlsx[] = [
+                $rowIndex === 0 ? $index + 1 : '',
+                $rowIndex === 0 ? $sponsor['sponsor_name'] : '',
+                $rowIndex === 0 ? $dateText($sponsor['joining_date']) : '',
+                isset($motherStarted[$motherId]) ? '' : $row['mother_name'],
+                $row['orphan_name'],
+                (int) $row['sponsorship_amount'], (int) $row['services_amount'],
+                $row['other_donations'], $row['entered_by'], $row['supervisor_name'], $row['notes'],
+            ];
+            if (!isset($motherStarted[$motherId])) {
+                $motherStarted[$motherId] = $excelRow + $rowIndex;
+                if ($motherGroups[$motherId] > 1) {
+                    $first = $excelRow + $rowIndex;
+                    $last = $first + $motherGroups[$motherId] - 1;
+                    $mergeRefs[] = 'D' . $first . ':D' . $last;
+                }
+            }
+        }
+        $excelRow += $count;
+    }
+    $sheet1 = $makeSheet($newHeaders, $newRowsForXlsx, 'كفلاء جدد ' . $year, 11, $mergeRefs);
+    $sheet2 = $makeSheet($departureHeaders, $departureFlatRows, 'كفلاء طلعوا ' . $year, 9, []);
+    $tmp = tempnam(sys_get_temp_dir(), 'mde_report_');
+    if ($tmp === false) { http_response_code(500); exit('تعذر إنشاء ملف مؤقت.'); }
+    $zip = new ZipArchive();
+    if ($zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) { @unlink($tmp); http_response_code(500); exit('تعذر إنشاء ملف Excel.'); }
+    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="كفلاء جدد" sheetId="1" r:id="rId1"/><sheet name="كفلاء طلعوا" sheetId="2" r:id="rId2"/></sheets></workbook>');
+    $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    $zip->addFromString('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF17365D"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF6DF78"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF9AA8B7"/></left><right style="thin"><color rgb="FF9AA8B7"/></right><top style="thin"><color rgb="FF9AA8B7"/></top><bottom style="thin"><color rgb="FF9AA8B7"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf xfId="0" fontId="0" fillId="0" borderId="1" applyBorder="1"/><xf xfId="0" fontId="1" fillId="2" borderId="1" applyFill="1" applyFont="1" applyBorder="1" alignment="1"/><xf xfId="0" fontId="2" fillId="1" borderId="1" applyFill="1" applyFont="1" applyBorder="1" alignment="1"/></cellXfs></styleSheet>');
+    $zip->addFromString('xl/worksheets/sheet1.xml', $sheet1);
+    $zip->addFromString('xl/worksheets/sheet2.xml', $sheet2);
+    $zip->close();
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="monthly-registers-' . $filenameMonth . '.xlsx"');
+    header('Content-Length: ' . filesize($tmp));
+    readfile($tmp);
+    @unlink($tmp);
+    exit;
 }
 
 $autoload = __DIR__ . '/vendor/autoload.php';
