@@ -14,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new InvalidArgumentException('اختر نوع الكفيل بصورة صحيحة.');
         }
         $selectedSponsorId = filter_var($_POST['existing_sponsor_id'] ?? null, FILTER_VALIDATE_INT);
-        $savedSponsorName = '';
         $entryDate = (string) ($_POST['entry_date'] ?? '');
         $enteredBy = trim((string) ($_POST['entered_by'] ?? ''));
         $supervisor = trim((string) ($_POST['supervisor_name'] ?? ''));
@@ -65,14 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
             }
             $sponsorId = $selectedSponsorId;
-            $savedSponsorName = (string) $existingSponsor['sponsor_name'];
             $pdo->prepare('UPDATE mde_sponsors SET is_active = 1, sponsor_type = ?, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$sponsorType, $fileNumber, $sponsorId]);
         } else {
             $stmt = $pdo->prepare('INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number) VALUES (?, ?, ?)');
             $stmt->execute([$sponsorName, $sponsorType, $fileNumber ?: null]);
             $sponsorId = (int) $pdo->lastInsertId();
-            $savedSponsorName = $sponsorName;
-        }
+            }
 
         $motherStmt = $pdo->prepare('INSERT INTO mde_mothers (mother_name) VALUES (?)');
         $orphanStmt = $pdo->prepare('INSERT INTO mde_orphans (mother_id, orphan_name) VALUES (?, ?)');
@@ -127,12 +124,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $pdo->commit();
-        $_SESSION['mde_last_saved_sponsor'] = [
-            'name' => $savedSponsorName,
-            'saved_at' => date('Y-m-d H:i:s'),
-        ];
-        mde_flash('success', 'تم حفظ الكفيل وبيانات الأيتام بنجاح (' . $savedOrphans . ' يتيم).');
-        session_write_close();
         mde_redirect('entry', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
@@ -141,20 +132,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $exception instanceof PDOException ? 'تعذر حفظ البيانات. تحقق من عدم تكرار الإدخال وصحة قاعدة البيانات.' : $exception->getMessage();
     }
 }
+$lastSavedSponsorName = $pdo->query(
+    'SELECT s.sponsor_name
+     FROM mde_monthly_sponsorship_entries AS monthly
+     INNER JOIN mde_sponsorships AS sponsorship
+        ON sponsorship.id = monthly.sponsorship_id
+     INNER JOIN mde_sponsors AS s
+        ON s.id = sponsorship.sponsor_id
+     ORDER BY monthly.created_at DESC, monthly.id DESC
+     LIMIT 1'
+)->fetchColumn();
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
  <h1 class="h3 mb-0">إدخال كفالة جديدة</h1><span class="badge text-bg-secondary">المبالغ بالجنيه السوداني</span>
 </div>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
-<?php $lastSavedSponsor = $_SESSION['mde_last_saved_sponsor'] ?? null; ?>
 <?php $whatsappImportProfile = 'entry'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
 <form method="post" id="entryForm" class="card p-2 p-md-3">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
-<?php if (is_array($lastSavedSponsor) && trim((string) ($lastSavedSponsor['name'] ?? '')) !== ''): ?>
+<?php if (is_string($lastSavedSponsorName) && trim($lastSavedSponsorName) !== ''): ?>
 <div class="alert alert-danger border-danger border-2 py-2 px-3 mb-2 fw-bold text-center" role="status" aria-live="polite">
  <span>آخر كفيل تم إدخاله وحفظه بنجاح:</span>
- <span class="fs-5"><?= mde_h($lastSavedSponsor['name']) ?></span>
+ <span class="fs-5"><?= mde_h($lastSavedSponsorName) ?></span>
 </div>
 <?php endif; ?>
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
@@ -181,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 my-2">
- <div class="small text-secondary">خلايا الكفيل والأم ممتدة على أيتامها. Enter ينقلك للحقل التالي، وEnter في خدمات آخر يتيم في الأسرة يضيف يتيماً جديداً.</div>
+
  <button type="button" class="btn btn-outline-success btn-sm" id="addFamilyBottom">إضافة أم أخرى</button>
 </div>
 
