@@ -24,6 +24,23 @@ function mde_manage_log(PDO $pdo, string $type, int $id, array $before, array $a
     ]);
 }
 
+function mde_manage_delete_log(PDO $pdo, string $type, int $id, array $before): void
+{
+    $stmt = $pdo->prepare('INSERT INTO mde_change_log (entity_type, entity_id, action, before_data, after_data) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$type, $id, 'delete', json_encode($before, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), 'null']);
+}
+
+function mde_manage_message_key(array $row): string
+{
+    return hash('sha256', implode("\0", [
+        (string) ($row['sponsor_id'] ?? ''),
+        (string) ($row['report_month'] ?? ''),
+        (string) ($row['monthly_created_at'] ?? ''),
+        (string) ($row['entered_by'] ?? ''),
+        (string) ($row['supervisor_name'] ?? ''),
+    ]));
+}
+
 function mde_manage_date(string $value, string $label): string
 {
     $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
@@ -42,7 +59,8 @@ function mde_manage_rows(PDO $pdo, string $query): array
               o.id AS orphan_id, o.orphan_name,
               me.id AS monthly_id, me.report_month, me.entry_date,
               me.sponsorship_amount, me.services_amount, me.entered_by,
-              me.supervisor_name, me.notes AS monthly_notes,
+              me.supervisor_name, me.created_at AS monthly_created_at,
+              me.notes AS monthly_notes,
               COALESCE(donations.donation_text, \'\') AS donation_text
             FROM mde_sponsors s
             LEFT JOIN mde_sponsorships ss ON ss.sponsor_id = s.id
@@ -70,7 +88,8 @@ function mde_manage_rows(PDO $pdo, string $query): array
         )';
         $params = array_fill(0, 15, $like);
     }
-    $sql .= ' ORDER BY s.sponsor_name, mo.mother_name, o.orphan_name, me.report_month DESC, me.id DESC LIMIT 500';
+    $sql .= ' ORDER BY s.sponsor_name, me.created_at DESC, me.report_month DESC,
+                       me.entered_by, me.supervisor_name, me.id DESC, mo.mother_name, o.orphan_name LIMIT 500';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll();
@@ -100,6 +119,15 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
             $items = $group['rows'];
             $sponsorForm = 'sponsor-form-' . $sid;
             $rowCount = count($items);
+            $messageCounts = [];
+            foreach ($items as $messageItem) {
+                if (!empty($messageItem['monthly_id'])) {
+                    $messageKey = mde_manage_message_key($messageItem);
+                    $messageCounts[$messageKey] = ($messageCounts[$messageKey] ?? 0) + 1;
+                }
+            }
+            $seenMessages = [];
+            $seenSponsorships = [];
             echo '<section class="manage-group mb-4" data-sponsor-group="' . $sid . '">';
             echo '<form id="' . $sponsorForm . '" method="post" class="manage-save-form">';
             echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '">';
@@ -110,6 +138,9 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
             echo '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">';
             echo '<div class="fw-bold">' . mde_h($sponsor['sponsor_name']) . ($sponsor['sponsor_type'] === 'tree' ? ' <span class="badge text-bg-success">🌳 شجرة</span>' : '') . ' <span class="small text-secondary">#' . $sid . '</span></div>';
             echo '<div class="d-flex gap-2 align-items-center"><span class="small text-secondary">' . $rowCount . ' صف</span>';
+            echo '<form method="post" class="d-inline" onsubmit="return confirm(this.dataset.confirm)" data-confirm="سيُحذف سجل الكفيل فقط إذا لم تعد له علاقات كفالة أو سجلات مغادرة أو تبرعات مرتبطة. هل تريد المتابعة؟">';
+            echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_sponsor"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
+            echo '<button type="submit" class="btn btn-outline-danger btn-sm">حذف الكفيل</button></form>';
             echo '<button type="button" class="btn btn-outline-primary btn-sm manage-edit-toggle">تعديل هذا الكفيل</button>';
             echo '<button type="submit" form="' . $sponsorForm . '" class="btn btn-success btn-sm manage-save d-none">حفظ التعديلات</button>';
             echo '<button type="button" class="btn btn-outline-secondary btn-sm manage-cancel d-none">إلغاء</button></div></div>';
@@ -128,6 +159,7 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 $motherForm = 'mother-form-' . $sid . '-' . $mid;
                 $orphanForm = 'orphan-form-' . $sid . '-' . (int) ($item['orphan_id'] ?? 0) . '-' . $index;
                 $monthlyForm = 'monthly-form-' . $sid . '-' . (int) ($item['monthly_id'] ?? 0) . '-' . $index;
+                $messageKey = !empty($item['monthly_id']) ? mde_manage_message_key($item) : '';
                 echo '<tr class="orphan-row">';
                 if ($first) {
                     echo '<td class="sponsor-span-cell seq-cell" rowspan="' . $rowCount . '"><span class="fw-bold">#' . $sid . '</span></td>';
@@ -146,6 +178,9 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 echo '<div class="small text-secondary">' . ($item['report_month'] ? 'شهر ' . mde_h(substr((string) $item['report_month'], 0, 7)) : 'لا يوجد إدخال شهري') . '</div>';
                 if ($item['monthly_id']) {
                     echo '<div class="manage-input d-none mt-1"><input type="date" class="form-control form-control-sm" name="monthly[' . (int) $item['monthly_id'] . '][entry_date]" form="' . $sponsorForm . '" value="' . mde_h($item['entry_date']) . '" required></div>';
+                    echo '<form method="post" class="mt-1" onsubmit="return confirm(this.dataset.confirm)" data-confirm="سيُحذف هذا الإدخال الشهري والتبرعات الأخرى المرتبطة باليتيم في الشهر نفسه فقط. ستبقى علاقة الكفالة وبقية الأشهر. هل تريد المتابعة؟">';
+                    echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_monthly"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="monthly_id" value="' . (int) $item['monthly_id'] . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
+                    echo '<button type="submit" class="btn btn-link btn-sm text-danger p-0">حذف الشهر</button></form>';
                 }
                 echo '</td>';
                 if (!isset($seenMothers[$mid])) {
@@ -161,7 +196,15 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 if (!empty($item['orphan_id'])) {
                     echo '<input class="form-control form-control-sm manage-input d-none" name="orphans[' . (int) $item['orphan_id'] . ']" form="' . $sponsorForm . '" maxlength="255" required value="' . mde_h($item['orphan_name']) . '">';
                 }
-                echo '<div class="small text-secondary">علاقة #' . (int) $item['sponsorship_id'] . ' · ' . mde_h($item['sponsorship_status'] ?? '') . '</div></td>';
+                echo '<div class="small text-secondary">علاقة #' . (int) $item['sponsorship_id'] . ' · ' . mde_h($item['sponsorship_status'] ?? '') . '</div>';
+                $relationshipId = (int) ($item['sponsorship_id'] ?? 0);
+                if ($relationshipId > 0 && !isset($seenSponsorships[$relationshipId])) {
+                    $seenSponsorships[$relationshipId] = true;
+                    echo '<form method="post" class="mt-1" onsubmit="return confirm(this.dataset.confirm)" data-confirm="سيُحذف سجل علاقة الكفيل باليتيم وكل الإدخالات الشهرية والتبرعات المرتبطة بهذه العلاقة فقط. لن تُحذف هوية اليتيم أو علاقاته بكفلاء آخرين. هل تريد المتابعة؟">';
+                    echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_sponsorship"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="sponsorship_id" value="' . $relationshipId . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
+                    echo '<button type="submit" class="btn btn-link btn-sm text-danger p-0">حذف العلاقة وسجلها</button></form>';
+                }
+                echo '</td>';
                 foreach (['sponsorship_amount' => 'sponsorship', 'services_amount' => 'services'] as $field => $key) {
                     echo '<td class="text-center">';
                     echo '<div class="manage-view">' . ($item[$field] === null ? '—' : number_format((int) $item[$field])) . '</div>';
@@ -171,16 +214,25 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                     echo '</td>';
                 }
                 echo '<td><div class="manage-view small">' . mde_h($item['donation_text'] ?: '—') . '</div><div class="small text-secondary">عرض فقط</div></td>';
-                echo '<td><div class="manage-view small">' . mde_h($item['entered_by'] ?: '—') . ' / ' . mde_h($item['supervisor_name'] ?: '—') . '</div>';
-                if ($item['monthly_id']) {
+                if ($item['monthly_id'] && !isset($seenMessages[$messageKey])) {
+                    $seenMessages[$messageKey] = true;
+                    $messageSpan = $messageCounts[$messageKey] ?? 1;
+                    echo '<td rowspan="' . $messageSpan . '"><div class="manage-view small">' . mde_h($item['entered_by'] ?: '—') . ' / ' . mde_h($item['supervisor_name'] ?: '—') . '</div>';
                     echo '<div class="manage-input d-none">';
-                    echo '<select class="form-select form-select-sm mb-1" name="monthly[' . (int) $item['monthly_id'] . '][entered_by]" form="' . $sponsorForm . '"><option value="">— بواسطة —</option>';
+                    echo '<select class="form-select form-select-sm mb-1" name="messages[' . $messageKey . '][entered_by]" form="' . $sponsorForm . '"><option value="">— بواسطة —</option>';
                     foreach ($GLOBALS['mdeEnteredByOptions'] as $person) echo '<option value="' . mde_h($person) . '"' . ($item['entered_by'] === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
-                    echo '</select><select class="form-select form-select-sm" name="monthly[' . (int) $item['monthly_id'] . '][supervisor_name]" form="' . $sponsorForm . '"><option value="">— المشرف —</option>';
+                    echo '</select><select class="form-select form-select-sm" name="messages[' . $messageKey . '][supervisor_name]" form="' . $sponsorForm . '"><option value="">— المشرف —</option>';
                     foreach ($GLOBALS['mdeSupervisorOptions'] as $person) echo '<option value="' . mde_h($person) . '"' . ($item['supervisor_name'] === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
-                    echo '</select></div>';
+                    echo '</div>';
+                    foreach ($items as $messageMember) {
+                        if (!empty($messageMember['monthly_id']) && mde_manage_message_key($messageMember) === $messageKey) {
+                            echo '<input type="hidden" name="messages[' . $messageKey . '][monthly_ids][]" form="' . $sponsorForm . '" value="' . (int) $messageMember['monthly_id'] . '">';
+                        }
+                    }
+                    echo '</td>';
+                } elseif (!$item['monthly_id']) {
+                    echo '<td>—</td>';
                 }
-                echo '</td>';
                 echo '<td><div class="manage-view small">' . nl2br(mde_h($item['monthly_notes'] ?? '')) . '</div>';
                 if ($item['monthly_id']) {
                     echo '<textarea class="form-control form-control-sm manage-input d-none" rows="2" name="monthly[' . (int) $item['monthly_id'] . '][notes]" form="' . $sponsorForm . '">' . mde_h($item['monthly_notes']) . '</textarea>';
@@ -199,6 +251,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         mde_verify_csrf();
         $action = (string) ($_POST['action'] ?? '');
+        if (in_array($action, ['delete_monthly', 'delete_sponsorship', 'delete_sponsor'], true)) {
+            $sponsorIdForDelete = filter_var($_POST['sponsor_id'] ?? null, FILTER_VALIDATE_INT);
+            if (!$sponsorIdForDelete || $sponsorIdForDelete < 1) throw new InvalidArgumentException('معرّف الكفيل غير صحيح.');
+            $pdo->beginTransaction();
+            if ($action === 'delete_monthly') {
+                $monthlyId = filter_var($_POST['monthly_id'] ?? null, FILTER_VALIDATE_INT);
+                if (!$monthlyId || $monthlyId < 1) throw new InvalidArgumentException('معرّف الإدخال الشهري غير صحيح.');
+                $lock = $pdo->prepare('SELECT me.* FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
+                $lock->execute([$monthlyId, $sponsorIdForDelete]);
+                $beforeMonthly = $lock->fetch();
+                if (!$beforeMonthly) throw new InvalidArgumentException('الإدخال الشهري لا يتبع هذا الكفيل.');
+                $donationLock = $pdo->prepare('SELECT * FROM mde_monthly_other_donations WHERE sponsorship_id = ? AND report_month = ? FOR UPDATE');
+                $donationLock->execute([$beforeMonthly['sponsorship_id'], $beforeMonthly['report_month']]);
+                foreach ($donationLock->fetchAll() as $donation) {
+                    mde_manage_delete_log($pdo, 'donation', (int) $donation['id'], $donation);
+                    $pdo->prepare('DELETE FROM mde_monthly_other_donations WHERE id = ?')->execute([(int) $donation['id']]);
+                }
+                $pdo->prepare('DELETE FROM mde_monthly_sponsorship_entries WHERE id = ?')->execute([$monthlyId]);
+                mde_manage_delete_log($pdo, 'monthly_entry', (int) $monthlyId, $beforeMonthly);
+            } elseif ($action === 'delete_sponsorship') {
+                $relationshipId = filter_var($_POST['sponsorship_id'] ?? null, FILTER_VALIDATE_INT);
+                if (!$relationshipId || $relationshipId < 1) throw new InvalidArgumentException('معرّف علاقة الكفالة غير صحيح.');
+                $lock = $pdo->prepare('SELECT ss.* FROM mde_sponsorships ss WHERE ss.id = ? AND ss.sponsor_id = ? FOR UPDATE');
+                $lock->execute([$relationshipId, $sponsorIdForDelete]);
+                $beforeRelationship = $lock->fetch();
+                if (!$beforeRelationship) throw new InvalidArgumentException('علاقة الكفالة لا تتبع هذا الكفيل.');
+                $entries = $pdo->prepare('SELECT * FROM mde_monthly_sponsorship_entries WHERE sponsorship_id = ? FOR UPDATE');
+                $entries->execute([$relationshipId]);
+                $entryRows = $entries->fetchAll();
+                $donations = $pdo->prepare('SELECT * FROM mde_monthly_other_donations WHERE sponsorship_id = ? FOR UPDATE');
+                $donations->execute([$relationshipId]);
+                foreach ($donations->fetchAll() as $donation) {
+                    mde_manage_delete_log($pdo, 'donation', (int) $donation['id'], $donation);
+                    $pdo->prepare('DELETE FROM mde_monthly_other_donations WHERE id = ?')->execute([(int) $donation['id']]);
+                }
+                foreach ($entryRows as $entry) mde_manage_delete_log($pdo, 'monthly_entry', (int) $entry['id'], $entry);
+                $pdo->prepare('DELETE FROM mde_monthly_sponsorship_entries WHERE sponsorship_id = ?')->execute([$relationshipId]);
+                $pdo->prepare('DELETE FROM mde_sponsorships WHERE id = ?')->execute([$relationshipId]);
+                mde_manage_delete_log($pdo, 'sponsorship', (int) $relationshipId, $beforeRelationship);
+            } else {
+                $lock = $pdo->prepare('SELECT * FROM mde_sponsors WHERE id = ? FOR UPDATE');
+                $lock->execute([$sponsorIdForDelete]);
+                $beforeSponsorDelete = $lock->fetch();
+                if (!$beforeSponsorDelete) throw new InvalidArgumentException('الكفيل غير موجود.');
+                $counts = [];
+                foreach ([
+                    'علاقات الكفالة' => ['mde_sponsorships', 'sponsor_id'],
+                    'سجلات المغادرة' => ['mde_sponsor_departures', 'sponsor_id'],
+                    'التبرعات العامة' => ['mde_monthly_other_donations', 'sponsor_id'],
+                ] as $label => [$table, $column]) {
+                    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column} = ?");
+                    $countStmt->execute([$sponsorIdForDelete]);
+                    $counts[$label] = (int) $countStmt->fetchColumn();
+                }
+                $details = [];
+                foreach ($counts as $label => $count) if ($count > 0) $details[] = $label . ': ' . $count;
+                if ($details) throw new InvalidArgumentException('لا يمكن حذف الكفيل قبل معالجة السجلات التابعة: ' . implode('، ', $details) . '. لا تحذف سجلات تاريخية صحيحة لمجرد تشابه الاسم.');
+                $pdo->prepare('DELETE FROM mde_sponsors WHERE id = ?')->execute([$sponsorIdForDelete]);
+                mde_manage_delete_log($pdo, 'sponsor', (int) $sponsorIdForDelete, $beforeSponsorDelete);
+            }
+            $pdo->commit();
+            mde_flash('success', 'تم الحذف المحدد مع حفظ لقطات السجلات المحذوفة في سجل المراجعة.');
+            mde_redirect('manage', $q !== '' ? ['q' => $q] : []);
+        }
+
         if ($action !== 'group_update') {
             throw new InvalidArgumentException('طلب التعديل غير معروف. أعد تحميل الصفحة وحاول مرة أخرى.');
         }
@@ -263,7 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $monthly = $_POST['monthly'] ?? [];
         if (!is_array($monthly)) throw new InvalidArgumentException('بيانات الإدخالات الشهرية غير صالحة.');
         $monthlySelect = $pdo->prepare('SELECT me.id, me.entry_date, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name, me.notes FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
-        $monthlyUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, sponsorship_amount=?, services_amount=?, entered_by=?, supervisor_name=?, notes=? WHERE id=?');
+        $monthlyUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, sponsorship_amount=?, services_amount=?, notes=? WHERE id=?');
         foreach ($monthly as $id => $values) {
             $id = filter_var($id, FILTER_VALIDATE_INT);
             if (!$id || !is_array($values)) throw new InvalidArgumentException('أحد معرّفات الإدخال الشهري غير صحيح.');
@@ -276,15 +393,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($amount === false || $amount < 0 || $services === false || $services < 0) {
                 throw new InvalidArgumentException('المبالغ يجب أن تكون أعداداً صحيحة غير سالبة.');
             }
-            $entered = trim((string) ($values['entered_by'] ?? $before['entered_by']));
-            $supervisor = trim((string) ($values['supervisor_name'] ?? $before['supervisor_name']));
             $notes = trim((string) ($values['notes'] ?? $before['notes']));
-            if (mb_strlen($entered) > 190 || mb_strlen($supervisor) > 190) {
-                throw new InvalidArgumentException('اسم الموظف أو المشرف أطول من الحد المسموح.');
-            }
-            $after = ['entry_date' => $date, 'sponsorship_amount' => $amount, 'services_amount' => $services, 'entered_by' => $entered ?: null, 'supervisor_name' => $supervisor ?: null, 'notes' => $notes ?: null];
-            $monthlyUpdate->execute([$date, $amount, $services, $entered ?: null, $supervisor ?: null, $notes ?: null, $id]);
+            $after = ['entry_date' => $date, 'sponsorship_amount' => $amount, 'services_amount' => $services, 'entered_by' => $before['entered_by'], 'supervisor_name' => $before['supervisor_name'], 'notes' => $notes ?: null];
+            $monthlyUpdate->execute([$date, $amount, $services, $notes ?: null, $id]);
             mde_manage_log($pdo, 'monthly_entry', (int) $id, $before, $after);
+        }
+
+        $messages = $_POST['messages'] ?? [];
+        if (!is_array($messages)) throw new InvalidArgumentException('بيانات بواسطة والمشرف غير صالحة.');
+        $messageSelect = $pdo->prepare('SELECT me.id, me.entered_by, me.supervisor_name, me.report_month, me.entry_date, me.created_at AS monthly_created_at, ss.sponsor_id FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
+        $messageUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entered_by = ?, supervisor_name = ? WHERE id = ?');
+        foreach ($messages as $messageKey => $messageValues) {
+            if (!is_array($messageValues) || !preg_match('/^[a-f0-9]{64}$/', (string) $messageKey)) throw new InvalidArgumentException('مجموعة الرسالة غير صالحة.');
+            $entered = trim((string) ($messageValues['entered_by'] ?? ''));
+            $supervisor = trim((string) ($messageValues['supervisor_name'] ?? ''));
+            $ids = $messageValues['monthly_ids'] ?? [];
+            if (!is_array($ids) || !$ids) throw new InvalidArgumentException('لم يتم تحديد صفوف الرسالة لتحديث بيانات الموظف والمشرف.');
+            if (mb_strlen($entered) > 190 || mb_strlen($supervisor) > 190) throw new InvalidArgumentException('اسم الموظف أو المشرف أطول من الحد المسموح.');
+            $uniqueIds = [];
+            foreach ($ids as $rawId) {
+                $id = filter_var($rawId, FILTER_VALIDATE_INT);
+                if (!$id || $id < 1 || isset($uniqueIds[$id])) throw new InvalidArgumentException('معرّف إدخال مكرر أو غير صحيح ضمن الرسالة.');
+                $uniqueIds[$id] = true;
+                $messageSelect->execute([$id, $sponsorId]);
+                $beforeMessageEntry = $messageSelect->fetch();
+                if (!$beforeMessageEntry || mde_manage_message_key($beforeMessageEntry) !== $messageKey) throw new InvalidArgumentException('أحد صفوف الرسالة لا يطابق مجموعة الرسالة الحالية. أعد تحميل النتائج.');
+                $afterMessageEntry = $beforeMessageEntry;
+                $afterMessageEntry['entered_by'] = $entered ?: null;
+                $afterMessageEntry['supervisor_name'] = $supervisor ?: null;
+                $messageUpdate->execute([$entered ?: null, $supervisor ?: null, $id]);
+                mde_manage_log($pdo, 'monthly_entry', (int) $id, $beforeMessageEntry, $afterMessageEntry);
+            }
         }
 
         $pdo->commit();
