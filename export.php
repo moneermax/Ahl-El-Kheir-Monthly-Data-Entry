@@ -39,11 +39,15 @@ $departuresStmt->execute([$monthStart, $monthEnd]);
 $departures = $departuresStmt->fetchAll();
 
 $donationsStmt = $pdo->prepare("
- SELECT sp.sponsor_name, d.donation_type, d.donation_date, d.amount, d.notes
+ SELECT sp.sponsor_name, mo.mother_name, o.orphan_name,
+        d.donation_type, d.donation_date, d.amount, d.notes
  FROM mde_monthly_other_donations d
  LEFT JOIN mde_sponsors sp ON sp.id=d.sponsor_id
+ LEFT JOIN mde_sponsorships ss ON ss.id=d.sponsorship_id
+ LEFT JOIN mde_orphans o ON o.id=ss.orphan_id
+ LEFT JOIN mde_mothers mo ON mo.id=o.mother_id
  WHERE d.report_month=?
- ORDER BY d.donation_type, sp.sponsor_name
+ ORDER BY d.donation_type, sp.sponsor_name, mo.mother_name, o.orphan_name
 ");
 $donationsStmt->execute([$monthStart]);
 $donations = $donationsStmt->fetchAll();
@@ -144,11 +148,11 @@ if ($format === 'xlsx') {
     }
     $sheetRows[] = [];
     $sheetRows[] = [['التبرعات الأخرى','s']];
-    $sheetRows[] = [['الكفيل','s'],['نوع التبرع','s'],['التاريخ','s'],['القيمة','s'],['ملاحظات','s']];
+    $sheetRows[] = [['الكفيل','s'],['الأم','s'],['اليتيم','s'],['نوع التبرع','s'],['التاريخ','s'],['القيمة','s'],['ملاحظات','s']];
     foreach ($donations as $row) {
         $sheetRows[] = [
-            [$row['sponsor_name'],'s'],[$row['donation_type'],'s'],[$row['donation_date'],'s'],
-            [(int)$row['amount'],'n'],[$row['notes'],'s']
+            [$row['sponsor_name'],'s'],[$row['mother_name'] ?? '—','s'],[$row['orphan_name'] ?? '—','s'],
+            [$row['donation_type'],'s'],[$row['donation_date'],'s'],[(int)$row['amount'],'n'],[$row['notes'],'s']
         ];
     }
     $sheetRows[] = [];
@@ -247,9 +251,9 @@ if ($format === 'csv') {
     }
     fputcsv($out, []);
     fputcsv($out, ['التبرعات الأخرى']);
-    fputcsv($out, ['الكفيل', 'نوع التبرع', 'التاريخ', 'القيمة', 'ملاحظات']);
+    fputcsv($out, ['الكفيل', 'الأم', 'اليتيم', 'نوع التبرع', 'التاريخ', 'القيمة', 'ملاحظات']);
     foreach ($donations as $row) {
-        fputcsv($out, [$csvText($row['sponsor_name']), $csvText($row['donation_type']), $row['donation_date'], $row['amount'], $csvText($row['notes'])]);
+        fputcsv($out, [$csvText($row['sponsor_name']), $csvText($row['mother_name'] ?? '—'), $csvText($row['orphan_name'] ?? '—'), $csvText($row['donation_type']), $row['donation_date'], $row['amount'], $csvText($row['notes'])]);
     }
     fputcsv($out, []);
     fputcsv($out, ['مغادرات الكفلاء']);
@@ -303,9 +307,9 @@ if ($format === 'pdf') {
         }
         $html .= '</tr>';
     }
-    $html .= '</table><h3>التبرعات الأخرى</h3><table border="1" cellpadding="4"><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>نوع التبرع</th><th>التاريخ</th><th>القيمة</th></tr>';
+    $html .= '</table><h3>التبرعات الأخرى حسب اليتيم</h3><table border="1" cellpadding="4"><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>الأم</th><th>اليتيم</th><th>نوع التبرع</th><th>التاريخ</th><th>القيمة</th></tr>';
     foreach ($donations as $row) {
-        $html .= '<tr><td>' . htmlspecialchars((string)$row['sponsor_name'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['donation_type'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['donation_date'], ENT_QUOTES, 'UTF-8') . '</td><td>' . number_format((int)$row['amount']) . '</td></tr>';
+        $html .= '<tr><td>' . htmlspecialchars((string)$row['sponsor_name'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)($row['mother_name'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)($row['orphan_name'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['donation_type'], ENT_QUOTES, 'UTF-8') . '</td><td>' . htmlspecialchars((string)$row['donation_date'], ENT_QUOTES, 'UTF-8') . '</td><td>' . number_format((int)$row['amount']) . '</td></tr>';
     }
     $html .= '</table><h3>مغادرات الكفلاء</h3><table border="1" cellpadding="4"><tr style="font-weight:bold;background-color:#eeeeee"><th>الكفيل</th><th>رقم الملف</th><th>تاريخ المغادرة</th><th>عدد الأيتام</th><th>قيمة الكفالة</th><th>الخدمات</th><th>آخر سداد</th></tr>';
     foreach ($departures as $row) {
