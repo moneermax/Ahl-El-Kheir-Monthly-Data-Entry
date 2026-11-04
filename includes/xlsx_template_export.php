@@ -163,7 +163,10 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             foreach ($sponsorRows as $i=>$row) {
                 $items=$row['other_donation_items'] ?? [];
                 $types=[]; $amounts=[];
-                foreach ($items as $item) { $types[]=(string)($item['type'] ?? ''); $amounts[]=number_format((int)($item['amount'] ?? 0)); }
+                foreach ($items as $item) { $types[]=(string)($item['type'] ?? ''); $amounts[]=(int)($item['amount'] ?? 0); }
+                $donationAmountCell = count($amounts) === 1
+                    ? $amounts[0]
+                    : implode("\n", array_map(static fn(int $amount): string => number_format($amount), $amounts));
                 $rows1[]=[
                     $i===0 ? $sponsorIndex+1 : null,
                     $i===0 ? (string)($sponsor['sponsor_name'] ?? '') : null,
@@ -173,7 +176,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
                     (int)($row['sponsorship_amount'] ?? 0),
                     (int)($row['services_amount'] ?? 0),
                     implode("\n",$types),
-                    implode("\n",$amounts),
+                    $donationAmountCell,
                     $row['entered_by'] ?? '',
                     $row['supervisor_name'] ?? '',
                     $row['notes'] ?? '',
