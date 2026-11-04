@@ -49,7 +49,7 @@ function applyEntry(record) {
     if(choose(existing,value)){clear($('#sponsorName'));success=true;}
     else {if(existing){existing.value='';existing.dispatchEvent(new Event('change',{bubbles:true}));}success=set($('#sponsorName'),value);}
    } else if(field==='file') success=set($('#entryForm').elements.file_number,value);
-   else if(field==='type') success=set($('#sponsorType'),value||'individual');
+   else if(field==='type') success=value?set($('#sponsorType'),value):true;
    else if(field==='date') {success=set($('#entryDate'),value);if(!value)clear($('#entryDate'));}
    else if(field==='entered') {success=value?choose($('#enteredBy'),value):false;if(!success)clearPerson($('#enteredBy'));}
    else if(field==='supervisor') {success=value?choose($('#supervisorName'),value):false;if(!success)clearPerson($('#supervisorName'));}
