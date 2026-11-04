@@ -250,10 +250,11 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             }
         }
         foreach ($workbookDom->getElementsByTagNameNS($mainNs,'definedName') as $definedName) {
-            if ($definedName instanceof DOMElement
-                && $definedName->getAttribute('name')==='_xlnm.Print_Area'
-                && $definedName->getAttribute('localSheetId')==='0') {
-                $definedName->textContent="'كفلاء جدد2026'!$A$1:$L$".(4+count($rows1));
+            if (!($definedName instanceof DOMElement) || $definedName->getAttribute('name') !== '_xlnm.Print_Area') continue;
+            if ($definedName->getAttribute('localSheetId') === '0') {
+                $definedName->textContent = "'كفلاء جدد2026'!$A$1:$L$" . (5 + count($rows1));
+            } elseif ($definedName->getAttribute('localSheetId') === '1') {
+                $definedName->textContent = "'كفلاء طلعوا2026'!$A$1:$I$" . (5 + count($rows2));
             }
         }
         if ($workbookDom->save($workbookPath)===false) throw new RuntimeException('تعذر حفظ إعدادات طباعة Excel.');
