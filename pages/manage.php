@@ -1,12 +1,16 @@
 <?php
 declare(strict_types=1);
 
-$error = '';
 require_once __DIR__ . '/../includes/reference_options.php';
+
+$error = '';
 $q = trim((string) ($_GET['q'] ?? $_POST['q'] ?? ''));
 
-function mde_log_change(PDO $pdo, string $type, int $id, array $before, array $after): void
+function mde_manage_log(PDO $pdo, string $type, int $id, array $before, array $after): void
 {
+    if ($before === $after) {
+        return;
+    }
     $stmt = $pdo->prepare(
         'INSERT INTO mde_change_log (entity_type, entity_id, action, before_data, after_data)
          VALUES (?, ?, ?, ?, ?)'
@@ -20,208 +24,371 @@ function mde_log_change(PDO $pdo, string $type, int $id, array $before, array $a
     ]);
 }
 
+function mde_manage_date(string $value, string $label): string
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    if (!$date || $date->format('Y-m-d') !== $value) {
+        throw new InvalidArgumentException('تحقق من ' . $label . '.');
+    }
+    return $value;
+}
+
+function mde_manage_rows(PDO $pdo, string $query): array
+{
+    $sql = 'SELECT
+              s.id AS sponsor_id, s.sponsor_name, s.file_number, s.sponsor_type,
+              ss.id AS sponsorship_id, ss.status AS sponsorship_status, ss.start_date, ss.end_date,
+              mo.id AS mother_id, mo.mother_name,
+              o.id AS orphan_id, o.orphan_name,
+              me.id AS monthly_id, me.report_month, me.entry_date,
+              me.sponsorship_amount, me.services_amount, me.entered_by,
+              me.supervisor_name, me.notes AS monthly_notes,
+              COALESCE(donations.donation_text, \'\') AS donation_text
+            FROM mde_sponsors s
+            LEFT JOIN mde_sponsorships ss ON ss.sponsor_id = s.id
+            LEFT JOIN mde_orphans o ON o.id = ss.orphan_id
+            LEFT JOIN mde_mothers mo ON mo.id = o.mother_id
+            LEFT JOIN mde_monthly_sponsorship_entries me ON me.sponsorship_id = ss.id
+            LEFT JOIN (
+              SELECT sponsorship_id,
+                     GROUP_CONCAT(CONCAT(donation_type, \' — \', FORMAT(amount, 0)) ORDER BY id SEPARATOR \' | \') AS donation_text
+              FROM mde_monthly_other_donations
+              WHERE sponsorship_id IS NOT NULL
+              GROUP BY sponsorship_id
+            ) donations ON donations.sponsorship_id = ss.id';
+    $params = [];
+    if ($query !== '') {
+        $like = '%' . $query . '%';
+        $sql .= ' WHERE (
+            s.sponsor_name LIKE ? OR s.file_number LIKE ? OR
+            mo.mother_name LIKE ? OR o.orphan_name LIKE ? OR
+            CAST(me.report_month AS CHAR) LIKE ? OR CAST(me.entry_date AS CHAR) LIKE ? OR
+            CAST(me.sponsorship_amount AS CHAR) LIKE ? OR CAST(me.services_amount AS CHAR) LIKE ? OR
+            me.entered_by LIKE ? OR me.supervisor_name LIKE ? OR me.notes LIKE ? OR
+            donations.donation_text LIKE ? OR CAST(s.id AS CHAR) LIKE ? OR
+            CAST(ss.id AS CHAR) LIKE ? OR CAST(me.id AS CHAR) LIKE ?
+        )';
+        $params = array_fill(0, 15, $like);
+    }
+    $sql .= ' ORDER BY s.sponsor_name, mo.mother_name, o.orphan_name, me.report_month DESC, me.id DESC LIMIT 500';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function mde_manage_render(PDO $pdo, string $query, string $csrf): string
+{
+    $rows = mde_manage_rows($pdo, $query);
+    $groups = [];
+    foreach ($rows as $row) {
+        $sid = (int) $row['sponsor_id'];
+        $groups[$sid]['sponsor'] = $row;
+        $groups[$sid]['rows'][] = $row;
+    }
+
+    ob_start();
+    if ($query !== '' && !$rows) {
+        echo '<div class="alert alert-warning mb-0">لم يتم العثور على سجلات مطابقة.</div>';
+    } elseif ($query === '') {
+        echo '<div class="alert alert-light border mb-0">ابدأ بكتابة اسم أو رقم ملف أو شهر أو مبلغ أو اسم الموظف لعرض السجلات المطابقة.</div>';
+    } else {
+        echo '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">';
+        echo '<span class="small text-secondary">عدد الصفوف المعروضة: ' . count($rows) . ' — الحد الأقصى 500 صف</span>';
+        echo '<span class="small text-secondary">كل صف يمثل إدخالاً شهرياً لعلاقة كفالة محددة</span></div>';
+        foreach ($groups as $sid => $group) {
+            $sponsor = $group['sponsor'];
+            $items = $group['rows'];
+            $sponsorForm = 'sponsor-form-' . $sid;
+            $rowCount = count($items);
+            echo '<section class="manage-group mb-4" data-sponsor-group="' . $sid . '">';
+            echo '<form id="' . $sponsorForm . '" method="post" class="manage-save-form">';
+            echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '">';
+            echo '<input type="hidden" name="action" value="group_update">';
+            echo '<input type="hidden" name="sponsor_id" value="' . $sid . '">';
+            echo '<input type="hidden" name="q" value="' . mde_h($query) . '">';
+            echo '</form>';
+            echo '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">';
+            echo '<div class="fw-bold">' . mde_h($sponsor['sponsor_name']) . ($sponsor['sponsor_type'] === 'tree' ? ' <span class="badge text-bg-success">🌳 شجرة</span>' : '') . ' <span class="small text-secondary">#' . $sid . '</span></div>';
+            echo '<div class="d-flex gap-2 align-items-center"><span class="small text-secondary">' . $rowCount . ' صف</span>';
+            echo '<button type="button" class="btn btn-outline-primary btn-sm manage-edit-toggle">تعديل هذا الكفيل</button>';
+            echo '<button type="submit" form="' . $sponsorForm . '" class="btn btn-success btn-sm manage-save d-none">حفظ التعديلات</button>';
+            echo '<button type="button" class="btn btn-outline-secondary btn-sm manage-cancel d-none">إلغاء</button></div></div>';
+            echo '<div class="entry-register-wrap manage-table-wrap"><table class="entry-register manage-register">';
+            echo '<colgroup><col style="width:2.5%"><col style="width:12.5%"><col style="width:7.5%"><col style="width:8.5%"><col style="width:10.5%"><col style="width:14%"><col style="width:6.5%"><col style="width:6.5%"><col style="width:14%"><col style="width:9%"><col style="width:8.5%"></colgroup>';
+            echo '<thead><tr><th class="h-sponsor">#</th><th class="h-sponsor">الكفيل</th><th class="h-sponsor">الملف / النوع</th><th class="h-sponsor">تاريخ الانضمام</th><th class="h-mother">الأم</th><th class="h-orphan">اليتيم</th><th class="h-orphan">الكفالة</th><th class="h-orphan">الخدمات</th><th class="h-orphan">تبرعات أخرى (لليتيم)</th><th class="h-sponsor">بواسطة / المشرف</th><th class="h-sponsor">ملاحظات</th></tr></thead><tbody>';
+            $motherCounts = [];
+            foreach ($items as $item) {
+                $mid = (int) ($item['mother_id'] ?? 0);
+                $motherCounts[$mid] = ($motherCounts[$mid] ?? 0) + 1;
+            }
+            $seenMothers = [];
+            $first = true;
+            foreach ($items as $index => $item) {
+                $mid = (int) ($item['mother_id'] ?? 0);
+                $motherForm = 'mother-form-' . $sid . '-' . $mid;
+                $orphanForm = 'orphan-form-' . $sid . '-' . (int) ($item['orphan_id'] ?? 0) . '-' . $index;
+                $monthlyForm = 'monthly-form-' . $sid . '-' . (int) ($item['monthly_id'] ?? 0) . '-' . $index;
+                echo '<tr class="orphan-row">';
+                if ($first) {
+                    echo '<td class="sponsor-span-cell seq-cell" rowspan="' . $rowCount . '"><span class="fw-bold">#' . $sid . '</span></td>';
+                    echo '<td class="sponsor-span-cell" rowspan="' . $rowCount . '">';
+                    echo '<input class="form-control form-control-sm manage-view" value="' . mde_h($sponsor['sponsor_name']) . '" readonly>';
+                    echo '<input class="form-control form-control-sm manage-input d-none" name="sponsor_name" form="' . $sponsorForm . '" maxlength="255" required value="' . mde_h($sponsor['sponsor_name']) . '">';
+                    echo '</td>';
+                    echo '<td class="sponsor-span-cell" rowspan="' . $rowCount . '">';
+                    echo '<div class="manage-view small">' . mde_h($sponsor['file_number'] ?: '—') . '<br>' . ($sponsor['sponsor_type'] === 'tree' ? '🌳 شجرة' : 'فردي') . '</div>';
+                    echo '<input class="form-control form-control-sm manage-input d-none mb-1" name="file_number" form="' . $sponsorForm . '" maxlength="100" value="' . mde_h($sponsor['file_number']) . '" placeholder="رقم الملف">';
+                    echo '<select class="form-select form-select-sm manage-input d-none" name="sponsor_type" form="' . $sponsorForm . '"><option value="individual"' . ($sponsor['sponsor_type'] === 'individual' ? ' selected' : '') . '>فردي</option><option value="tree"' . ($sponsor['sponsor_type'] === 'tree' ? ' selected' : '') . '>🌳 شجرة</option></select>';
+                    echo '</td>';
+                    $first = false;
+                }
+                echo '<td class="sponsor-span-cell"><div class="small fw-semibold">' . mde_h($item['start_date'] ?? '—') . '</div>';
+                echo '<div class="small text-secondary">' . ($item['report_month'] ? 'شهر ' . mde_h(substr((string) $item['report_month'], 0, 7)) : 'لا يوجد إدخال شهري') . '</div>';
+                if ($item['monthly_id']) {
+                    echo '<div class="manage-input d-none mt-1"><input type="date" class="form-control form-control-sm" name="monthly[' . (int) $item['monthly_id'] . '][entry_date]" form="' . $monthlyForm . '" value="' . mde_h($item['entry_date']) . '" required></div>';
+                }
+                echo '</td>';
+                if (!isset($seenMothers[$mid])) {
+                    $seenMothers[$mid] = true;
+                    echo '<td class="mother-span-cell" rowspan="' . $motherCounts[$mid] . '">';
+                    echo '<div class="manage-view">' . mde_h($item['mother_name'] ?? '—') . '</div>';
+                    if ($mid > 0) {
+                        echo '<input class="form-control form-control-sm manage-input d-none" name="mothers[' . $mid . ']" form="' . $sponsorForm . '" maxlength="255" required value="' . mde_h($item['mother_name']) . '">';
+                    }
+                    echo '</td>';
+                }
+                echo '<td class="orphan-cell"><div class="manage-view">' . mde_h($item['orphan_name'] ?? '—') . '</div>';
+                if (!empty($item['orphan_id'])) {
+                    echo '<input class="form-control form-control-sm manage-input d-none" name="orphans[' . (int) $item['orphan_id'] . ']" form="' . $sponsorForm . '" maxlength="255" required value="' . mde_h($item['orphan_name']) . '">';
+                }
+                echo '<div class="small text-secondary">علاقة #' . (int) $item['sponsorship_id'] . ' · ' . mde_h($item['sponsorship_status'] ?? '') . '</div></td>';
+                foreach (['sponsorship_amount' => 'sponsorship', 'services_amount' => 'services'] as $field => $key) {
+                    echo '<td class="text-center">';
+                    echo '<div class="manage-view">' . ($item[$field] === null ? '—' : number_format((int) $item[$field])) . '</div>';
+                    if ($item['monthly_id']) {
+                        echo '<input type="number" min="0" step="1" class="form-control form-control-sm text-center manage-input d-none" name="monthly[' . (int) $item['monthly_id'] . '][' . $field . ']" form="' . $monthlyForm . '" value="' . (int) $item[$field] . '" required>';
+                    }
+                    echo '</td>';
+                }
+                echo '<td><div class="manage-view small">' . mde_h($item['donation_text'] ?: '—') . '</div><div class="small text-secondary">عرض فقط</div></td>';
+                echo '<td><div class="manage-view small">' . mde_h($item['entered_by'] ?: '—') . ' / ' . mde_h($item['supervisor_name'] ?: '—') . '</div>';
+                if ($item['monthly_id']) {
+                    echo '<div class="manage-input d-none">';
+                    echo '<select class="form-select form-select-sm mb-1" name="monthly[' . (int) $item['monthly_id'] . '][entered_by]" form="' . $monthlyForm . '"><option value="">— بواسطة —</option>';
+                    foreach ($GLOBALS['mdeEnteredByOptions'] as $person) echo '<option value="' . mde_h($person) . '"' . ($item['entered_by'] === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
+                    echo '</select><select class="form-select form-select-sm" name="monthly[' . (int) $item['monthly_id'] . '][supervisor_name]" form="' . $monthlyForm . '"><option value="">— المشرف —</option>';
+                    foreach ($GLOBALS['mdeSupervisorOptions'] as $person) echo '<option value="' . mde_h($person) . '"' . ($item['supervisor_name'] === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
+                    echo '</select></div>';
+                }
+                echo '</td>';
+                echo '<td><div class="manage-view small">' . nl2br(mde_h($item['monthly_notes'] ?? '')) . '</div>';
+                if ($item['monthly_id']) {
+                    echo '<textarea class="form-control form-control-sm manage-input d-none" rows="2" name="monthly[' . (int) $item['monthly_id'] . '][notes]" form="' . $monthlyForm . '">' . mde_h($item['monthly_notes']) . '</textarea>';
+                }
+                echo '</td></tr>';
+                if ($item['monthly_id']) {
+                    echo '<form id="' . $monthlyForm . '" class="d-none" method="post"><input type="hidden" name="action" value="monthly_marker"></form>';
+                }
+            }
+            echo '</tbody></table></div>';
+            echo '<div class="small text-secondary mt-2">تاريخ الانضمام وحالة العلاقة معروضان كسجل تاريخي. التعديل يشمل بيانات الكفيل والأم واليتيم والإدخال الشهري. التبرعات الأخرى معروضة هنا دون تعديل.</div>';
+            echo '</section>';
+        }
+    }
+    return (string) ob_get_clean();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         mde_verify_csrf();
         $action = (string) ($_POST['action'] ?? '');
-        $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
-        if (!$id || $id < 1) {
-            throw new InvalidArgumentException('معرّف السجل غير صحيح.');
+        if ($action !== 'group_update') {
+            throw new InvalidArgumentException('طلب التعديل غير معروف. أعد تحميل الصفحة وحاول مرة أخرى.');
+        }
+        $sponsorId = filter_var($_POST['sponsor_id'] ?? null, FILTER_VALIDATE_INT);
+        if (!$sponsorId || $sponsorId < 1) {
+            throw new InvalidArgumentException('معرّف الكفيل غير صحيح.');
+        }
+        $pdo->beginTransaction();
+        $stmt = $pdo->prepare('SELECT id, sponsor_name, file_number, sponsor_type, notes FROM mde_sponsors WHERE id = ? FOR UPDATE');
+        $stmt->execute([$sponsorId]);
+        $beforeSponsor = $stmt->fetch();
+        if (!$beforeSponsor) {
+            throw new InvalidArgumentException('الكفيل غير موجود.');
         }
 
-        $pdo->beginTransaction();
+        $name = trim((string) ($_POST['sponsor_name'] ?? $beforeSponsor['sponsor_name']));
+        $file = trim((string) ($_POST['file_number'] ?? (string) $beforeSponsor['file_number']));
+        $type = (string) ($_POST['sponsor_type'] ?? $beforeSponsor['sponsor_type']);
+        if ($name === '' || !in_array($type, ['individual', 'tree'], true)) {
+            throw new InvalidArgumentException('تحقق من اسم الكفيل ونوعه.');
+        }
+        $duplicate = $pdo->prepare('SELECT id FROM mde_sponsors WHERE LOWER(TRIM(sponsor_name)) = LOWER(?) AND id <> ? LIMIT 1');
+        $duplicate->execute([$name, $sponsorId]);
+        if ($duplicate->fetch()) {
+            throw new InvalidArgumentException('يوجد كفيل آخر بالاسم نفسه. لم يتم حفظ أي تعديل.');
+        }
+        $afterSponsor = ['sponsor_name' => $name, 'file_number' => $file ?: null, 'sponsor_type' => $type, 'notes' => $beforeSponsor['notes']];
+        $pdo->prepare('UPDATE mde_sponsors SET sponsor_name = ?, file_number = ?, sponsor_type = ? WHERE id = ?')
+            ->execute([$name, $file ?: null, $type, $sponsorId]);
+        mde_manage_log($pdo, 'sponsor', (int) $sponsorId, $beforeSponsor, $afterSponsor);
 
-        if ($action === 'sponsor') {
-            $stmt = $pdo->prepare('SELECT id, sponsor_name, file_number, sponsor_type, notes FROM mde_sponsors WHERE id = ? FOR UPDATE');
-            $stmt->execute([$id]);
-            $before = $stmt->fetch();
-            if (!$before) throw new InvalidArgumentException('الكفيل غير موجود.');
+        $mothers = $_POST['mothers'] ?? [];
+        if (!is_array($mothers)) throw new InvalidArgumentException('بيانات الأمهات غير صالحة.');
+        $motherSelect = $pdo->prepare('SELECT mo.id, mo.mother_name FROM mde_mothers mo WHERE mo.id = ? AND EXISTS (SELECT 1 FROM mde_orphans o JOIN mde_sponsorships ss ON ss.orphan_id = o.id WHERE o.mother_id = mo.id AND ss.sponsor_id = ?) FOR UPDATE');
+        $motherUpdate = $pdo->prepare('UPDATE mde_mothers SET mother_name = ? WHERE id = ?');
+        foreach ($mothers as $id => $rawName) {
+            $id = filter_var($id, FILTER_VALIDATE_INT);
+            $newName = trim((string) $rawName);
+            if (!$id || $newName === '') throw new InvalidArgumentException('اسم الأم مطلوب.');
+            $motherSelect->execute([$id, $sponsorId]);
+            $before = $motherSelect->fetch();
+            if (!$before) throw new InvalidArgumentException('إحدى الأمهات لا تتبع هذا الكفيل.');
+            $motherUpdate->execute([$newName, $id]);
+            mde_manage_log($pdo, 'mother', (int) $id, $before, ['mother_name' => $newName]);
+        }
 
-            $name = trim((string) ($_POST['sponsor_name'] ?? ''));
-            $file = trim((string) ($_POST['file_number'] ?? ''));
-            $type = (string) ($_POST['sponsor_type'] ?? '');
-            $notes = trim((string) ($_POST['notes'] ?? ''));
-            if ($name === '' || !in_array($type, ['individual', 'tree'], true)) {
-                throw new InvalidArgumentException('أدخل اسم الكفيل واختر نوعاً صحيحاً.');
+        $orphans = $_POST['orphans'] ?? [];
+        if (!is_array($orphans)) throw new InvalidArgumentException('بيانات الأيتام غير صالحة.');
+        $orphanSelect = $pdo->prepare('SELECT o.id, o.orphan_name FROM mde_orphans o JOIN mde_sponsorships ss ON ss.orphan_id = o.id WHERE o.id = ? AND ss.sponsor_id = ? LIMIT 1 FOR UPDATE');
+        $orphanUpdate = $pdo->prepare('UPDATE mde_orphans SET orphan_name = ? WHERE id = ?');
+        foreach ($orphans as $id => $rawName) {
+            $id = filter_var($id, FILTER_VALIDATE_INT);
+            $newName = trim((string) $rawName);
+            if (!$id || $newName === '') throw new InvalidArgumentException('اسم اليتيم مطلوب.');
+            $orphanSelect->execute([$id, $sponsorId]);
+            $before = $orphanSelect->fetch();
+            if (!$before) throw new InvalidArgumentException('أحد الأيتام لا يتبع هذا الكفيل.');
+            $orphanUpdate->execute([$newName, $id]);
+            mde_manage_log($pdo, 'orphan', (int) $id, $before, ['orphan_name' => $newName]);
+        }
+
+        $monthly = $_POST['monthly'] ?? [];
+        if (!is_array($monthly)) throw new InvalidArgumentException('بيانات الإدخالات الشهرية غير صالحة.');
+        $monthlySelect = $pdo->prepare('SELECT me.id, me.entry_date, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name, me.notes FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
+        $monthlyUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, sponsorship_amount=?, services_amount=?, entered_by=?, supervisor_name=?, notes=? WHERE id=?');
+        foreach ($monthly as $id => $values) {
+            $id = filter_var($id, FILTER_VALIDATE_INT);
+            if (!$id || !is_array($values)) throw new InvalidArgumentException('أحد معرّفات الإدخال الشهري غير صحيح.');
+            $monthlySelect->execute([$id, $sponsorId]);
+            $before = $monthlySelect->fetch();
+            if (!$before) throw new InvalidArgumentException('أحد الإدخالات الشهرية لا يتبع هذا الكفيل.');
+            $date = mde_manage_date(trim((string) ($values['entry_date'] ?? $before['entry_date'])), 'تاريخ الإدخال');
+            $amount = filter_var($values['sponsorship_amount'] ?? $before['sponsorship_amount'], FILTER_VALIDATE_INT);
+            $services = filter_var($values['services_amount'] ?? $before['services_amount'], FILTER_VALIDATE_INT);
+            if ($amount === false || $amount < 0 || $services === false || $services < 0) {
+                throw new InvalidArgumentException('المبالغ يجب أن تكون أعداداً صحيحة غير سالبة.');
             }
-            $duplicate = $pdo->prepare('SELECT id FROM mde_sponsors WHERE LOWER(TRIM(sponsor_name)) = LOWER(?) AND id <> ? LIMIT 1');
-            $duplicate->execute([$name, $id]);
-            if ($duplicate->fetch()) throw new InvalidArgumentException('يوجد كفيل آخر بالاسم نفسه. راجع السجل قبل تغيير الاسم.');
-
-            $after = ['sponsor_name' => $name, 'file_number' => $file ?: null, 'sponsor_type' => $type, 'notes' => $notes ?: null];
-            $pdo->prepare('UPDATE mde_sponsors SET sponsor_name=?, file_number=?, sponsor_type=?, notes=? WHERE id=?')
-                ->execute([$name, $file ?: null, $type, $notes ?: null, $id]);
-            mde_log_change($pdo, 'sponsor', $id, $before, $after);
-            $message = 'تم تحديث بيانات الكفيل.';
-
-        } elseif ($action === 'mother') {
-            $stmt = $pdo->prepare('SELECT id, mother_name FROM mde_mothers WHERE id = ? FOR UPDATE');
-            $stmt->execute([$id]);
-            $before = $stmt->fetch();
-            if (!$before) throw new InvalidArgumentException('الأم غير موجودة.');
-            $name = trim((string) ($_POST['mother_name'] ?? ''));
-            if ($name === '') throw new InvalidArgumentException('اسم الأم مطلوب.');
-            $after = ['mother_name' => $name];
-            $pdo->prepare('UPDATE mde_mothers SET mother_name=? WHERE id=?')->execute([$name, $id]);
-            mde_log_change($pdo, 'mother', $id, $before, $after);
-            $message = 'تم تحديث اسم الأم. سيظهر التعديل في جميع سجلاتها المرتبطة.';
-
-        } elseif ($action === 'orphan') {
-            $stmt = $pdo->prepare('SELECT id, orphan_name FROM mde_orphans WHERE id = ? FOR UPDATE');
-            $stmt->execute([$id]);
-            $before = $stmt->fetch();
-            if (!$before) throw new InvalidArgumentException('اليتيم غير موجود.');
-            $name = trim((string) ($_POST['orphan_name'] ?? ''));
-            if ($name === '') throw new InvalidArgumentException('اسم اليتيم مطلوب.');
-            $after = ['orphan_name' => $name];
-            $pdo->prepare('UPDATE mde_orphans SET orphan_name=? WHERE id=?')->execute([$name, $id]);
-            mde_log_change($pdo, 'orphan', $id, $before, $after);
-            $message = 'تم تحديث اسم اليتيم. سيظهر التعديل في جميع سجلات كفالته.';
-
-        } elseif ($action === 'monthly_entry') {
-            $stmt = $pdo->prepare('SELECT id, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes FROM mde_monthly_sponsorship_entries WHERE id = ? FOR UPDATE');
-            $stmt->execute([$id]);
-            $before = $stmt->fetch();
-            if (!$before) throw new InvalidArgumentException('سجل الشهر غير موجود.');
-
-            $date = trim((string) ($_POST['entry_date'] ?? ''));
-            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
-            $amount = filter_var($_POST['sponsorship_amount'] ?? null, FILTER_VALIDATE_INT);
-            $services = filter_var($_POST['services_amount'] ?? null, FILTER_VALIDATE_INT);
-            if (!$parsed || $parsed->format('Y-m-d') !== $date || $amount === false || $amount < 0 || $services === false || $services < 0) {
-                throw new InvalidArgumentException('تحقق من التاريخ والمبالغ؛ يجب أن تكون المبالغ أعداداً صحيحة غير سالبة.');
+            $entered = trim((string) ($values['entered_by'] ?? $before['entered_by']));
+            $supervisor = trim((string) ($values['supervisor_name'] ?? $before['supervisor_name']));
+            $notes = trim((string) ($values['notes'] ?? $before['notes']));
+            if (mb_strlen($entered) > 190 || mb_strlen($supervisor) > 190) {
+                throw new InvalidArgumentException('اسم الموظف أو المشرف أطول من الحد المسموح.');
             }
-            $enteredBy = trim((string) ($_POST['entered_by'] ?? ''));
-            $supervisor = trim((string) ($_POST['supervisor_name'] ?? ''));
-            $notes = trim((string) ($_POST['notes'] ?? ''));
-            $after = [
-                'entry_date' => $date,
-                'sponsorship_amount' => $amount,
-                'services_amount' => $services,
-                'entered_by' => $enteredBy ?: null,
-                'supervisor_name' => $supervisor ?: null,
-                'notes' => $notes ?: null,
-            ];
-            $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, sponsorship_amount=?, services_amount=?, entered_by=?, supervisor_name=?, notes=? WHERE id=?')
-                ->execute([$date, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null, $id]);
-            mde_log_change($pdo, 'monthly_entry', $id, $before, $after);
-            $message = 'تم تحديث المبالغ وبيانات سجل الشهر مع الاحتفاظ ببقية السجل.';
-
-        } else {
-            throw new InvalidArgumentException('نوع التعديل غير معروف.');
+            $after = ['entry_date' => $date, 'sponsorship_amount' => $amount, 'services_amount' => $services, 'entered_by' => $entered ?: null, 'supervisor_name' => $supervisor ?: null, 'notes' => $notes ?: null];
+            $monthlyUpdate->execute([$date, $amount, $services, $entered ?: null, $supervisor ?: null, $notes ?: null, $id]);
+            mde_manage_log($pdo, 'monthly_entry', (int) $id, $before, $after);
         }
 
         $pdo->commit();
-        mde_flash('success', $message);
+        mde_flash('success', 'تم حفظ التعديلات وتسجيل التغييرات في سجل المراجعة.');
         mde_redirect('manage', $q !== '' ? ['q' => $q] : []);
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         $error = $exception instanceof PDOException
-            ? 'تعذر تحديث السجل بسبب خطأ في قاعدة البيانات. لم يتم حفظ التعديل.'
+            ? 'تعذر حفظ التعديلات بسبب خطأ في قاعدة البيانات. لم يتم حفظ أي جزء منها.'
             : $exception->getMessage();
     }
 }
 
-$matches = [];
-if ($q !== '') {
-    $like = '%' . $q . '%';
-    $find = $pdo->prepare(
-        'SELECT DISTINCT s.id
-         FROM mde_sponsors s
-         LEFT JOIN mde_sponsorships ss ON ss.sponsor_id=s.id
-         LEFT JOIN mde_orphans o ON o.id=ss.orphan_id
-         LEFT JOIN mde_mothers mo ON mo.id=o.mother_id
-         WHERE s.sponsor_name LIKE ? OR mo.mother_name LIKE ? OR o.orphan_name LIKE ?
-         ORDER BY s.sponsor_name
-         LIMIT 50'
-    );
-    $find->execute([$like, $like, $like]);
-    $matches = array_map('intval', $find->fetchAll(PDO::FETCH_COLUMN));
+if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
+    $html = mde_manage_render($pdo, $q, mde_csrf_token());
+    while (ob_get_level() > 0) ob_end_clean();
+    header('Content-Type: text/html; charset=UTF-8');
+    echo $html;
+    exit;
 }
-
-
 ?>
+<style>
+.manage-table-wrap{overflow-x:auto}
+.manage-register{min-width:1120px}
+.manage-register .manage-input{font-size:.75rem}
+.manage-register textarea{min-height:58px;resize:vertical}
+.manage-register .form-control,.manage-register .form-select{font-size:.74rem;padding:.2rem .25rem;min-width:0}
+.manage-group.is-editing{outline:2px solid #7da991;outline-offset:3px;border-radius:.5rem}
+.manage-group.is-editing .manage-view{display:none!important}
+.manage-group.is-editing .manage-input.d-none{display:block!important}
+.manage-group.is-editing .manage-input.d-none select{display:block}
+.manage-group.is-editing .manage-input.d-none input,.manage-group.is-editing .manage-input.d-none textarea{display:block}
+</style>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
  <h1 class="h3 mb-0">بحث وإدارة البيانات</h1>
- <span class="badge text-bg-secondary">تعديل مع حفظ سجل التغييرات</span>
+ <span class="badge text-bg-secondary">تعديل داخل سجل الكفالة مع حفظ سجل التغييرات</span>
 </div>
-<p class="text-secondary">ابحث باسم الكفيل أو الأم أو اليتيم. يمكنك تصحيح البيانات الأساسية أو مبالغ شهر محدد دون إعادة إدخال السجلات.</p>
-<form method="get" class="card p-3 mb-4">
- <input type="hidden" name="page" value="manage">
- <label class="form-label" for="manageSearch">اسم الكفيل أو الأم أو اليتيم</label>
- <div class="input-group"><input class="form-control" id="manageSearch" name="q" value="<?=mde_h($q)?>" placeholder="اكتب جزءاً من الاسم..." required><button class="btn btn-primary">بحث</button></div>
-</form>
-<?php if ($error): ?><div class="alert alert-danger"><?=mde_h($error)?></div><?php endif; ?>
-<?php if ($q !== '' && !$matches): ?><div class="alert alert-warning">لم يتم العثور على سجلات مطابقة.</div><?php endif; ?>
-<?php foreach ($matches as $sponsorId):
- $sponsorStmt=$pdo->prepare('SELECT id,sponsor_name,file_number,sponsor_type,notes FROM mde_sponsors WHERE id=?');
- $sponsorStmt->execute([$sponsorId]); $sponsor=$sponsorStmt->fetch(); if (!$sponsor) continue;
- $linksStmt=$pdo->prepare(
-  'SELECT ss.id AS sponsorship_id, ss.status, ss.start_date, ss.end_date,
-          mo.id AS mother_id, mo.mother_name, o.id AS orphan_id, o.orphan_name,
-          me.id AS monthly_id, me.report_month, me.entry_date, me.sponsorship_amount, me.services_amount,
-          me.entered_by, me.supervisor_name, me.notes AS monthly_notes
-   FROM mde_sponsorships ss
-   JOIN mde_orphans o ON o.id=ss.orphan_id
-   JOIN mde_mothers mo ON mo.id=o.mother_id
-   LEFT JOIN mde_monthly_sponsorship_entries me ON me.sponsorship_id=ss.id
-   WHERE ss.sponsor_id=?
-   ORDER BY me.report_month DESC, mo.mother_name, o.orphan_name'
- );
- $linksStmt->execute([$sponsorId]); $links=$linksStmt->fetchAll();
-?>
-<section class="card p-3 p-md-4 mb-4">
- <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-  <h2 class="h5 mb-0"><?=mde_h($sponsor['sponsor_name'])?> <?php if($sponsor['sponsor_type']==='tree'): ?><span class="badge text-bg-success">🌳 شجرة</span><?php endif; ?></h2>
-  <span class="text-secondary small">رقم الكفيل: #<?= (int)$sponsor['id'] ?></span>
- </div>
- <form method="post" class="border rounded-3 p-3 mb-3 bg-light">
-  <input type="hidden" name="_csrf" value="<?=mde_h(mde_csrf_token())?>"><input type="hidden" name="action" value="sponsor"><input type="hidden" name="id" value="<?=(int)$sponsor['id']?>"><input type="hidden" name="q" value="<?=mde_h($q)?>">
-  <div class="row g-2">
-   <div class="col-md-5"><label class="form-label">اسم الكفيل</label><input class="form-control" name="sponsor_name" maxlength="255" required value="<?=mde_h($sponsor['sponsor_name'])?>"></div>
-   <div class="col-md-2"><label class="form-label">رقم الملف</label><input class="form-control" name="file_number" maxlength="100" value="<?=mde_h($sponsor['file_number'])?>"></div>
-   <div class="col-md-2"><label class="form-label">النوع</label><select class="form-select" name="sponsor_type"><option value="individual" <?=$sponsor['sponsor_type']==='individual'?'selected':''?>>فردي</option><option value="tree" <?=$sponsor['sponsor_type']==='tree'?'selected':''?>>🌳 شجرة</option></select></div>
-   <div class="col-md-3"><label class="form-label">ملاحظات</label><input class="form-control" name="notes" value="<?=mde_h($sponsor['notes'])?>"></div>
-  </div>
-  <button class="btn btn-outline-primary btn-sm mt-3" type="submit">حفظ بيانات الكفيل</button>
- </form>
- <?php if (!$links): ?><p class="text-secondary mb-0">لا توجد روابط كفالة مسجلة لهذا الكفيل.</p><?php endif; ?>
- <?php foreach($links as $link): ?>
-  <div class="border rounded-3 p-3 mb-3">
-   <div class="row g-2 mb-3">
-    <div class="col-md-6">
-     <label class="form-label small">اسم الأم</label>
-     <form method="post" class="input-group">
-      <input type="hidden" name="_csrf" value="<?=mde_h(mde_csrf_token())?>"><input type="hidden" name="action" value="mother"><input type="hidden" name="id" value="<?=(int)$link['mother_id']?>"><input type="hidden" name="q" value="<?=mde_h($q)?>">
-      <input class="form-control" name="mother_name" value="<?=mde_h($link['mother_name'])?>" required><button class="btn btn-outline-secondary" type="submit">تحديث الأم</button>
-     </form>
-    </div>
-    <div class="col-md-6">
-     <label class="form-label small">اسم اليتيم</label>
-     <form method="post" class="input-group">
-      <input type="hidden" name="_csrf" value="<?=mde_h(mde_csrf_token())?>"><input type="hidden" name="action" value="orphan"><input type="hidden" name="id" value="<?=(int)$link['orphan_id']?>"><input type="hidden" name="q" value="<?=mde_h($q)?>">
-      <input class="form-control" name="orphan_name" value="<?=mde_h($link['orphan_name'])?>" required><button class="btn btn-outline-secondary" type="submit">تحديث اليتيم</button>
-     </form>
-    </div>
-   </div>
-   <div class="small text-secondary mb-2">حالة الكفالة: <?=mde_h($link['status'])?> · بداية الكفالة: <?=mde_h($link['start_date'])?> · رقم العلاقة: #<?=(int)$link['sponsorship_id']?></div>
-   <?php if ($link['monthly_id']): ?>
-    <form method="post" class="bg-light rounded-3 p-3">
-     <input type="hidden" name="_csrf" value="<?=mde_h(mde_csrf_token())?>"><input type="hidden" name="action" value="monthly_entry"><input type="hidden" name="id" value="<?=(int)$link['monthly_id']?>"><input type="hidden" name="q" value="<?=mde_h($q)?>">
-     <div class="d-flex justify-content-between align-items-center mb-2"><strong>بيانات شهر <?=mde_h(substr((string)$link['report_month'],0,7))?></strong><span class="small text-secondary">سجل #<?=(int)$link['monthly_id']?></span></div>
-     <div class="row g-2">
-      <div class="col-md-2"><label class="form-label small">تاريخ الإدخال</label><input type="date" class="form-control" name="entry_date" value="<?=mde_h($link['entry_date'])?>" required></div>
-      <div class="col-md-2"><label class="form-label small">الكفالة</label><input type="number" min="0" step="1" class="form-control" name="sponsorship_amount" value="<?=(int)$link['sponsorship_amount']?>" required></div>
-      <div class="col-md-2"><label class="form-label small">الخدمات</label><input type="number" min="0" step="1" class="form-control" name="services_amount" value="<?=(int)$link['services_amount']?>" required></div>
-      <div class="col-md-2"><label class="form-label small">بواسطة</label><?php mde_person_dropdown('manageEnteredBy', 'entered_by', $mdeEnteredByOptions, '—', (string) ($link['entered_by'] ?? '')); ?></div>
-      <div class="col-md-2"><label class="form-label small">المشرف</label><?php mde_person_dropdown('manageSupervisor', 'supervisor_name', $mdeSupervisorOptions, '—', (string) ($link['supervisor_name'] ?? '')); ?></div>
-      <div class="col-md-2"><label class="form-label small">ملاحظات</label><input class="form-control" name="notes" value="<?=mde_h($link['monthly_notes'])?>"></div>
-     </div>
-     <button class="btn btn-outline-primary btn-sm mt-3" type="submit">حفظ تعديل الشهر</button>
-    </form>
-   <?php else: ?><p class="small text-secondary mb-0">لا يوجد سجل شهري لهذه العلاقة.</p><?php endif; ?>
-  </div>
- <?php endforeach; ?>
-</section>
-<?php endforeach; ?>
-<?php if ($q !== '' && $matches): ?><p class="small text-secondary">عُرضت حتى 50 نتيجة كفيل. التعديلات على اسم الأم أو اليتيم تنعكس على كل العلاقات المرتبطة بهما، ولا تحذف أي سجل تاريخي.</p><?php endif; ?>
+<p class="text-secondary">ابحث مباشرة أثناء الكتابة باسم الكفيل أو رقم الملف أو الأم أو اليتيم أو الشهر أو المبلغ أو الموظف أو المشرف أو نوع التبرع. تظهر النتائج بتصميم سجل الإدخال نفسه، مع صف مستقل لكل إدخال شهري.</p>
+<div class="card p-3 mb-3">
+ <label class="form-label" for="manageSearch">بحث مباشر</label>
+ <input class="form-control" id="manageSearch" type="search" value="<?= mde_h($q) ?>" placeholder="ابدأ بكتابة أي جزء من البيانات..." autocomplete="off">
+ <div class="form-text" id="manageSearchStatus" aria-live="polite">اكتب للبحث تلقائياً دون الضغط على زر أو إعادة تحميل الصفحة.</div>
+</div>
+<?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
+<div id="manageResults" aria-live="polite"><?= mde_manage_render($pdo, $q, mde_csrf_token()) ?></div>
+<script>
+(() => {
+ 'use strict';
+ const input = document.getElementById('manageSearch');
+ const results = document.getElementById('manageResults');
+ const status = document.getElementById('manageSearchStatus');
+ let timer = null;
+ let controller = null;
+ let editing = false;
+ const search = () => {
+  const query = input.value.trim();
+  if (controller) controller.abort();
+  controller = new AbortController();
+  status.textContent = 'جارٍ البحث...';
+  fetch('index.php?page=manage&ajax=1&q=' + encodeURIComponent(query), {
+   headers: {'X-Requested-With':'XMLHttpRequest'},
+   signal: controller.signal
+  }).then(response => {
+   if (!response.ok) throw new Error('تعذر تنفيذ البحث (' + response.status + ').');
+   return response.text();
+  }).then(html => {
+   results.innerHTML = html;
+   status.textContent = query ? 'تم تحديث النتائج مباشرة.' : 'اكتب للبحث تلقائياً دون الضغط على زر أو إعادة تحميل الصفحة.';
+   editing = false;
+  }).catch(error => {
+   if (error.name !== 'AbortError') status.textContent = error.message || 'تعذر تحديث النتائج.';
+  });
+ };
+ input.addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(search, 180);
+ });
+ results.addEventListener('click', event => {
+  const group = event.target.closest('[data-sponsor-group]');
+  if (!group) return;
+  if (event.target.closest('.manage-edit-toggle')) {
+   if (editing && !group.classList.contains('is-editing')) {
+    status.textContent = 'احفظ أو ألغِ التعديل المفتوح أولاً.';
+    return;
+   }
+   group.classList.add('is-editing');
+   group.querySelector('.manage-edit-toggle').classList.add('d-none');
+   group.querySelector('.manage-save').classList.remove('d-none');
+   group.querySelector('.manage-cancel').classList.remove('d-none');
+   editing = true;
+  }
+  if (event.target.closest('.manage-cancel')) {
+   search();
+  }
+ });
+ results.addEventListener('submit', event => {
+  const form = event.target.closest('.manage-save-form');
+  if (!form) return;
+  if (!window.confirm('سيتم حفظ كل التعديلات الظاهرة داخل سجل هذا الكفيل، مع تسجيلها في سجل التغييرات. هل تريد المتابعة؟')) {
+   event.preventDefault();
+  }
+ });
+})();
+</script>
