@@ -20,6 +20,25 @@ This is a standalone data-entry project. Never modify the separate Ahl El Kheir 
 - Monthly reports and PDF/XLSX/CSV exports include mother/orphan details for sponsorship-linked other donations. Historical sponsor-level donations with a NULL sponsorship link remain supported.
 - No request-time DDL. Schema changes are static SQL migrations.
 
+## Existing-record reuse and duplicate protection — 2026-11-04
+
+The entry save handler now reuses exact, unambiguous existing mother and orphan records instead of creating new person IDs for every monthly entry. It then:
+- Reuses the sponsor/orphan relationship when exactly one active relationship exists and no monthly row exists for the selected report month.
+- Stops the transaction if that active relationship already has a monthly row for the selected month.
+- Preserves ended relationships and creates a new sponsorship episode when no active or paused episode exists.
+- Stops when duplicate active relationships, paused relationships, or ambiguous same-name mother/orphan records are found.
+- Reuses an existing orphan identity across sponsors when its mother/orphan name match is unambiguous, preserving the one-orphan/multiple-sponsors data model.
+- Rejects the same mother/orphan pair repeated inside one submitted form.
+
+Matching is based on exact names under the database's configured collation because the current form/schema do not provide a unique person identifier. A single name match is therefore a cautious heuristic, not proof of identity; ambiguous matches are blocked rather than guessed. This limitation should be revisited if stable person identifiers or explicit existing-person selectors are added.
+
+No schema migration is required for this change. The save remains transactional, so any validation failure rolls back all changes in the submission.
+
+### Verification after the change
+
+- GitHub Actions run 124 (commit 937be01e222f52acaa68478dcb93af3bdab64a89) passed PHP lint, JavaScript syntax checks, WhatsApp parser tests, and personnel-dropdown tests.
+- This is automated static/regression verification only. It does not replace live MariaDB transaction tests or browser testing of the entry, departure, and report workflows.
+
 ## Database migrations
 
 Existing installations must apply migrations in order, once each, to `ahl_el_kheir_monthly_data`.
