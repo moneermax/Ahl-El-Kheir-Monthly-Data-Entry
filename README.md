@@ -24,7 +24,7 @@ The application opens directly at its entry page. There is no login system, as r
 
 ## Features
 
-- Register a new sponsor or add sponsorships to an existing sponsor, with optional sponsor file number and sponsor type (individual or internal tree).
+- Register a new sponsor or add sponsorships to an existing sponsor, with optional sponsor file number and sponsor type (individual or internal tree). After a successful save, the exact sponsor name is retained in the current browser session and displayed prominently in a red alert immediately above the entry register table to reduce accidental duplicate/re-entry. The indicator updates only after the database transaction commits.
 - Enter multiple mothers for one sponsor, with one or more orphans under each mother.
 - Each orphan belongs to one mother; one mother can have multiple orphans.
 - Each sponsor/orphan relationship is stored separately, so one sponsor can sponsor multiple orphans and one orphan can have more than one sponsor.
