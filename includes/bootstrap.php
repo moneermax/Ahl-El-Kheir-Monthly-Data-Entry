@@ -62,6 +62,11 @@ function mde_verify_csrf(): void
 
 function mde_redirect(string $page, array $params = []): never
 {
+    // The page shell is rendered before page-specific POST handlers run.
+    // Discard that buffered shell so the redirect header is sent cleanly.
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     $query = http_build_query(['page' => $page] + $params);
     header('Location: index.php?' . $query);
     exit;
