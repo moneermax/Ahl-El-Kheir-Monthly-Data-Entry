@@ -235,7 +235,7 @@ if ($format === 'xlsx') {
         $excelRow += $count;
     }
     $sheet1 = $makeSheet($newHeaders, $newRowsForXlsx, 'كفلاء جدد ' . $year, 11, $mergeRefs);
-    $sheet2 = $makeSheet($departureHeaders, $departureFlatRows, 'كفلاء طلعوا ' . $year, 9, false);
+    $sheet2 = $makeSheet($departureHeaders, $departureFlatRows, 'كفلاء طلعوا ' . $year, 9, []);
     $tmp = tempnam(sys_get_temp_dir(), 'mde_report_');
     if ($tmp === false) { http_response_code(500); exit('تعذر إنشاء ملف مؤقت.'); }
     $zip = new ZipArchive();
