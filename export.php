@@ -169,11 +169,10 @@ if ($format === 'xlsx') {
         }
         return $name;
     };
-    $makeSheet = static function (array $headers, array $rows, string $title, int $columnCount, bool $mergeGroups = false) use ($columnName): string {
+    $makeSheet = static function (array $headers, array $rows, string $title, int $columnCount, array $mergeRefs = []) use ($columnName): string {
         $allRows = [array_merge([$title], array_fill(0, $columnCount - 1, '')), $headers, ...$rows];
         $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
         $xml .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="1"/></sheetViews><sheetFormatPr defaultRowHeight="22"/><sheetData>';
-        $mergeRefs = [];
         foreach ($allRows as $ri => $cells) {
             $rowNum = $ri + 1;
             $xml .= '<row r="' . $rowNum . '">';
@@ -190,23 +189,6 @@ if ($format === 'xlsx') {
             $xml .= '</row>';
         }
         $xml .= '</sheetData>';
-        if ($mergeGroups && count($rows) > 0) {
-            foreach ([1, 2] as $colIndex) {
-                $start = 3;
-                $lastValue = null;
-                for ($i = 0; $i < count($rows); $i++) {
-                    $value = $rows[$i][$colIndex] ?? '';
-                    if ($lastValue !== null && $value !== $lastValue) {
-                        if ($start < $i + 2) $mergeRefs[] = $columnName($colIndex + 1) . $start . ':' . $columnName($colIndex + 1) . ($i + 2);
-                        $start = $i + 3;
-                    }
-                    $lastValue = $value;
-                }
-                if ($lastValue !== null && $start < count($rows) + 2) {
-                    $mergeRefs[] = $columnName($colIndex + 1) . $start . ':' . $columnName($colIndex + 1) . (count($rows) + 2);
-                }
-            }
-        }
         if ($mergeRefs) {
             $xml .= '<mergeCells count="' . count($mergeRefs) . '">';
             foreach ($mergeRefs as $ref) $xml .= '<mergeCell ref="' . $ref . '"/>';
@@ -217,34 +199,42 @@ if ($format === 'xlsx') {
     };
 
     $newRowsForXlsx = [];
-    $globalRow = 0;
-    foreach ($sponsors as $sponsor) {
-        foreach ($sponsor['rows'] as $index => $row) {
-            $newRowsForXlsx[] = [
-                $index === 0 ? $sponsor['sponsor_name'] : '',
-                $index === 0 ? $dateText($sponsor['joining_date']) : '',
-                $row['mother_name'], $row['orphan_name'],
-                (int) $row['sponsorship_amount'], (int) $row['services_amount'],
-                $row['other_donations'], $row['entered_by'], $row['supervisor_name'], $row['notes'],
-            ];
-            $globalRow++;
-        }
-    }
-    // Keep the sponsor sequence as the first column; merge it over its orphan rows.
-    $newRowsForXlsx = [];
+    $mergeRefs = [];
+    $excelRow = 3;
     foreach ($sponsors as $index => $sponsor) {
+        $count = count($sponsor['rows']);
+        if ($count > 1) {
+            foreach (['A', 'B', 'C'] as $column) $mergeRefs[] = $column . $excelRow . ':' . $column . ($excelRow + $count - 1);
+        }
+        $motherGroups = [];
+        foreach ($sponsor['rows'] as $row) {
+            $motherId = (string) $row['mother_id'];
+            $motherGroups[$motherId] = ($motherGroups[$motherId] ?? 0) + 1;
+        }
+        $motherStarted = [];
         foreach ($sponsor['rows'] as $rowIndex => $row) {
+            $motherId = (string) $row['mother_id'];
             $newRowsForXlsx[] = [
                 $rowIndex === 0 ? $index + 1 : '',
                 $rowIndex === 0 ? $sponsor['sponsor_name'] : '',
                 $rowIndex === 0 ? $dateText($sponsor['joining_date']) : '',
-                $row['mother_name'], $row['orphan_name'],
+                isset($motherStarted[$motherId]) ? '' : $row['mother_name'],
+                $row['orphan_name'],
                 (int) $row['sponsorship_amount'], (int) $row['services_amount'],
                 $row['other_donations'], $row['entered_by'], $row['supervisor_name'], $row['notes'],
             ];
+            if (!isset($motherStarted[$motherId])) {
+                $motherStarted[$motherId] = $excelRow + $rowIndex;
+                if ($motherGroups[$motherId] > 1) {
+                    $first = $excelRow + $rowIndex;
+                    $last = $first + $motherGroups[$motherId] - 1;
+                    $mergeRefs[] = 'D' . $first . ':D' . $last;
+                }
+            }
         }
+        $excelRow += $count;
     }
-    $sheet1 = $makeSheet($newHeaders, $newRowsForXlsx, 'كفلاء جدد ' . $year, 11, true);
+    $sheet1 = $makeSheet($newHeaders, $newRowsForXlsx, 'كفلاء جدد ' . $year, 11, $mergeRefs);
     $sheet2 = $makeSheet($departureHeaders, $departureFlatRows, 'كفلاء طلعوا ' . $year, 9, false);
     $tmp = tempnam(sys_get_temp_dir(), 'mde_report_');
     if ($tmp === false) { http_response_code(500); exit('تعذر إنشاء ملف مؤقت.'); }
