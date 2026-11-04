@@ -32,7 +32,7 @@ $newStmt = $pdo->prepare("
  JOIN mde_mothers mo ON mo.id = o.mother_id
  LEFT JOIN mde_monthly_sponsorship_entries me
    ON me.sponsorship_id = ss.id AND me.report_month = ?
- ORDER BY first_dates.first_start, sp.sponsor_name, mo.mother_name, o.orphan_name
+ ORDER BY first_dates.first_start, sp.sponsor_name, mo.id, o.orphan_name
 ");
 $newStmt->execute([$monthStart, $monthEnd, $monthStart]);
 $newRows = $newStmt->fetchAll();
