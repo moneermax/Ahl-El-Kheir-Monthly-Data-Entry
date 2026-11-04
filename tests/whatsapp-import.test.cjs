@@ -380,7 +380,7 @@ assert.deepEqual(Array.from(applied.families[0].orphans), ['حمود محمد', 
 assert.equal(applied.amounts.expectedSponsorship, '80000');
 assert.equal(applied.amounts.expectedServices, '5000');
 assert.equal(applied.updated, true);
-assert.deepEqual(populateResult, { sponsorshipManual: false, servicesManual: false });
+assert.deepEqual(JSON.parse(JSON.stringify(populateResult)), { sponsorshipManual: false, servicesManual: false });
 
 // Unknown optional values remain empty; no value is fabricated.
 const optionalRecord = parser.entry('الكفيل: ناصر كباشي احمد\nالأم: عائشة محمد\nاليتيم: سارة محمد\nالتاريخ: 03/11/2026', 0);
