@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS mde_monthly_sponsorship_entries (
 CREATE TABLE IF NOT EXISTS mde_monthly_other_donations (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sponsor_id BIGINT UNSIGNED NULL,
+    sponsorship_id BIGINT UNSIGNED NULL,
     report_month DATE NOT NULL COMMENT 'Always the first day of the reporting month',
     donation_date DATE NOT NULL,
     donation_type VARCHAR(190) NOT NULL,
@@ -112,8 +113,11 @@ CREATE TABLE IF NOT EXISTS mde_monthly_other_donations (
     PRIMARY KEY (id),
     KEY idx_mde_other_donations_month (report_month),
     KEY idx_mde_other_donations_sponsor (sponsor_id),
+    KEY idx_mde_other_donations_sponsorship (sponsorship_id),
     CONSTRAINT fk_mde_other_donations_sponsor FOREIGN KEY (sponsor_id)
       REFERENCES mde_sponsors(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_mde_other_donations_sponsorship FOREIGN KEY (sponsorship_id)
+      REFERENCES mde_sponsorships(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT chk_mde_donation_month_first_day CHECK (DAYOFMONTH(report_month) = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -162,4 +166,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4);
