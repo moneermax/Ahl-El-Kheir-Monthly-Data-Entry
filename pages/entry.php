@@ -133,17 +133,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
 <?php $whatsappImportProfile = 'entry'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
-<form method="post" id="entryForm" class="card p-2 p-md-3">
+<form method="post" id="entryForm" class="card p-3 p-md-4">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
- <h2 class="h6 mb-0">سجل الكفالة</h2>
+ <h2 class="h5 mb-0">سجل الكفالة — بنفس ترتيب كشف Excel</h2>
  <div class="d-flex gap-2 flex-wrap">
+  <span class="badge text-bg-light border">كفيل واحد لكل عملية إدخال</span>
   <button type="button" class="btn btn-outline-success btn-sm" id="addFamily">إضافة أم</button>
  </div>
 </div>
-<div class="entry-register-wrap">
+<div class="alert alert-light border py-2 small mb-3">
+تظهر بيانات الكفيل مرة واحدة وتمتد بصرياً على جميع الأيتام، وتظهر بيانات كل أم مرة واحدة أمام أيتامها. أدخل مبلغ كل يتيم في صف مستقل.
+</div>
+<div class="table-responsive entry-register-wrap">
 <table class="table table-bordered table-sm align-middle entry-register mb-2" id="entryRegister">
- <colgroup><col style="width:3%"><col style="width:14%"><col style="width:8%"><col style="width:10%"><col style="width:12%"><col style="width:7%"><col style="width:6%"><col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:10%"></colgroup>
+ <colgroup><col style="width:48px"><col style="width:220px"><col style="width:135px"><col style="width:185px"><col style="width:220px"><col style="width:125px"><col style="width:110px"><col style="width:155px"><col style="width:95px"><col style="width:125px"><col style="width:125px"><col style="width:230px"></colgroup>
  <thead>
   <tr>
    <th rowspan="2" class="text-center">الرقم</th>
@@ -163,9 +167,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  <tbody id="families"></tbody>
 </table>
 </div>
-<div class="card border border-success-subtle bg-success-subtle p-2 mb-2">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+ <div class="small text-secondary">استخدم زر «إضافة يتيم» داخل خلية الأم لإضافة صف، أو «إضافة أم» لإضافة مجموعة أسرية أخرى.</div>
+ <button type="button" class="btn btn-outline-success btn-sm" id="addFamilyBottom">إضافة أم أخرى</button>
+</div>
+<div class="card border border-success-subtle bg-success-subtle p-3 mb-3">
  <h3 class="h6 mb-2">مراجعة إجمالي المبالغ الواردة</h3>
- 
+ <p class="small text-secondary mb-3">أدخل الإجمالي المشترك الوارد من المصدر (إن توفر). إذا كان قابلاً للقسمة بالتساوي على عدد الأيتام فسيُوزّع تلقائياً؛ وإذا تبقى كسر فستحتاج إلى إدخال مبالغ الأيتام يدوياً. سيتحقق النظام من تطابق مجموع المبالغ مع الإجمالي.</p>
  <div class="row g-3">
   <div class="col-md-4"><label class="form-label">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedSponsorship" name="expected_sponsorship_total" placeholder="اختياري"></div>
   <div class="col-md-4"><label class="form-label">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedServices" name="expected_services_total" placeholder="اختياري"></div>
