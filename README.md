@@ -74,7 +74,7 @@ The two original CSV files are retained under \`reference-csv/\` without importi
 - Historical monthly entries remain reportable after a sponsorship ends.
 - Amounts are integer SDG units; no floating-point arithmetic is used.
 
-For existing installations, apply migration `004_link_other_donations_to_sponsorship.sql` once after migration 003, then migration `005_audit_deletions.sql`. Migration 004 adds a nullable sponsorship link; migration 005 extends audit entity types for deletion snapshots. Historical sponsor-level donations are not rewritten. Fresh installations receive the latest audit schema from `database/schema.sql`.
+For existing installations, apply migrations in order: `004_link_other_donations_to_sponsorship.sql`, `005_audit_deletions.sql`, then `006_audit_departure_deletions.sql`. Migration 004 adds a nullable sponsorship link; migrations 005 and 006 extend audit entity types for deletion snapshots, including sponsor departures. Historical sponsor-level donations are not rewritten. Fresh installations receive the latest audit schema from `database/schema.sql`.
 
 ## Privacy and separation
 
