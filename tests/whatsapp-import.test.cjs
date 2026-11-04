@@ -256,4 +256,13 @@ assert.equal(pairedRecord.date, new Date().getFullYear() + '-11-03');
 assert.equal(pairedRecord.entered, 'هبه خلف الله');
 assert.ok(pairedRecord.notes.includes('تواصل ابوبكر مع زوجته'));
 
+const sharedFieldsMessage = multiMessage + '\nعن طريق هناء خلف الله\nمشرفه ح ميساء';
+const sharedRecords = parser.applyMessageLevelFields(
+  parser.split(sharedFieldsMessage).map((part, i) => parser.entry(part, i)),
+  sharedFieldsMessage
+);
+assert.equal(sharedRecords.length, 2);
+assert.deepEqual(Array.from(sharedRecords, r => r.entered), ['هناء خلف الله', 'هناء خلف الله'], 'all sponsor records from one paste share one operator');
+assert.deepEqual(Array.from(sharedRecords, r => r.supervisor), ['ميساء', 'ميساء'], 'all sponsor records from one paste share one independent supervisor');
+
 console.log('WhatsApp parser tests passed.');
