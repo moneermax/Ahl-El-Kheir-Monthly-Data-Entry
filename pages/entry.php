@@ -71,21 +71,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sponsorId = (int) $pdo->lastInsertId();
             }
 
-        $motherStmt = $pdo->prepare('INSERT INTO mde_mothers (mother_name) VALUES (?)');
-        $orphanStmt = $pdo->prepare('INSERT INTO mde_orphans (mother_id, orphan_name) VALUES (?, ?)');
-        $sponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
+        // Reuse person identities and active sponsor/orphan relationships.
+        // Names are only used for exact lookup; ambiguous matches stop the whole transaction.
+        $findMotherStmt = $pdo->prepare('SELECT id FROM mde_mothers WHERE mother_name = ? ORDER BY id LIMIT 2 FOR UPDATE');
+        $insertMotherStmt = $pdo->prepare('INSERT INTO mde_mothers (mother_name) VALUES (?)');
+        $findOrphanStmt = $pdo->prepare('SELECT id FROM mde_orphans WHERE mother_id = ? AND orphan_name = ? ORDER BY id LIMIT 2 FOR UPDATE');
+        $insertOrphanStmt = $pdo->prepare('INSERT INTO mde_orphans (mother_id, orphan_name) VALUES (?, ?)');
+        $findLinksStmt = $pdo->prepare('SELECT id, status FROM mde_sponsorships WHERE sponsor_id = ? AND orphan_id = ? ORDER BY id FOR UPDATE');
+        $insertSponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
+        $findMonthlyStmt = $pdo->prepare('SELECT id FROM mde_monthly_sponsorship_entries WHERE sponsorship_id = ? AND report_month = ? LIMIT 1 FOR UPDATE');
         $monthlyStmt = $pdo->prepare('INSERT INTO mde_monthly_sponsorship_entries (sponsorship_id, report_month, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         $donationStmt = $pdo->prepare('INSERT INTO mde_monthly_other_donations (sponsor_id, sponsorship_id, report_month, donation_date, donation_type, amount, entered_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
 
         $savedOrphans = 0;
+        $submittedPairs = [];
         foreach ($families as $family) {
             $motherName = trim((string) ($family['mother_name'] ?? ''));
             $orphans = $family['orphans'] ?? [];
             if ($motherName === '' || !is_array($orphans) || count($orphans) < 1) {
                 throw new InvalidArgumentException('كل أسرة تحتاج اسم الأم وطفلاً واحداً على الأقل.');
             }
-            $motherStmt->execute([$motherName]);
-            $motherId = (int) $pdo->lastInsertId();
+
+            $findMotherStmt->execute([$motherName]);
+            $motherMatches = $findMotherStmt->fetchAll();
+            if (count($motherMatches) > 1) {
+                throw new InvalidArgumentException('يوجد أكثر من سجل للأم بالاسم نفسه. أوقفنا الحفظ لتجنب دمج أسرتين مختلفتين؛ راجع السجلات أولاً.');
+            }
+            if ($motherMatches) {
+                $motherId = (int) $motherMatches[0]['id'];
+            } else {
+                $insertMotherStmt->execute([$motherName]);
+                $motherId = (int) $pdo->lastInsertId();
+            }
 
             foreach ($orphans as $orphan) {
                 $orphanName = trim((string) ($orphan['name'] ?? ''));
@@ -94,10 +111,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($orphanName === '' || $amount === false || $amount < 0 || $services === false || $services < 0) {
                     throw new InvalidArgumentException('راجع أسماء الأيتام والمبالغ؛ يجب أن تكون المبالغ أرقاماً صحيحة غير سالبة.');
                 }
-                $orphanStmt->execute([$motherId, $orphanName]);
-                $orphanId = (int) $pdo->lastInsertId();
-                $sponsorshipStmt->execute([$sponsorId, $orphanId, $entryDate]);
-                $sponsorshipId = (int) $pdo->lastInsertId();
+
+                $pairKey = $motherId . "\\0" . mb_strtolower($orphanName, 'UTF-8');
+                if (isset($submittedPairs[$pairKey])) {
+                    throw new InvalidArgumentException('اليتيم نفسه مكرر في نموذج الإدخال. راجع أسماء الأسر والأيتام قبل الحفظ.');
+                }
+                $submittedPairs[$pairKey] = true;
+
+                $findOrphanStmt->execute([$motherId, $orphanName]);
+                $orphanMatches = $findOrphanStmt->fetchAll();
+                if (count($orphanMatches) > 1) {
+                    throw new InvalidArgumentException('يوجد أكثر من سجل لليتيم بالاسم نفسه تحت الأم المحددة. أوقفنا الحفظ لتجنب ربط سجل خاطئ.');
+                }
+                if ($orphanMatches) {
+                    $orphanId = (int) $orphanMatches[0]['id'];
+                } else {
+                    $insertOrphanStmt->execute([$motherId, $orphanName]);
+                    $orphanId = (int) $pdo->lastInsertId();
+                }
+
+                $findLinksStmt->execute([$sponsorId, $orphanId]);
+                $links = $findLinksStmt->fetchAll();
+                $activeLinks = array_values(array_filter($links, static fn(array $link): bool => $link['status'] === 'active'));
+                $pausedLinks = array_values(array_filter($links, static fn(array $link): bool => $link['status'] === 'paused'));
+                if (count($activeLinks) > 1) {
+                    throw new InvalidArgumentException('توجد علاقات كفالة نشطة مكررة لهذا الكفيل واليتيم. أوقفنا الحفظ حتى تتم مراجعتها.');
+                }
+                if ($pausedLinks) {
+                    throw new InvalidArgumentException('توجد كفالة معلّقة لهذا الكفيل واليتيم. راجع حالتها في إدارة السجلات قبل إدخال شهر جديد.');
+                }
+
+                if ($activeLinks) {
+                    $sponsorshipId = (int) $activeLinks[0]['id'];
+                    $findMonthlyStmt->execute([$sponsorshipId, $month]);
+                    if ($findMonthlyStmt->fetch()) {
+                        throw new InvalidArgumentException('يوجد إدخال شهري مسجل بالفعل لهذا الكفيل واليتيم في الشهر المحدد. لم نكرر السجل.');
+                    }
+                } else {
+                    // No active or paused episode exists. An ended relationship stays
+                    // historical; a new episode gets its own sponsorship ID.
+                    $insertSponsorshipStmt->execute([$sponsorId, $orphanId, $entryDate]);
+                    $sponsorshipId = (int) $pdo->lastInsertId();
+                }
+
                 $monthlyStmt->execute([$sponsorshipId, $month, $entryDate, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null]);
 
                 $orphanDonations = $orphan['donations'] ?? [];
