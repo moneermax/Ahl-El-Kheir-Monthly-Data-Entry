@@ -28,12 +28,12 @@ unset($_SESSION['mde_flash']);
         body{font-family:'Cairo',sans-serif;background:#f4f6f8;color:#24313d}
         .navbar{background:#173b35}.navbar-brand,.nav-link{color:#fff!important}
         .nav-link.active{background:#ffffff20;border-radius:.5rem}
-        .page-wrap{max-width:1200px}.card{border:0;box-shadow:0 3px 18px #172b3a0d}
+        .page-wrap{max-width:1200px}.entry-page-wrap{width:100%;max-width:none;padding-left:1rem;padding-right:1rem}.card{border:0;box-shadow:0 3px 18px #172b3a0d}
         .required:after{content:' *';color:#c0392b}
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
         .entry-register-wrap{max-width:100%;overflow-x:auto;border:1px solid #d9e0e5;border-radius:.5rem}
-        .entry-register{min-width:1773px;table-layout:fixed;font-size:.78rem;background:#fff}
+        .entry-register{width:100%;min-width:1773px;table-layout:fixed;font-size:.78rem;background:#fff}
         .entry-register th{background:#eaf0ee;color:#203a34;text-align:center;vertical-align:middle;font-weight:700;white-space:normal}
         .entry-register td{padding:.4rem;vertical-align:top}
         .entry-register .sponsor-span-cell{background:#f7faf8;vertical-align:top}
@@ -63,7 +63,7 @@ unset($_SESSION['mde_flash']);
   </div>
  </div>
 </nav>
-<main class="container page-wrap pb-5">
+<main class="<?= $page === 'entry' ? 'container-fluid entry-page-wrap' : 'container page-wrap' ?> pb-5">
  <?php if ($flash): ?>
   <div class="alert alert-<?= mde_h($flash['type']) ?>"><?= mde_h($flash['message']) ?></div>
  <?php endif; ?>
