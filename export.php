@@ -14,6 +14,11 @@ if (!in_array($format, ['xlsx', 'csv', 'pdf'], true)) {
     http_response_code(400);
     exit('Unsupported export format.');
 }
+$reportType = (string) ($_GET['report'] ?? 'both');
+if (!in_array($reportType, ['new', 'departures', 'both'], true)) {
+    http_response_code(400);
+    exit('Invalid report type.');
+}
 $monthStart = $monthDate->format('Y-m-01');
 $monthEnd = $monthDate->modify('last day of this month')->format('Y-m-d');
 $filenameMonth = $monthDate->format('Y-m');
@@ -157,25 +162,35 @@ if ($format === 'csv') {
         return preg_match('/^[\s]*[=+@-]/u', $value) ? "'" . $value : $value;
     };
     header('Content-Type: text/csv; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="monthly-registers-' . $filenameMonth . '.csv"');
+    header('Content-Disposition: attachment; filename="monthly-' . $reportType . '-' . $filenameMonth . '.csv"');
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'wb');
     fputcsv($out, ['تقرير شهر', $monthDate->format('m/Y')]);
     fputcsv($out, []);
-    fputcsv($out, ['كفلاء جدد ' . $year]);
-    fputcsv($out, $newHeaders);
-    foreach ($newFlatRows as $row) fputcsv($out, array_map($csvSafe, $row));
-    fputcsv($out, []);
-    fputcsv($out, ['كفلاء طلعوا ' . $year]);
-    fputcsv($out, $departureHeaders);
-    foreach ($departureFlatRows as $row) fputcsv($out, array_map($csvSafe, $row));
+    if ($reportType !== 'departures') {
+        fputcsv($out, ['كفلاء جدد ' . $year]);
+        fputcsv($out, $newHeaders);
+        foreach ($newFlatRows as $row) fputcsv($out, array_map($csvSafe, $row));
+        $newTotalSponsorship = array_sum(array_column($newFlatRows, 5));
+        $newTotalServices = array_sum(array_column($newFlatRows, 6));
+        fputcsv($out, array_map($csvSafe, ['', '', '', '', 'الإجمالي', $newTotalSponsorship, $newTotalServices, '', '', '', '', '']));
+    }
+    if ($reportType !== 'new') {
+        if ($reportType === 'both') fputcsv($out, []);
+        fputcsv($out, ['كفلاء طلعوا ' . $year]);
+        fputcsv($out, $departureHeaders);
+        foreach ($departureFlatRows as $row) fputcsv($out, array_map($csvSafe, $row));
+        $departureTotalSponsorship = array_sum(array_column($departureFlatRows, 5));
+        $departureTotalServices = array_sum(array_column($departureFlatRows, 6));
+        fputcsv($out, array_map($csvSafe, ['', '', '', '', 'الإجمالي', $departureTotalSponsorship, $departureTotalServices, '', '']));
+    }
     fclose($out);
     exit;
 }
 
 if ($format === 'xlsx') {
     require_once __DIR__ . '/includes/xlsx_template_export.php';
-    mde_export_xlsx_from_template($monthInput, $sponsors, $departures, $dateText);
+    mde_export_xlsx_from_template($monthInput, $sponsors, $departures, $dateText, $reportType);
 }
 
 $autoload = __DIR__ . '/vendor/autoload.php';
@@ -184,13 +199,14 @@ require_once $autoload;
 if (!class_exists('TCPDF')) { http_response_code(503); exit('TCPDF dependency is missing.'); }
 $pdf = new TCPDF('L', 'mm', 'A3', true, 'UTF-8', false);
 $pdf->SetCreator('Ahl El Kheir Monthly Data Entry');
-$pdf->SetTitle('Monthly registers ' . $filenameMonth);
+$pdf->SetTitle('Monthly ' . $reportType . ' report ' . $filenameMonth);
 $pdf->SetMargins(8, 10, 8);
 $pdf->SetAutoPageBreak(true, 12);
 $pdf->setRTL(true);
 $pdf->SetFont('dejavusans', '', 8);
 $pdf->AddPage();
 $html = '<h2 style="text-align:center;background-color:#f6df78;padding:8px">تقرير شهر ' . $escape($monthDate->format('m/Y')) . '</h2>';
+if ($reportType !== 'departures') {
 $html .= '<h3>كفلاء جدد ' . $escape($year) . '</h3><table border="1" cellpadding="4"><tr style="background-color:#17365d;color:#ffffff;font-weight:bold">';
 foreach ($newHeaders as $header) $html .= '<th>' . $escape($header) . '</th>';
 $html .= '</tr>';
@@ -199,7 +215,12 @@ foreach ($newFlatRows as $row) {
     foreach ($row as $value) $html .= '<td>' . $escape(is_int($value) ? $amountText($value) : $value) . '</td>';
     $html .= '</tr>';
 }
-$html .= '</table><br/><h3>كفلاء طلعوا ' . $escape($year) . '</h3><table border="1" cellpadding="4"><tr style="background-color:#17365d;color:#ffffff;font-weight:bold">';
+$newTotalSponsorship = array_sum(array_column($newFlatRows, 5));
+$newTotalServices = array_sum(array_column($newFlatRows, 6));
+$html .= '<tr style="font-weight:bold;background-color:#e2f0e6"><td colspan="5">الإجمالي</td><td>' . $amountText($newTotalSponsorship) . '</td><td>' . $amountText($newTotalServices) . '</td><td colspan="5"></td></tr></table>';
+}
+if ($reportType !== 'new') {
+$html .= '<br/><h3>كفلاء طلعوا ' . $escape($year) . '</h3><table border="1" cellpadding="4"><tr style="background-color:#17365d;color:#ffffff;font-weight:bold">';
 foreach ($departureHeaders as $header) $html .= '<th>' . $escape($header) . '</th>';
 $html .= '</tr>';
 foreach ($departureFlatRows as $row) {
@@ -207,7 +228,10 @@ foreach ($departureFlatRows as $row) {
     foreach ($row as $value) $html .= '<td>' . $escape(is_int($value) ? $amountText($value) : $value) . '</td>';
     $html .= '</tr>';
 }
-$html .= '</table>';
+$departureTotalSponsorship = array_sum(array_column($departureFlatRows, 5));
+$departureTotalServices = array_sum(array_column($departureFlatRows, 6));
+$html .= '<tr style="font-weight:bold;background-color:#e2f0e6"><td colspan="5">الإجمالي</td><td>' . $amountText($departureTotalSponsorship) . '</td><td>' . $amountText($departureTotalServices) . '</td><td colspan="2"></td></tr></table>';
+}
 $pdf->writeHTML($html, true, false, true, false, '');
-$pdf->Output('monthly-registers-' . $filenameMonth . '.pdf', 'D');
+$pdf->Output('monthly-' . $reportType . '-' . $filenameMonth . '.pdf', 'D');
 exit;
