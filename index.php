@@ -32,20 +32,28 @@ unset($_SESSION['mde_flash']);
         .required:after{content:' *';color:#c0392b}
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
-        .entry-register-wrap{max-width:100%;overflow-x:auto;border:1px solid #d9e0e5;border-radius:.5rem}
-        .entry-register{width:100%;min-width:1773px;table-layout:fixed;font-size:.78rem;background:#fff}
-        .entry-register th{background:#eaf0ee;color:#203a34;text-align:center;vertical-align:middle;font-weight:700;white-space:normal}
-        .entry-register td{padding:.4rem;vertical-align:top}
+        .entry-register-wrap{max-width:100%;overflow-x:auto;border:1px solid #d9e0e5;border-radius:.5rem;background:#fff}
+        .entry-register{width:100%;min-width:1274px;table-layout:fixed;font-size:.78rem;background:#fff;border-color:#d8e1dc}
+        .entry-register th{background:#e8efeb;color:#203a34;text-align:center;vertical-align:middle;font-weight:700;white-space:normal;padding:.65rem .35rem}
+        .entry-register td{padding:.45rem;vertical-align:top}
         .entry-register .sponsor-span-cell{background:#f7faf8;vertical-align:top}
-        .entry-register .mother-span-cell{background:#f1f5f3;min-width:175px}
-        .entry-register .sponsor-sequence-cell{width:48px;font-size:1rem}
-        .entry-register .sponsor-main-cell{width:210px}
-        .entry-register .donation-span-cell{min-width:220px}
-        .entry-register .orphan-name-cell{min-width:210px}
-        .entry-register .form-control,.entry-register .form-select{font-size:.78rem;min-width:0}
-        .entry-register .mde-person-dropdown .form-select{white-space:normal;height:auto;min-height:38px}
-        .entry-register textarea{min-height:110px}
+        .entry-register .sponsor-sequence-cell{font-size:1rem;text-align:center}
+        .entry-register .sponsor-main-cell{background:#f4f8f5}
+        .entry-register .mother-span-cell{background:#f1f5f3;vertical-align:top}
+        .entry-register .mother-span-cell .mother-name{font-weight:600}
+        .entry-register .financial-cell{background:#fbfcfa}
+        .entry-register .financial-cell label{display:block;font-size:.7rem}
+        .entry-register .donation-span-cell{background:#fbfcfa}
+        .entry-register .tracking-span-cell{background:#f7faf8}
+        .entry-register .orphan-name-cell{vertical-align:middle}
+        .entry-register .form-control,.entry-register .form-select{font-size:.76rem;min-width:0;padding:.35rem .4rem}
+        .entry-register .mde-person-dropdown .form-select{white-space:normal;height:auto;min-height:36px}
+        .entry-register textarea{min-height:100px}
+        .entry-register .donation-row{border-bottom:1px solid #e5ebe7;padding-bottom:.45rem}
+        .entry-register .donation-row:last-child{border-bottom:0}
         .entry-register .btn{white-space:nowrap}
+        .entry-register .add-orphan{font-size:.72rem}
+        .entry-register .sponsor-main-cell .form-label,.entry-register .tracking-span-cell .form-label{color:#52645b}
 
     </style>
 </head>
