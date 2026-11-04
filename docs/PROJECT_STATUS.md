@@ -16,7 +16,7 @@ This is a standalone data-entry project. Never modify the separate Ahl El Kheir 
 - Per-orphan sponsorship and services amounts, with optional combined-total checks.
 - One or more other donations per orphan, stored against the exact `mde_sponsorships.id`.
 - WhatsApp parser queue for multiple sponsor records. The `بواسطة` operator and `المشرف` are independently extracted once from the complete pasted message and copied to every sponsor record split from that message.
-- After a successful database commit, the last saved sponsor name is stored in `$_SESSION['mde_last_saved_sponsor']` and displayed in a prominent red alert immediately before the entry register heading. New and existing sponsors are both supported. Failed saves must never update the indicator.
+- The entry page reads the most recently inserted monthly sponsorship entry from the database (`mde_monthly_sponsorship_entries.created_at`, with `id` as a tie-breaker), joins it to its sponsorship and sponsor, and displays that sponsor's current name in a prominent red alert immediately before the entry register heading. This works across browser sessions and for both new and existing sponsors; failed saves do not affect the database result. The display does not depend on PHP session state.
 - Monthly reports and PDF/XLSX/CSV exports include mother/orphan details for sponsorship-linked other donations. Historical sponsor-level donations with a NULL sponsorship link remain supported.
 - No request-time DDL. Schema changes are static SQL migrations.
 
@@ -31,7 +31,7 @@ Fresh installations should import `database/schema.sql`, which includes the late
 
 ## Immediate next verification
 
-The latest UI update places the last-saved sponsor indicator immediately before the `سجل الكفالة` heading, in a red high-visibility alert. The save handler explicitly writes the session before redirecting. Verify it after a successful save and redirect, and confirm it displays the correct name for both new and existing sponsors. The WhatsApp import panel no longer shows the `تجريبي` badge, explanatory paragraph, or textarea label; routine extraction/allocation/success explanations were removed while actionable validation and manual-allocation warnings remain.
+The latest UI update reads the last sponsor directly from the database, rather than the PHP session. Verify that it selects the latest saved monthly entry, including when the same existing sponsor is entered again. The WhatsApp status area is now initially empty; actionable validation and manual-allocation warnings remain. The static explanation about merged cells and Enter-key behavior was removed from the entry page. The WhatsApp import panel no longer shows the `تجريبي` badge, explanatory paragraph, or textarea label; routine extraction/allocation/success explanations were removed while actionable validation and manual-allocation warnings remain.
 
 Then verify:
 1. One sponsor, one mother, two orphans.
