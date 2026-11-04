@@ -102,7 +102,7 @@
    const row=t.closest('.orphan-row');
    row.querySelector('.donations').append(donationTpl.content.cloneNode(true));
    reindex();
-   row.querySelector('.donation-type:last-of-type')?.focus();
+   row.querySelector('.donation-row:last-child .donation-type')?.focus();
   }
   else if(t.matches('.remove-family')){
    const id=t.closest('.mother-span-cell').dataset.family;
