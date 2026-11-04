@@ -50,12 +50,12 @@ function mde_manage_rows(PDO $pdo, string $query): array
             LEFT JOIN mde_mothers mo ON mo.id = o.mother_id
             LEFT JOIN mde_monthly_sponsorship_entries me ON me.sponsorship_id = ss.id
             LEFT JOIN (
-              SELECT sponsorship_id,
+              SELECT sponsorship_id, report_month,
                      GROUP_CONCAT(CONCAT(donation_type, \' — \', FORMAT(amount, 0)) ORDER BY id SEPARATOR \' | \') AS donation_text
               FROM mde_monthly_other_donations
               WHERE sponsorship_id IS NOT NULL
-              GROUP BY sponsorship_id
-            ) donations ON donations.sponsorship_id = ss.id';
+              GROUP BY sponsorship_id, report_month
+            ) donations ON donations.sponsorship_id = ss.id AND donations.report_month = me.report_month';
     $params = [];
     if ($query !== '') {
         $like = '%' . $query . '%';
