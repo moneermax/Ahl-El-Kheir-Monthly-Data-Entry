@@ -147,22 +147,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <div class="table-responsive entry-register-wrap">
 <table class="table table-bordered table-sm align-middle entry-register mb-2" id="entryRegister">
- <colgroup><col style="width:48px"><col style="width:220px"><col style="width:135px"><col style="width:185px"><col style="width:220px"><col style="width:125px"><col style="width:110px"><col style="width:155px"><col style="width:95px"><col style="width:125px"><col style="width:125px"><col style="width:230px"></colgroup>
+ <colgroup><col style="width:42px"><col style="width:180px"><col style="width:112px"><col style="width:145px"><col style="width:165px"><col style="width:150px"><col style="width:170px"><col style="width:160px"><col style="width:150px"></colgroup>
  <thead>
   <tr>
-   <th rowspan="2" class="text-center">الرقم</th>
-   <th rowspan="2">إسم الكفيل</th>
-   <th rowspan="2">تاريخ الإنضمام</th>
-   <th rowspan="2">إسم الأم</th>
-   <th rowspan="2">إسم اليتيم</th>
-   <th rowspan="2">قيمة الكفالة</th>
-   <th rowspan="2">الخدمات</th>
-   <th colspan="2" class="text-center">تبرعات أخرى</th>
-   <th rowspan="2">بواسطة</th>
-   <th rowspan="2">المشرف</th>
-   <th rowspan="2">ملاحظات</th>
+   <th class="text-center">الرقم</th>
+   <th>الكفيل</th>
+   <th>تاريخ الانضمام</th>
+   <th>الأم</th>
+   <th>اليتيم</th>
+   <th>المبالغ (جنيه)</th>
+   <th>تبرعات أخرى</th>
+   <th>المتابعة</th>
+   <th>ملاحظات</th>
   </tr>
-  <tr><th>نوع التبرع</th><th>القيمة</th></tr>
  </thead>
  <tbody id="families"></tbody>
 </table>
@@ -197,14 +194,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <select class="form-select form-select-sm" name="sponsor_type" id="sponsorType" required><option value="individual">فردي</option><option value="tree">🌳 شجرة (داخلي)</option></select>
  </td>
  <td class="sponsor-span-cell"><label class="form-label required small">تاريخ الانضمام</label><input type="date" class="form-control form-control-sm" name="entry_date" id="entryDate" required value="<?= date('Y-m-d') ?>"></td>
- <td class="sponsor-span-cell donation-span-cell" colspan="2">
-  <div class="small fw-bold mb-2">التبرعات الأخرى</div>
+ <td class="sponsor-span-cell donation-span-cell">
+  <div class="small fw-bold mb-2">تبرعات الكفيل الأخرى</div>
   <div id="donations"></div>
-  <button type="button" class="btn btn-outline-secondary btn-sm mt-1" id="addDonation">إضافة تبرع</button>
+  <button type="button" class="btn btn-outline-secondary btn-sm mt-1 w-100" id="addDonation">إضافة تبرع</button>
  </td>
- <td class="sponsor-span-cell"><label class="form-label small" for="enteredBy">بواسطة</label><?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions); ?></td>
- <td class="sponsor-span-cell"><label class="form-label small" for="supervisorName">المشرف</label><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions); ?></td>
- <td class="sponsor-span-cell"><label class="form-label small" for="entryNotes">ملاحظات</label><textarea class="form-control form-control-sm" name="notes" id="entryNotes" rows="5"></textarea></td>
+ <td class="sponsor-span-cell tracking-span-cell">
+  <label class="form-label small mb-1" for="enteredBy">بواسطة</label><?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions); ?>
+  <label class="form-label small mt-2 mb-1" for="supervisorName">المشرف</label><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions); ?>
+ </td>
+ <td class="sponsor-span-cell"><label class="form-label small" for="entryNotes">ملاحظات</label><textarea class="form-control form-control-sm" name="notes" id="entryNotes" rows="4"></textarea></td>
  </tr></tbody></table>
 </template>
 
@@ -218,22 +217,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 remove-family">حذف الأم</button>
   </td>
   <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
-  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
-  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
+  <td class="financial-cell">
+   <label class="small text-secondary mb-1">الكفالة</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount mb-2" aria-label="قيمة الكفالة" value="0" required>
+   <label class="small text-secondary mb-1">الخدمات</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0">
+  </td>
  </tr></tbody></table>
 </template>
 <template id="orphanTemplate">
  <table><tbody><tr class="orphan-row">
   <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
-  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
-  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
+  <td class="financial-cell">
+   <label class="small text-secondary mb-1">الكفالة</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount mb-2" aria-label="قيمة الكفالة" value="0" required>
+   <label class="small text-secondary mb-1">الخدمات</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0">
+  </td>
  </tr></tbody></table>
 </template>
 <template id="donationTemplate">
- <div class="row g-1 mb-2 donation-row">
-  <div class="col-7"><input class="form-control form-control-sm donation-type" placeholder="نوع التبرع" aria-label="نوع التبرع"></div>
-  <div class="col-4"><input type="number" min="0" step="1" class="form-control form-control-sm donation-amount" placeholder="القيمة" aria-label="قيمة التبرع"></div>
-  <div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm px-2 remove-donation" aria-label="حذف التبرع">×</button></div>
+ <div class="donation-row mb-2">
+  <input class="form-control form-control-sm donation-type mb-1" placeholder="نوع التبرع" aria-label="نوع التبرع">
+  <div class="d-flex gap-1"><input type="number" min="0" step="1" class="form-control form-control-sm donation-amount" placeholder="القيمة" aria-label="قيمة التبرع"><button type="button" class="btn btn-outline-danger btn-sm remove-donation" aria-label="حذف التبرع">×</button></div>
  </div>
 </template>
 <script src="assets/js/entry-register.js" defer></script>
