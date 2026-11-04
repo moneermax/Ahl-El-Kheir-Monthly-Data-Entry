@@ -133,109 +133,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
 <?php $whatsappImportProfile = 'entry'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
-<form method="post" id="entryForm" class="card p-3 p-md-4">
+<form method="post" id="entryForm" class="card p-2 p-md-3">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
- <h2 class="h5 mb-0">سجل الكفالة — بنفس ترتيب كشف Excel</h2>
+ <h2 class="h5 mb-0">سجل الكفالة — كفيل ← أم ← يتيم</h2>
  <div class="d-flex gap-2 flex-wrap">
   <span class="badge text-bg-light border">كفيل واحد لكل عملية إدخال</span>
   <button type="button" class="btn btn-outline-success btn-sm" id="addFamily">إضافة أم</button>
  </div>
 </div>
-<div class="alert alert-light border py-2 small mb-3">
-تظهر بيانات الكفيل مرة واحدة وتمتد بصرياً على جميع الأيتام، وتظهر بيانات كل أم مرة واحدة أمام أيتامها. أدخل مبلغ كل يتيم في صف مستقل.
-</div>
-<div class="table-responsive entry-register-wrap">
-<table class="table table-bordered table-sm align-middle entry-register mb-2" id="entryRegister">
- <colgroup><col style="width:42px"><col style="width:180px"><col style="width:112px"><col style="width:145px"><col style="width:165px"><col style="width:150px"><col style="width:170px"><col style="width:160px"><col style="width:150px"></colgroup>
+
+<div class="entry-register-wrap">
+<table class="entry-register" id="entryRegister">
+ <colgroup><col style="width:2.5%"><col style="width:12.5%"><col style="width:7.5%"><col style="width:8.5%"><col style="width:10.5%"><col style="width:14%"><col style="width:6.5%"><col style="width:6.5%"><col style="width:14%"><col style="width:9%"><col style="width:8.5%"></colgroup>
  <thead>
   <tr>
-   <th class="text-center">الرقم</th>
-   <th>الكفيل</th>
-   <th>تاريخ الانضمام</th>
-   <th>الأم</th>
-   <th>اليتيم</th>
-   <th>المبالغ (جنيه)</th>
-   <th>تبرعات أخرى</th>
-   <th>المتابعة</th>
-   <th>ملاحظات</th>
+   <th class="h-sponsor">#</th><th class="h-sponsor">الكفيل</th><th class="h-sponsor">الملف / النوع</th><th class="h-sponsor">تاريخ الانضمام</th>
+   <th class="h-mother">الأم</th>
+   <th class="h-orphan">اليتيم</th><th class="h-orphan">الكفالة</th><th class="h-orphan">الخدمات</th>
+   <th class="h-sponsor">تبرعات أخرى</th><th class="h-sponsor">بواسطة / المشرف</th><th class="h-sponsor">ملاحظات</th>
   </tr>
  </thead>
  <tbody id="families"></tbody>
 </table>
 </div>
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
- <div class="small text-secondary">استخدم زر «إضافة يتيم» داخل خلية الأم لإضافة صف، أو «إضافة أم» لإضافة مجموعة أسرية أخرى.</div>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 my-2">
+ <div class="small text-secondary">خلايا الكفيل والأم ممتدة على أيتامها. Enter ينقلك للحقل التالي، وEnter في خدمات آخر يتيم في الأسرة يضيف يتيماً جديداً.</div>
  <button type="button" class="btn btn-outline-success btn-sm" id="addFamilyBottom">إضافة أم أخرى</button>
 </div>
-<div class="card border border-success-subtle bg-success-subtle p-3 mb-3">
- <h3 class="h6 mb-2">مراجعة إجمالي المبالغ الواردة</h3>
- <p class="small text-secondary mb-3">أدخل الإجمالي المشترك الوارد من المصدر (إن توفر). إذا كان قابلاً للقسمة بالتساوي على عدد الأيتام فسيُوزّع تلقائياً؛ وإذا تبقى كسر فستحتاج إلى إدخال مبالغ الأيتام يدوياً. سيتحقق النظام من تطابق مجموع المبالغ مع الإجمالي.</p>
- <div class="row g-3">
-  <div class="col-md-4"><label class="form-label">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedSponsorship" name="expected_sponsorship_total" placeholder="اختياري"></div>
-  <div class="col-md-4"><label class="form-label">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control" id="expectedServices" name="expected_services_total" placeholder="اختياري"></div>
-  <div class="col-md-4"><div class="small">المجموع الموزع حالياً</div><div class="fw-bold">الكفالة: <span id="actualSponsorship">0</span></div><div class="fw-bold">الخدمات: <span id="actualServices">0</span></div></div>
- </div>
- <div class="small mt-2" id="amountCheck" aria-live="polite">يمكنك ترك الإجماليين فارغين إذا لم يرد إجمالي مشترك في المصدر.</div>
+
+<div class="totals-bar" id="totalsBar">
+ <div class="totals-field"><label class="form-label" for="expectedSponsorship">إجمالي الكفالة الوارد</label><input type="number" min="0" step="1" class="form-control form-control-sm" id="expectedSponsorship" name="expected_sponsorship_total" placeholder="اختياري"></div>
+ <div class="totals-field"><label class="form-label" for="expectedServices">إجمالي الخدمات الوارد</label><input type="number" min="0" step="1" class="form-control form-control-sm" id="expectedServices" name="expected_services_total" placeholder="اختياري"></div>
+ <div class="totals-actual"><div class="small text-secondary">الموزع حالياً</div><div class="fw-bold">الكفالة: <span id="actualSponsorship">0</span> · الخدمات: <span id="actualServices">0</span></div></div>
+ <div class="totals-status" id="amountCheck" aria-live="polite">يمكنك ترك الإجماليين فارغين إذا لم يرد إجمالي مشترك في المصدر.</div>
+ <button class="btn btn-success px-4" type="submit">حفظ البيانات</button>
 </div>
-<div class="d-flex justify-content-end mt-2"><button class="btn btn-success px-5" type="submit">حفظ البيانات</button></div>
 </form>
 
 <template id="sponsorCellsTemplate">
  <table><tbody><tr>
- <td class="sponsor-span-cell text-center sponsor-sequence-cell"><span class="fw-bold" title="يُحدَّد الرقم التسلسلي في التقرير الشهري">—</span></td>
- <td class="sponsor-span-cell sponsor-main-cell">
-  <label class="form-label required small mb-1">إضافة إلى كفيل موجود (اختياري)</label>
-  <select class="form-select form-select-sm mb-2" name="existing_sponsor_id" id="existingSponsor"><option value="">— تسجيل كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select>
-  <label class="form-label small mb-1" id="sponsorNameLabel">اسم الكفيل الجديد</label>
-  <input class="form-control form-control-sm mb-2" name="sponsor_name" id="sponsorName" maxlength="255">
-  <label class="form-label small mb-1">رقم الملف (إن وجد)</label><input class="form-control form-control-sm mb-2" name="file_number" maxlength="100">
-  <label class="form-label small mb-1" for="sponsorType">نوع الكفيل</label>
-  <select class="form-select form-select-sm" name="sponsor_type" id="sponsorType" required><option value="individual">فردي</option><option value="tree">🌳 شجرة (داخلي)</option></select>
+ <td class="sponsor-span-cell seq-cell"><span class="fw-bold" title="يُحدَّد الرقم التسلسلي في التقرير الشهري">—</span></td>
+ <td class="sponsor-span-cell">
+  <select class="form-select form-select-sm mb-1" name="existing_sponsor_id" id="existingSponsor" aria-label="إضافة إلى كفيل موجود (اختياري)" title="إضافة إلى كفيل موجود (اختياري)"><option value="">— كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select>
+  <input class="form-control form-control-sm" name="sponsor_name" id="sponsorName" maxlength="255" placeholder="اسم الكفيل الجديد" aria-label="اسم الكفيل">
  </td>
- <td class="sponsor-span-cell"><label class="form-label required small">تاريخ الانضمام</label><input type="date" class="form-control form-control-sm" name="entry_date" id="entryDate" required value="<?= date('Y-m-d') ?>"></td>
- <td class="sponsor-span-cell donation-span-cell">
-  <div class="small fw-bold mb-2">تبرعات الكفيل الأخرى</div>
-  <div id="donations"></div>
-  <button type="button" class="btn btn-outline-secondary btn-sm mt-1 w-100" id="addDonation">إضافة تبرع</button>
+ <td class="sponsor-span-cell">
+  <input class="form-control form-control-sm mb-1" name="file_number" id="fileNumber" maxlength="100" placeholder="رقم الملف" aria-label="رقم الملف (إن وجد)">
+  <select class="form-select form-select-sm" name="sponsor_type" id="sponsorType" aria-label="نوع الكفيل" required><option value="individual">فردي</option><option value="tree">🌳 شجرة</option></select>
  </td>
- <td class="sponsor-span-cell tracking-span-cell">
-  <label class="form-label small mb-1" for="enteredBy">بواسطة</label><?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions); ?>
-  <label class="form-label small mt-2 mb-1" for="supervisorName">المشرف</label><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions); ?>
+ <td class="sponsor-span-cell"><input type="date" class="form-control form-control-sm date-input" name="entry_date" id="entryDate" aria-label="تاريخ الانضمام" required value="<?= date('Y-m-d') ?>"></td>
+ <td class="sponsor-span-cell donation-cell">
+  <div id="donations" class="donations"></div>
+  <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="addDonation">+ تبرع</button>
  </td>
- <td class="sponsor-span-cell"><label class="form-label small" for="entryNotes">ملاحظات</label><textarea class="form-control form-control-sm" name="notes" id="entryNotes" rows="4"></textarea></td>
+ <td class="sponsor-span-cell">
+  <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة'); ?>
+  <div class="mt-1"><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'المشرف'); ?></div>
+ </td>
+ <td class="sponsor-span-cell"><textarea class="form-control form-control-sm notes-input" name="notes" id="entryNotes" rows="3" aria-label="ملاحظات"></textarea></td>
  </tr></tbody></table>
 </template>
-
-<template id="familyTemplate">
- <table><tbody><tr class="orphan-row family-block" data-family="">
-  <td class="mother-span-cell" rowspan="1">
-   <span class="family-title visually-hidden">بيانات الأم 1</span>
-   <label class="form-label required small mb-1">اسم الأم</label>
-   <input class="form-control form-control-sm mother-name" required>
-   <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-2 add-orphan">إضافة يتيم</button>
-   <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 remove-family">حذف الأم</button>
-  </td>
-  <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
-  <td class="financial-cell">
-   <label class="small text-secondary mb-1">الكفالة</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount mb-2" aria-label="قيمة الكفالة" value="0" required>
-   <label class="small text-secondary mb-1">الخدمات</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0">
-  </td>
+<template id="motherCellTemplate">
+ <table><tbody><tr>
+ <td class="mother-span-cell" data-family="">
+  <span class="family-title visually-hidden">الأم 1</span>
+  <input class="form-control form-control-sm mother-name mb-1" aria-label="اسم الأم" placeholder="اسم الأم" required>
+  <div class="mother-actions"><button type="button" class="btn btn-outline-primary btn-sm add-orphan">+ يتيم</button><button type="button" class="btn btn-outline-danger btn-sm remove-family" title="حذف الأم وأيتامها" aria-label="حذف الأم">×</button></div>
+ </td>
  </tr></tbody></table>
 </template>
-<template id="orphanTemplate">
- <table><tbody><tr class="orphan-row">
-  <td class="orphan-name-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" aria-label="إزالة اليتيم">×</button></div></td>
-  <td class="financial-cell">
-   <label class="small text-secondary mb-1">الكفالة</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount mb-2" aria-label="قيمة الكفالة" value="0" required>
-   <label class="small text-secondary mb-1">الخدمات</label><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0">
-  </td>
+<template id="orphanRowTemplate">
+ <table><tbody><tr class="orphan-row" data-family="">
+  <td class="orphan-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" placeholder="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" tabindex="-1" aria-label="إزالة اليتيم">×</button></div></td>
+  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
+  <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
  </tr></tbody></table>
 </template>
 <template id="donationTemplate">
- <div class="donation-row mb-2">
-  <input class="form-control form-control-sm donation-type mb-1" placeholder="نوع التبرع" aria-label="نوع التبرع">
-  <div class="d-flex gap-1"><input type="number" min="0" step="1" class="form-control form-control-sm donation-amount" placeholder="القيمة" aria-label="قيمة التبرع"><button type="button" class="btn btn-outline-danger btn-sm remove-donation" aria-label="حذف التبرع">×</button></div>
+ <div class="donation-row">
+  <input class="form-control form-control-sm donation-type" placeholder="النوع" aria-label="نوع التبرع">
+  <input type="number" min="0" step="1" class="form-control form-control-sm donation-amount" placeholder="القيمة" aria-label="قيمة التبرع">
+  <button type="button" class="btn btn-outline-danger btn-sm remove-donation" aria-label="حذف التبرع">×</button>
  </div>
 </template>
-<script src="assets/js/entry-register.js" defer></script>
+<script src="assets/js/entry-register.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/entry-register.js') ?>" defer></script>

@@ -236,4 +236,24 @@ assert.equal(departure.sponsorship, '20000');
 assert.equal(departure.services, '4000');
 assert.equal(departure.reason, 'توقف الكفالة');
 
+
+// Real message: orphan listed before each mother, spelling variants (الكفاله / الايتام), "10000خدمات", "لكل يتيم", "بتاريخ 3نوفمبر", emoji in sponsor name.
+const pairedMessage = ['الكفيل ابوبكر حسين محمد ❤️‍🔥','الايتام محمد متولي','الأم هاديه عبد الجليل','اليتيم حاتم','الأم صفاء محمد احمد','اليتيم يوسف ابكر','الأم حليمه يوسف','اليتيم لينه صالح','الأم سناء عثمان','اليتيم زينب','الأم خديجه قسم السيد','مبلغ الكفاله 50000','10000خدمات','لكل يتيم 10000','بتاريخ 3نوفمبر','تواصل ابوبكر مع زوجته هبه عايزه قروب','عن طريق هبه خلف الله','مشرفه ح هناء خ / فاطمه'].join('\n');
+
+const pairedRecord = parser.entry(pairedMessage, 0);
+assert.equal(pairedRecord.sponsor, 'ابوبكر حسين محمد');
+assert.deepEqual(JSON.parse(JSON.stringify(pairedRecord.families)), [
+  { mother: 'هاديه عبد الجليل', orphans: ['محمد متولي'] },
+  { mother: 'صفاء محمد احمد', orphans: ['حاتم'] },
+  { mother: 'حليمه يوسف', orphans: ['يوسف ابكر'] },
+  { mother: 'سناء عثمان', orphans: ['لينه صالح'] },
+  { mother: 'خديجه قسم السيد', orphans: ['زينب'] }
+]);
+assert.equal(pairedRecord.sponsorship, '50000');
+assert.equal(pairedRecord.services, '10000');
+assert.equal(pairedRecord.each, '10000');
+assert.equal(pairedRecord.date, new Date().getFullYear() + '-11-03');
+assert.equal(pairedRecord.entered, 'هبه خلف الله');
+assert.ok(pairedRecord.notes.includes('تواصل ابوبكر مع زوجته'));
+
 console.log('WhatsApp parser tests passed.');

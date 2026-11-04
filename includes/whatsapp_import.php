@@ -21,4 +21,4 @@ if (!in_array($whatsappImportProfile, ['entry', 'departure'], true)) {
     <div class="small mt-2" id="whatsappDetails" aria-live="polite"></div>
     <div class="small text-primary mt-1" id="whatsappStatus" aria-live="polite">التحليل لا يحفظ البيانات. الحفظ لا يحدث إلا عند ضغط زر الحفظ الأصلي بعد المراجعة.</div>
 </section>
-<script src="assets/js/whatsapp-import.js" defer></script>
+<script src="assets/js/whatsapp-import.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/whatsapp-import.js') ?>" defer></script>
