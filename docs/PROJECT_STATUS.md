@@ -29,17 +29,34 @@ Existing installations must apply migrations in order, once each, to `ahl_el_khe
 
 Fresh installations should import `database/schema.sql`, which includes the latest schema version.
 
-## Immediate next verification
+## WhatsApp parser reliability update — 2026-11-04
 
-The latest UI update reads the last sponsor directly from the database, rather than the PHP session. Verify that it selects the latest saved monthly entry, including when the same existing sponsor is entered again. The WhatsApp status area is now initially empty; actionable validation and manual-allocation warnings remain. The static explanation about merged cells and Enter-key behavior was removed from the entry page. The WhatsApp import panel no longer shows the `تجريبي` badge, explanatory paragraph, or textarea label; routine extraction/allocation/success explanations were removed while actionable validation and manual-allocation warnings remain.
+The current parser regression was traced to commit `c08f04c86085c34f3b6cdfadf9e569ccb72306ba`. Its message-level field helper assigned empty shared values over each record's existing `entered` and `supervisor` values. The parser update now preserves record-level values unless a unique trailing message-level value is present.
 
-Then verify:
-1. One sponsor, one mother, two orphans.
-2. Give each orphan at least two different other donations.
-3. Save and verify each donation remains attached to the correct orphan in reports and exports.
-4. Paste a WhatsApp message containing multiple sponsors and one shared `بواسطة` and one shared `المشرف`; verify both values are identical across all queued sponsor records while remaining independent of each other.
-5. Save an existing sponsor and verify the red indicator shows that sponsor's actual stored name.
-6. Cause a validation failure and verify the last-saved indicator does not change.
+The parser is now split into:
+- `assets/js/whatsapp-parser.js`: deterministic normalization, record splitting, family/name/amount/date/operator/supervisor extraction, warnings, and form-payload construction.
+- `assets/js/whatsapp-import.js`: review queue, DOM form adapter, dynamic family/orphan row creation, and successful-save queue handling.
+- `includes/whatsapp_import.php`: loads the pure parser module before the DOM adapter.
+
+The parser uses the selected entry/departure date only as year context for yearless dates such as `3نوفمبر`; it no longer falls back to the computer's current year. It recognizes an unlabelled first-line sponsor when safe, consecutive unindented multi-word orphan names, the `رجعت لملفها 24` file-number form, Arabic numerals, and compact service amounts. Unrecognized lines remain visible as warnings, and each record retains the raw source message.
+
+The existing parser test corpus has been extended with the exact reported message, shared-field preservation/override cases, year-context tests, unknown-line warnings, and a form-payload/adapter population test. See `docs/WHATSAPP_PARSER.md` for the full architecture, supported formats, limitations, and commands.
+
+### Verification status
+
+- Parser regression assertions were executed in a JavaScript runtime and passed.
+- The parser and DOM-adapter JavaScript source compiled successfully in that runtime.
+- The repository's Node command `node tests/whatsapp-import.test.cjs` has not been executed on the user's Linux machine in this session.
+- PHP lint, live browser interaction, and database/save testing have not been performed. Do not describe those as verified.
+
+### Next verification
+
+1. Pull the latest `main`.
+2. Run `node tests/whatsapp-import.test.cjs`.
+3. Run `node --check assets/js/whatsapp-parser.js` and `node --check assets/js/whatsapp-import.js`.
+4. Run `php -l includes/whatsapp_import.php` and `php -l pages/entry.php`.
+5. In the browser, paste the exact sample from the parser documentation, confirm the sponsor, both orphans, mother, 80,000/5,000 totals, date, file number, operator, and supervisor, then load the record and inspect the actual form rows.
+6. Verify one multi-sponsor message with shared footer fields and another with record-specific operator/supervisor fields. Save one queued record and confirm the remaining queue is retained only after a successful save.
 
 ## Working rules
 

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const context = { window: {}, document: { querySelector: () => null } };
+vm.runInNewContext(fs.readFileSync('assets/js/whatsapp-parser.js', 'utf8'), context);
 vm.runInNewContext(fs.readFileSync('assets/js/whatsapp-import.js', 'utf8'), context);
 const parser = context.window.MDEWhatsAppParser;
 assert.ok(parser, 'parser API should be available for tests');
@@ -240,7 +241,7 @@ assert.equal(departure.reason, 'توقف الكفالة');
 // Real message: orphan listed before each mother, spelling variants (الكفاله / الايتام), "10000خدمات", "لكل يتيم", "بتاريخ 3نوفمبر", emoji in sponsor name.
 const pairedMessage = ['الكفيل ابوبكر حسين محمد ❤️‍🔥','الايتام محمد متولي','الأم هاديه عبد الجليل','اليتيم حاتم','الأم صفاء محمد احمد','اليتيم يوسف ابكر','الأم حليمه يوسف','اليتيم لينه صالح','الأم سناء عثمان','اليتيم زينب','الأم خديجه قسم السيد','مبلغ الكفاله 50000','10000خدمات','لكل يتيم 10000','بتاريخ 3نوفمبر','تواصل ابوبكر مع زوجته هبه عايزه قروب','عن طريق هبه خلف الله','مشرفه ح هناء خ / فاطمه'].join('\n');
 
-const pairedRecord = parser.entry(pairedMessage, 0);
+const pairedRecord = parser.entry(pairedMessage, 0, '2026-11-04');
 assert.equal(pairedRecord.sponsor, 'ابوبكر حسين محمد');
 assert.deepEqual(JSON.parse(JSON.stringify(pairedRecord.families)), [
   { mother: 'هاديه عبد الجليل', orphans: ['محمد متولي'] },
@@ -252,7 +253,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(pairedRecord.families)), [
 assert.equal(pairedRecord.sponsorship, '50000');
 assert.equal(pairedRecord.services, '10000');
 assert.equal(pairedRecord.each, '10000');
-assert.equal(pairedRecord.date, new Date().getFullYear() + '-11-03');
+assert.equal(pairedRecord.date, '2026-11-03', 'a month-name date uses the selected form context year, never the computer clock');
 assert.equal(pairedRecord.entered, 'هبه خلف الله');
 assert.ok(pairedRecord.notes.includes('تواصل ابوبكر مع زوجته'));
 
@@ -264,5 +265,159 @@ const sharedRecords = parser.applyMessageLevelFields(
 assert.equal(sharedRecords.length, 2);
 assert.deepEqual(Array.from(sharedRecords, r => r.entered), ['هناء خلف الله', 'هناء خلف الله'], 'all sponsor records from one paste share one operator');
 assert.deepEqual(Array.from(sharedRecords, r => r.supervisor), ['ميساء', 'ميساء'], 'all sponsor records from one paste share one independent supervisor');
+
+
+
+
+// Exact real-world failure reported on 2026-11-04: unlabelled sponsor,
+// two unnumbered orphan lines, file wording variation, and a month-name date.
+const exactWhatsAppMessage = [
+  'سلمي حسن الرشيد',
+  'الايتام حمود محمد',
+  'مبارك محمد',
+  'الأم اخلاص احمد محمد',
+  'مبلغ الكفاله 80000',
+  'الخدمات 5000',
+  'بتاريخ 3نوفمبر',
+  'رجعت لملفها 24',
+  'عن طريق هبه خلف الله',
+  'مشرفه ح هبه خلف الله'
+].join('\n');
+const exactRecord = parser.entry(exactWhatsAppMessage, 0, '2026-11-04');
+assert.equal(exactRecord.sponsor, 'سلمي حسن الرشيد', 'first unlabelled name is the sponsor when it precedes all family labels');
+assert.equal(exactRecord.families[0].mother, 'اخلاص احمد محمد');
+assert.deepEqual(Array.from(exactRecord.families[0].orphans), ['حمود محمد', 'مبارك محمد'], 'unindented continuation line is a second orphan');
+assert.equal(exactRecord.sponsorship, '80000');
+assert.equal(exactRecord.services, '5000');
+assert.equal(exactRecord.date, '2026-11-03', '3نوفمبر takes its year from the form/report context');
+assert.equal(exactRecord.file, '24', 'رجعت لملفها 24 is a file-number label');
+assert.equal(exactRecord.entered, 'هبه خلف الله');
+assert.equal(exactRecord.supervisor, 'هبه خلف الله');
+assert.equal(exactRecord.raw, exactWhatsAppMessage, 'the original message remains attached to the parsed record');
+assert.deepEqual(Array.from(exactRecord.warnings), [], 'the complete exact message has no required-field warnings');
+
+// A yearless date must not be guessed from the computer clock.
+const unresolvedDate = parser.entry(exactWhatsAppMessage, 0);
+assert.equal(unresolvedDate.date, '');
+assert.ok(unresolvedDate.warnings.some(w => w.includes('التاريخ')));
+assert.equal(unresolvedDate.raw, exactWhatsAppMessage);
+
+// Date parsing supports Arabic and Western digits, month names, and explicit years.
+assert.equal(parser.parseDate('3نوفمبر', '2027-11-01'), '2027-11-03');
+assert.equal(parser.parseDate('٣ نوفمبر', '2027-11-01'), '2027-11-03');
+assert.equal(parser.parseDate('03/11/2026', ''), '2026-11-03');
+assert.equal(parser.parseDate('2026-11-03', ''), '2026-11-03');
+assert.equal(parser.parseDate('31/02/2026', '2026-11-01'), '', 'invalid calendar dates are rejected');
+
+// File-number wording variants.
+const fileVariants = parser.entry('الكفيل: ناصر كباشي احمد\nالأم: عائشة محمد\nاليتيم: سارة محمد\nرجعت لملفها 24\nالتاريخ: 03/11/2026', 0);
+assert.equal(fileVariants.file, '24');
+
+// Do not mistake an orphan-first message for a sponsor.
+const orphanFirstNoSponsor = parser.entry('الايتام حمود محمد\nمبارك محمد\nالأم اخلاص احمد محمد\nالتاريخ 03/11/2026', 0);
+assert.equal(orphanFirstNoSponsor.sponsor, '');
+assert.equal(orphanFirstNoSponsor.families[0].mother, 'اخلاص احمد محمد');
+assert.deepEqual(Array.from(orphanFirstNoSponsor.orphans), ['حمود محمد', 'مبارك محمد']);
+
+// Arabic-Indic and Western amounts, punctuation, and whitespace normalize identically.
+const numericVariants = parser.entry('الكفيل: ناصر كباشي احمد\nالأم: عائشة محمد\nاليتيم: سارة محمد\nمبلغ الكفاله ٨٠٬٠٠٠\nالخدمات ٥,٠٠٠\nالتاريخ 3/11/2026', 0);
+assert.equal(numericVariants.sponsorship, '80000');
+assert.equal(numericVariants.services, '5000');
+
+// Message-level values override every record only when present in the trailing
+// message-level footer; absent shared values never erase record-level values.
+const recordsWithOwnPeople = [
+  { sponsor: 'الأول', entered: 'مها', supervisor: 'سارة' },
+  { sponsor: 'الثاني', entered: 'لمياء', supervisor: 'فاطمة' }
+];
+const noSharedFooter = 'الكفيل: الأول\nعن طريق مها\nمشرفه ح سارة\nالكفيل: الثاني\nعن طريق لمياء\nمشرفه ح فاطمة';
+const preservedPeople = parser.applyMessageLevelFields(recordsWithOwnPeople, noSharedFooter);
+assert.deepEqual(Array.from(preservedPeople, r => r.entered), ['مها', 'لمياء']);
+assert.deepEqual(Array.from(preservedPeople, r => r.supervisor), ['سارة', 'فاطمة']);
+const sharedFooter = 'الكفيل: الأول\nالأم: أم أولى\nاليتيم: يتيم أول\nالكفالة: 1000\nالكفيل: الثاني\nالأم: أم ثانية\nاليتيم: يتيم ثان\nالكفالة: 2000\nعن طريق هناء خلف الله\nمشرفه ح ميساء';
+const sharedPeople = parser.applyMessageLevelFields(recordsWithOwnPeople, sharedFooter);
+assert.deepEqual(Array.from(sharedPeople, r => r.entered), ['هناء خلف الله', 'هناء خلف الله']);
+assert.deepEqual(Array.from(sharedPeople, r => r.supervisor), ['ميساء', 'ميساء']);
+
+// Independent operator and supervisor extraction: one may be shared without
+// forcing the other to change.
+const sharedOperatorOnly = parser.applyMessageLevelFields(recordsWithOwnPeople,
+  'الكفيل: الأول\nالكفيل: الثاني\nعن طريق هناء خلف الله');
+assert.deepEqual(Array.from(sharedOperatorOnly, r => r.entered), ['هناء خلف الله', 'هناء خلف الله']);
+assert.deepEqual(Array.from(sharedOperatorOnly, r => r.supervisor), ['سارة', 'فاطمة']);
+
+// Form payload and population contract: the same adapter used by the browser
+// receives the exact values, family structure, and allocation plan.
+const formPayload = parser.buildEntryFormPayload(exactRecord);
+assert.deepEqual(JSON.parse(JSON.stringify(formPayload.families)), [
+  { mother: 'اخلاص احمد محمد', orphans: ['حمود محمد', 'مبارك محمد'] }
+]);
+assert.equal(formPayload.fields.sponsor, 'سلمي حسن الرشيد');
+assert.equal(formPayload.fields.file, '24');
+assert.equal(formPayload.fields.date, '2026-11-03');
+assert.equal(formPayload.fields.entered, 'هبه خلف الله');
+assert.equal(formPayload.fields.supervisor, 'هبه خلف الله');
+assert.equal(formPayload.expectedSponsorship, '80000');
+assert.equal(formPayload.expectedServices, '5000');
+assert.deepEqual(Array.from(formPayload.sponsorshipAllocation), ['40000', '40000']);
+assert.deepEqual(Array.from(formPayload.servicesAllocation), ['2500', '2500']);
+const applied = { fields: {}, families: null, amounts: null, updated: false };
+const populateResult = parser.populateEntryForm(formPayload, {
+  setField(name, value) { applied.fields[name] = value; return true; },
+  fieldWasSet() { return true; },
+  setFamilies(value) { applied.families = value; },
+  setAmounts(value) { applied.amounts = value; },
+  updateTotals() { applied.updated = true; }
+});
+assert.equal(applied.fields.sponsor, 'سلمي حسن الرشيد');
+assert.equal(applied.fields.file, '24');
+assert.equal(applied.fields.date, '2026-11-03');
+assert.equal(applied.fields.entered, 'هبه خلف الله');
+assert.equal(applied.fields.supervisor, 'هبه خلف الله');
+assert.equal(applied.fields.notes, '');
+assert.equal(applied.families[0].mother, 'اخلاص احمد محمد');
+assert.deepEqual(Array.from(applied.families[0].orphans), ['حمود محمد', 'مبارك محمد']);
+assert.equal(applied.amounts.expectedSponsorship, '80000');
+assert.equal(applied.amounts.expectedServices, '5000');
+assert.equal(applied.updated, true);
+assert.deepEqual(populateResult, { sponsorshipManual: false, servicesManual: false });
+
+// Unknown optional values remain empty; no value is fabricated.
+const optionalRecord = parser.entry('الكفيل: ناصر كباشي احمد\nالأم: عائشة محمد\nاليتيم: سارة محمد\nالتاريخ: 03/11/2026', 0);
+const optionalPayload = parser.buildEntryFormPayload(optionalRecord);
+assert.equal(optionalPayload.fields.file, '');
+assert.equal(optionalPayload.fields.entered, '');
+assert.equal(optionalPayload.fields.supervisor, '');
+assert.equal(optionalPayload.expectedSponsorship, '');
+assert.equal(optionalPayload.expectedServices, '');
+
+// The shared supervisor can be supplied independently of the shared operator.
+const sharedSupervisorOnly = parser.applyMessageLevelFields(recordsWithOwnPeople,
+  'الكفيل: الأول\nالكفيل: الثاني\nمشرفه ح هناء خلف الله');
+assert.deepEqual(Array.from(sharedSupervisorOnly, r => r.entered), ['مها', 'لمياء']);
+assert.deepEqual(Array.from(sharedSupervisorOnly, r => r.supervisor), ['هناء خلف الله', 'هناء خلف الله']);
+
+// Unknown non-name lines are surfaced for review while the raw message is retained.
+const unknownLineMessage = 'ناصر كباشي احمد\nالأم: عائشة محمد\nاليتيم: سارة محمد\n!!! ???\nالتاريخ: 03/11/2026';
+const unknownLineRecord = parser.entry(unknownLineMessage, 0);
+assert.ok(unknownLineRecord.warnings.some(w => w.includes('أسطر غير مصنفة')));
+assert.equal(unknownLineRecord.raw, unknownLineMessage);
+
+
+
+// Dropdown values that do not match the configured options are not allowed to
+// leave a stale selection behind; the original extracted names are retained in notes.
+const fallbackPayload = parser.buildEntryFormPayload({
+  ...exactRecord, entered: 'مستخدم غير موجود', supervisor: 'مشرف غير موجود'
+});
+const fallbackFields = {};
+parser.populateEntryForm(fallbackPayload, {
+  setField(name, value) { fallbackFields[name] = value; return name !== 'entered' && name !== 'supervisor'; },
+  fieldWasSet(name) { return name !== 'entered' && name !== 'supervisor'; },
+  setFamilies() {},
+  setAmounts() {}
+});
+assert.match(fallbackFields.notes, /بواسطة: مستخدم غير موجود/);
+assert.match(fallbackFields.notes, /المشرف: مشرف غير موجود/);
 
 console.log('WhatsApp parser tests passed.');

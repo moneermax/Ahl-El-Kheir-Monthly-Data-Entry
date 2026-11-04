@@ -1,78 +1,166 @@
 (() => {
 'use strict';
-const $ = (s, root=document) => root.querySelector(s);
-const norm = v => String(v||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\u0640/g,'').replace(/\s+/g,' ').trim().toLowerCase();
-const clean = v => String(v||'').replace(/^[\s:：=؛;,،\-]+|[\s:：=؛;,،\-]+$/g,'').trim();
-const FIELD_LABELS = [
- 'اسم الكفيل','اسم الكفيلة','اسم الكافل','اسم الكافلة','الكفيل','الكفيلة','الكافل','الكافلة',
- 'رقم الملف','ملف','اسم الأم','اسم الام','الأم','الام','اسم الوالدة','اسم الوالده','الوالدة','الوالده','والدة','والده',
- 'اسم اليتيم','اسم اليتيمة','اليتيم','اليتيمة','اسم الطفل','اسم الطفلة','الطفل','الطفلة','الأطفال','اطفال','الأيتام','اليتامى','أيتام',
- 'إجمالي الكفالة','مبلغ الكفالة','قيمة الكفالة','الكفالة','كفالة','المبلغ','اجمالي الكفاله','مبلغ الكفاله','الكفاله','كفاله','لكل يتيم','لكل يتيمة','لكل يتيمه','بتاريخ','الايتام','ايتام',
- 'إجمالي الخدمات','مبلغ الخدمات','قيمة الخدمات','الخدمات','خدمات','اجمالي الخدمات',
- 'تاريخ الانضمام','تاريخ البداية','تاريخ المغادرة','تاريخ الانسحاب','تاريخ التوقف','التاريخ',
- 'التواصل عن طريق','أي مبلغ إضافي','اي مبلغ اضافي','عن طريق','بواسطة','ادخال بواسطة','إدخال بواسطة','المشرف','مشرفه','مشرفة',
- 'ملاحظات عن الكفيل','ملاحظات الكفيل','ملاحظات','ملاحظة',
- 'مقدم كفالة سنة','مقدم كفالة سنه','كرتونه رمضان','كرتونة رمضان','فرحة عيدين','فرحه عيدين','متبقي المبلغ',
- 'آخر سداد','اخر سداد','آخر شهر سداد','اخر شهر سداد','آخر شهر',
- 'عدد الأيتام','عدد اليتامى','عدد الايتام','عدد يتيم',
- 'سبب المغادرة','سبب الانسحاب','السبب','رقم الهاتف','الهاتف','جوال','موبايل','العنوان','السكن'
-].sort((a,b)=>b.length-a.length);
-const escapeRegex = s => s.replace(/[.*+?^\${}()|[\]\\]/g,'\\$&');
-const fieldStop = FIELD_LABELS.map(escapeRegex).join('|');
-const valueEnd = '(?=\\s+(?:\\d+\\s*[/._)-]\\s*)?(?:'+fieldStop+')\\s*(?:[:=：-]|\\s)|[؛;\\n|]|$)';
-function val(t, labels) {
- const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+labels.join('|')+')(?:\\s*[:=：-]\\s*|\\s+)([^؛;\\n|]+?)'+valueEnd,'iu');
- const m=t.match(re); return m?clean(m[1]):'';
+const $ = (selector, root=document) => root.querySelector(selector);
+const Parser = window.MDEWhatsAppParser;
+if (!Parser) throw new Error('WhatsApp parser module was not loaded.');
+
+function set(el,value) {
+ if (!el || value === undefined || value === null) return false;
+ el.value=value;
+ el.dispatchEvent(new Event('input',{bubbles:true}));
+ el.dispatchEvent(new Event('change',{bubbles:true}));
+ return true;
 }
-function noteVal(t,labels){const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+labels.join('|')+')[ \\t]*(?:[:=：-][ \\t]*)?([^؛;\\n|]+?)'+valueEnd,'iu');const m=t.match(re);return m?clean(m[1]):'';}
-function vals(t,label) {
- const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:\\d+\\s*[/._)-]\\s*)?(?:'+label+')(?:\\s*[:=：-]\\s*|\\s+)([^؛;\\n|]+?)'+valueEnd,'giu');
- return [...t.matchAll(re)].map(m=>clean(m[1])).filter(Boolean);
+function clear(el) {
+ if (!el) return;
+ el.value='';
+ el.dispatchEvent(new Event('input',{bubbles:true}));
+ el.dispatchEvent(new Event('change',{bubbles:true}));
 }
-function orphanValues(t,label){const out=[];let previousOrphan=false;const knownField=new RegExp('^\\s*(?:'+fieldStop+')\\s*(?:[:=：-]|\\s|$)','iu');for(const line of t.split(/\r?\n/)){const found=vals(line,label);if(found.length){out.push(...found.flatMap(v=>v.split(/\s*(?:،|,)\s*/).map(clean).filter(Boolean)));previousOrphan=true;continue;}if(!line.trim())continue;if(previousOrphan&&/^[ \t]{2,}\S/.test(line)&&!knownField.test(line)){out.push(clean(line));continue;}previousOrphan=false;}return out.filter(Boolean);}
-function date(v) {
- if(!v)return ''; const s=norm(v).replace(/[.]/g,'/');
- let m=s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/),y,mo,d;
- if(m){let a=+m[1],b=+m[2];y=+m[3];if(a>12&&b<=12){d=a;mo=b;}else{d=a;mo=b;}}
- else {m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);if(!m)return '';y=+m[1];mo=+m[2];d=+m[3];}
- const dt=new Date(Date.UTC(y,mo-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d?String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0'):'';
+function clearPerson(select) { if(!select)return; select.value=''; const root=select.closest('[data-person-dropdown]'); if(root){const placeholder=root.querySelector('[data-person-dropdown-option][data-value=""]'); if(placeholder){root.querySelector('[data-person-dropdown-toggle]').textContent=placeholder.textContent.trim();root.querySelectorAll('[data-person-dropdown-option]').forEach(option=>{const active=option===placeholder;option.classList.toggle('active',active);option.setAttribute('aria-checked',active?'true':'false');});}} select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true})); }
+function choose(select,name) {
+ if (!select || !name) return false;
+ const normalize = value => String(value||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\u0640/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+ const wanted=normalize(name);
+ if (select.matches('[data-person-dropdown-value]')) {
+  const root=select.closest('[data-person-dropdown]');
+  const matches=[...root.querySelectorAll('[data-person-dropdown-option]')].filter(option=>option.dataset.value&&normalize(option.dataset.value)===wanted);
+  if(matches.length!==1)return false;
+  select.value=matches[0].dataset.value;
+  root.querySelector('[data-person-dropdown-toggle]').textContent=matches[0].textContent.trim();
+  root.querySelectorAll('[data-person-dropdown-option]').forEach(option=>{const active=option===matches[0];option.classList.toggle('active',active);option.setAttribute('aria-checked',active?'true':'false');});
+  select.dispatchEvent(new Event('change',{bubbles:true}));
+  return true;
+ }
+ const matches=[...select.options].filter(option=>option.value&&normalize(option.textContent.replace(/—.*$/,'').trim())===wanted&&!option.disabled);
+ if(matches.length!==1)return false;
+ select.value=matches[0].value;
+ select.dispatchEvent(new Event('change',{bubbles:true}));
+ return true;
 }
-function month(v){if(!v)return '';let s=norm(v),m=s.match(/^(\d{1,2})[/-](\d{4})$/);if(m)return +m[1]>=1&&+m[1]<=12?m[2]+'-'+String(+m[1]).padStart(2,'0'):'';m=s.match(/^(\d{4})-(\d{1,2})$/);return m&&+m[2]>=1&&+m[2]<=12?m[1]+'-'+String(+m[2]).padStart(2,'0'):'';}
-function num(v){if(!v)return '';const s=norm(v).replace(/[٬,،]/g,'').replace(/[^\d]/g,'');return s?String(Number(s)):'';}
-const stripEmoji=v=>String(v||'').replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu,'').replace(/\s+/g,' ').trim();
-const MONTHS={'يناير':1,'فبراير':2,'مارس':3,'ابريل':4,'مايو':5,'يونيو':6,'يوليو':7,'اغسطس':8,'سبتمبر':9,'اكتوبر':10,'نوفمبر':11,'ديسمبر':12};
-function monthNameDate(t){const m=norm(t).match(/بتاريخ\s*(\d{1,2})\s*(?:من\s*)?([^\s\d/.-]+)(?:\s*(\d{4}))?/u);if(!m||!MONTHS[m[2]])return '';return date(m[1]+'/'+MONTHS[m[2]]+'/'+(m[3]||new Date().getFullYear()));}
-function leadingNumber(t,label){const m=norm(t).match(new RegExp('(?:^|[\\s؛;|])(\\d[\\d,]*)\\s*(?:'+label+')(?![\\u0621-\\u064a])','u'));return m?num(m[1]):'';}
-function allocateEvenly(total,count){if(total===''||count<1)return null;const value=Number(total);if(!Number.isSafeInteger(value)||value<0||value%count!==0)return null;return Array(count).fill(String(value/count));}
-function split(t){const re=/(?:^|[؛;\n|])\s*(?:الكفيل(?:ة)?|الكافل(?:ة)?|اسم\s+الكفيل(?:ة)?|اسم\s+الكافل(?:ة)?)(?:\s*[:=：-]\s*|\s+)/giu;const ms=[...t.matchAll(re)];if(ms.length<2)return[t.trim()];const starts=ms.map(m=>m.index);return starts.map((s,i)=>t.slice(s,i+1<starts.length?starts[i+1]:t.length).replace(/^[؛;\n|\s]+|[؛;\n|\s]+$/g,'').trim()).filter(Boolean);}
-function extractFamilies(t){const motherLabel='اسم\\s+الأم|اسم\\s+الام|الأم|الام|اسم\\s+الوالدة|اسم\\s+الوالده|الوالدة|الوالده|والدة|والده';const orphanLabel='اسم\\s+اليتيم(?:ة)?|اليتيم(?:ة)?|اسم\\s+الطفل(?:ة)?|الطفل(?:ة)?|الأطفال|اطفال|الأيتام|اليتامى|أيتام|الايتام|ايتام';const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+motherLabel+')(?:\\s*[:=：-]\\s*|\\s+)','giu');const ms=[...t.matchAll(re)];const out=[];if(!ms.length)return [{mother:'',orphans:orphanValues(t,orphanLabel)}];const orphanFirst=orphanValues(t.slice(0,ms[0].index),orphanLabel).length>0&&orphanValues(t.slice(ms[ms.length-1].index),orphanLabel).length===0;if(orphanFirst){for(let i=0;i<ms.length;i++){const before=t.slice(i===0?0:ms[i-1].index,ms[i].index),own=t.slice(ms[i].index,i+1<ms.length?ms[i+1].index:t.length);out.push({mother:val(own,['اسم\\s+الأم','اسم\\s+الام','الأم','الام','اسم\\s+الوالدة','اسم\\s+الوالده','الوالدة','الوالده','والدة','والده']),orphans:orphanValues(before,orphanLabel)});}return out;}for(let i=0;i<ms.length;i++){const start=i===0?0:ms[i].index;const end=i+1<ms.length?ms[i+1].index:t.length;const part=t.slice(start,end);out.push({mother:val(part,['اسم\\s+الأم','اسم\\s+الام','الأم','الام','اسم\\s+الوالدة','اسم\\s+الوالده','الوالدة','الوالده','والدة','والده']),orphans:orphanValues(part,orphanLabel)});}return out;}
-function supervisorVal(t){return val(t,['مشرفه\\s+ح','مشرفة\\s+ح','المشرف','مشرفه','مشرفة']);}
-function entry(t,i){const families=extractFamilies(t);const contact=val(t,['التواصل عن طريق']);const extraNote=val(t,['أي مبلغ إضافي','اي مبلغ اضافي']);const explicitNotes=val(t,['ملاحظات','ملاحظة']);const specialNotes=[['مقدم كفالة سنة','مقدم كفالة سنه'],['كرتونه رمضان','كرتونة رمضان'],['فرحة عيدين','فرحه عيدين'],['متبقي المبلغ']].map(([label,...aliases])=>{const value=noteVal(t,[label,...aliases]);return value?label+': '+value:(aliases.concat([label]).some(alias=>norm(t).includes(norm(alias)))?label:'');});const contactLine=((t.match(/(?:^|\n)[ \t]*(تواصل[ \t][^\n]+)/)||[])[1]||'').trim();const noteParts=[explicitNotes,contactLine,contact?'التواصل عن طريق: '+contact:'',extraNote?'أي مبلغ إضافي '+extraNote:'',...specialNotes].filter(Boolean);const entryMethods=vals(t,'عن طريق|بواسطة|ادخال بواسطة|إدخال بواسطة');return {i,sponsor:stripEmoji(val(t,['الكفيل(?:ة)?','الكافل(?:ة)?','اسم الكفيل(?:ة)?','اسم الكافل(?:ة)?'])),file:val(t,['رقم الملف','ملف']),families,mother:families[0]?.mother||'',orphans:families.flatMap(f=>f.orphans),sponsorship:num(val(t,['إجمالي الكفال[ةه]','اجمالي الكفال[ةه]','مبلغ الكفال[ةه]','الكفال[ةه]','كفال[ةه]','المبلغ'])),services:num(val(t,['إجمالي الخدمات','مبلغ الخدمات','الخدمات','خدمات']))||leadingNumber(t,'خدمات'),each:num(val(t,['لكل\\s+يتيم[ةه]?'])),date:date(val(t,['تاريخ الانضمام','تاريخ البداية','التاريخ']))||monthNameDate(t),entered:entryMethods.length?entryMethods[entryMethods.length-1]:'',supervisor:supervisorVal(t),notes:noteParts.join(' | '),type:/🌳|شجرة/i.test(t)?'tree':'',raw:t};}
-function departure(t,i){return {i,sponsor:val(t,['الكفيل(?:ة)?','الكافل(?:ة)?','اسم الكفيل(?:ة)?','اسم الكافل(?:ة)?']),file:val(t,['رقم الملف','ملف']),date:date(val(t,['تاريخ المغادرة','تاريخ الانسحاب','تاريخ التوقف','التاريخ'])),lastPaid:month(val(t,['آخر سداد','اخر سداد','آخر شهر سداد','اخر شهر سداد','آخر شهر'])),count:num(val(t,['عدد الأيتام','عدد اليتامى','عدد الايتام','عدد يتيم'])),sponsorship:num(val(t,['إجمالي الكفالة','مبلغ الكفالة','قيمة الكفالة','الكفالة','كفالة','المبلغ'])),services:num(val(t,['إجمالي الخدمات','مبلغ الخدمات','قيمة الخدمات','الخدمات','خدمات'])),entered:val(t,['عن طريق','بواسطة','ادخال بواسطة','إدخال بواسطة']),supervisor:supervisorVal(t),reason:val(t,['سبب المغادرة','سبب الانسحاب','السبب']),notes:val(t,['ملاحظات','ملاحظة']),type:/🌳|شجرة/i.test(t)?'tree':'individual',phone:val(t,['رقم الهاتف','الهاتف','جوال','موبايل']),address:val(t,['العنوان','السكن']),sponsorNotes:val(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:t};}
-function set(el,v){if(!el||v===undefined||v===null||v==='')return false;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));return true;}
-function clear(el){if(!el)return;el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}
-function choose(sel,name){if(!sel||!name)return false;const n=norm(name);if(sel.matches('[data-person-dropdown-value]')){const root=sel.closest('[data-person-dropdown]'),matches=[...root.querySelectorAll('[data-person-dropdown-option]')].filter(o=>o.dataset.value&&norm(o.dataset.value)===n);if(matches.length!==1)return false;sel.value=matches[0].dataset.value;root.querySelector('[data-person-dropdown-toggle]').textContent=matches[0].textContent.trim();root.querySelectorAll('[data-person-dropdown-option]').forEach(o=>{const active=o===matches[0];o.classList.toggle('active',active);o.setAttribute('aria-checked',active?'true':'false');});sel.dispatchEvent(new Event('change',{bubbles:true}));return true;}const ms=[...sel.options].filter(o=>o.value&&norm(o.textContent.replace(/—.*$/,'').trim())===n&&!o.disabled);if(ms.length!==1)return false;sel.value=ms[0].value;sel.dispatchEvent(new Event('change',{bubbles:true}));return true;}
-function applyEntry(r){const f=$('#entryForm'),ex=$('#existingSponsor');if(!choose(ex,r.sponsor)){if(ex){ex.value='';ex.dispatchEvent(new Event('change',{bubbles:true}));}set($('#sponsorName'),r.sponsor);}set(f.elements.file_number,r.file);if(r.type)set($('#sponsorType'),r.type);set($('#entryDate'),r.date);if(!r.date)clear($('#entryDate'));const enteredOk=!r.entered||choose($('#enteredBy'),r.entered),supervisorOk=!r.supervisor||choose($('#supervisorName'),r.supervisor);set($('#entryNotes'),[r.notes,enteredOk?'':'بواسطة: '+r.entered,supervisorOk?'':'المشرف: '+r.supervisor].filter(Boolean).join(' | '));
- const fs=$('#families');fs.innerHTML='';const orphanRows=[];const familyData=r.families?.length?r.families:[{mother:r.mother,orphans:r.orphans||[]}];familyData.forEach((family,fi)=>{$('#addFamily').click();const block=fs.querySelectorAll('.family-block')[fi];if(!block)return;set($('.mother-name',block),family.mother);const names=family.orphans||[];const firstRow=fs.querySelector('.orphan-row[data-family="'+block.dataset.family+'"]');if(names.length)set($('.orphan-name',firstRow),names[0]);orphanRows.push(firstRow);for(let i=1;i<names.length;i++){ $('.add-orphan',block).click();const rows=fs.querySelectorAll('.orphan-row[data-family="'+block.dataset.family+'"]');const row=rows[rows.length-1];set($('.orphan-name',row),names[i]);orphanRows.push(row);}});
- const eachOk=!!r.each&&orphanRows.length>0&&(r.sponsorship===''||Number(r.sponsorship)===Number(r.each)*orphanRows.length);const sponsorshipAllocation=eachOk?Array(orphanRows.length).fill(String(r.each)):allocateEvenly(r.sponsorship,orphanRows.length);const servicesAllocation=allocateEvenly(r.services,orphanRows.length);orphanRows.forEach((row,i)=>{row.querySelector('.orphan-amount').value=(r.sponsorship!==''||eachOk)?(sponsorshipAllocation?sponsorshipAllocation[i]:''):'';row.querySelector('.orphan-services').value=r.services!==''?(servicesAllocation?servicesAllocation[i]:''):'0';});
- set($('#expectedSponsorship'),r.sponsorship);set($('#expectedServices'),r.services);window.mdeUpdateAmountTotals?.();return {sponsorshipManual:r.sponsorship!==''&&!sponsorshipAllocation,servicesManual:r.services!==''&&!servicesAllocation};}
-function applyDeparture(r){const ex=$('#modeExisting'),nw=$('#modeNew'),sel=$('#departureSponsor');if(choose(sel,r.sponsor)){ex.checked=true;ex.dispatchEvent(new Event('change',{bubbles:true}));}else{nw.checked=true;nw.dispatchEvent(new Event('change',{bubbles:true}));set($('#newSponsorName'),r.sponsor);set($('#newSponsorType'),r.type);set($('#newSponsorPhone'),r.phone);set($('#newSponsorAddress'),r.address);set($('#newSponsorNotes'),r.sponsorNotes);}set($('#existingFileNumber'),r.file);set($('#newFileNumber'),r.file);set($('#departureDate'),r.date);if(!r.date)clear($('#departureDate'));set($('#lastPaidMonth'),r.lastPaid);set($('#orphanCount'),r.count);if(r.count==='')clear($('#orphanCount'));set($('#sponsorshipAmount'),r.sponsorship);if(r.sponsorship==='')clear($('#sponsorshipAmount'));set($('#servicesAmount'),r.services);if(r.services==='')clear($('#servicesAmount'));choose($('#enteredBy'),r.entered);choose($('#supervisorName'),r.supervisor);set($('#departureReason'),r.reason);set($('#departureNotes'),r.notes);}
-function applyMessageLevelFields(records,raw){
- const enteredValues=vals(raw,'عن طريق|بواسطة|ادخال بواسطة|إدخال بواسطة');
- const sharedEntered=enteredValues.length?enteredValues[enteredValues.length-1]:'';
- const sharedSupervisor=supervisorVal(raw);
- return records.map(record=>({...record,entered:sharedEntered,supervisor:sharedSupervisor}));
+function applyEntry(record) {
+ const payload=Parser.buildEntryFormPayload(record);
+ const successfulFields={};
+ const result=Parser.populateEntryForm(payload,{
+  setField(field,value) {
+   let success=false;
+   if(field==='sponsor') {
+    const existing=$('#existingSponsor');
+    if(choose(existing,value)){clear($('#sponsorName'));success=true;}
+    else {if(existing){existing.value='';existing.dispatchEvent(new Event('change',{bubbles:true}));}success=set($('#sponsorName'),value);}
+   } else if(field==='file') success=set($('#entryForm').elements.file_number,value);
+   else if(field==='type') success=set($('#sponsorType'),value||'individual');
+   else if(field==='date') {success=set($('#entryDate'),value);if(!value)clear($('#entryDate'));}
+   else if(field==='entered') {success=value?choose($('#enteredBy'),value):false;if(!success)clearPerson($('#enteredBy'));}
+   else if(field==='supervisor') {success=value?choose($('#supervisorName'),value):false;if(!success)clearPerson($('#supervisorName'));}
+   else if(field==='notes') success=set($('#entryNotes'),value);
+   successfulFields[field]=success;
+   return success;
+  },
+  fieldWasSet(field){return !!successfulFields[field];},
+  setFamilies(families) {
+   const container=$('#families');
+   container.innerHTML='';
+   const orphanRows=[];
+   families.forEach((family,index)=>{
+    $('#addFamily').click();
+    const block=container.querySelectorAll('.family-block')[index];
+    if(!block)return;
+    set($('.mother-name',block),family.mother);
+    const rows=container.querySelectorAll('.orphan-row[data-family="'+block.dataset.family+'"]');
+    const first=rows[0];
+    if(family.orphans.length)set($('.orphan-name',first),family.orphans[0]);
+    orphanRows.push(first);
+    for(let i=1;i<family.orphans.length;i++){
+     $('.add-orphan',block).click();
+     const current=container.querySelectorAll('.orphan-row[data-family="'+block.dataset.family+'"]');
+     const row=current[current.length-1];
+     set($('.orphan-name',row),family.orphans[i]);
+     orphanRows.push(row);
+    }
+   });
+   this.orphanRows=orphanRows;
+  },
+  setAmounts(data) {
+   (this.orphanRows||[]).forEach((row,index)=>{
+    row.querySelector('.orphan-amount').value=data.sponsorshipAllocation?data.sponsorshipAllocation[index]:(data.expectedSponsorship!==''?'':'');
+    row.querySelector('.orphan-services').value=data.expectedServices!==''?(data.servicesAllocation?data.servicesAllocation[index]:''):'0';
+   });
+   set($('#expectedSponsorship'),data.expectedSponsorship);
+   set($('#expectedServices'),data.expectedServices);
+  },
+  updateTotals(){window.mdeUpdateAmountTotals?.();}
+ });
+ return result;
 }
-function hasMotherNames(r){return !!(r&&Array.isArray(r.families)&&r.families.length&&r.families.every(f=>String(f.mother||'').trim()!==''));}
-window.MDEWhatsAppParser={split,entry,departure,hasMotherNames,allocateEvenly,applyMessageLevelFields};
-const panel=$('[data-whatsapp-import]');if(!panel)return;const profile=panel.dataset.profile,input=$('#whatsappMessage',panel),analyze=$('#whatsappAnalyze',panel),select=$('#whatsappRecord',panel),apply=$('#whatsappApply',panel),status=$('#whatsappStatus',panel),details=$('#whatsappDetails',panel);let records=[], pendingIndex=null;
-const storageKey='mdeWhatsappQueue:'+profile;
-const pendingKey='mdeWhatsappPending:'+profile;
-function restoreQueue(){try{const saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');if(!saved)return;const wasSaved=new URLSearchParams(location.search).get('whatsapp_saved')==='1';const pendingRaw=sessionStorage.getItem(pendingKey);const pending=pendingRaw===null?NaN:Number(pendingRaw);if(wasSaved&&Number.isInteger(pending)){saved.records.splice(pending,1);sessionStorage.removeItem(pendingKey);if(!saved.records.length){sessionStorage.removeItem(storageKey);return;}}records=saved.records||[];input.value=saved.raw||'';render();status.textContent=wasSaved?'تم حفظ السجل السابق. اختر السجل التالي لتحميله ومراجعته.':'تم استعادة قائمة السجلات من هذه الجلسة.';}catch(e){sessionStorage.removeItem(storageKey);sessionStorage.removeItem(pendingKey);}}
-function render(){select.innerHTML='';records.forEach((r,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent='سجل '+(i+1)+(r.sponsor?' — '+r.sponsor:' — اسم الكفيل غير واضح');select.append(o);});select.disabled=records.length<2;const r=records[Number(select.value)||0];if(!r){apply.disabled=true;details.textContent='';return;}const missing=profile==='entry'?['اسم الكفيل','اسم أم واحدة على الأقل','اسم يتيم واحد على الأقل','تاريخ الانضمام'].filter((x,i)=>![r.sponsor,(r.families||[]).some(f=>f.mother),(r.orphans||[]).length,r.date][i]):['اسم الكفيل','تاريخ المغادرة','عدد الأيتام'].filter((x,i)=>![r.sponsor,r.date,r.count][i]);const motherMissing=profile==='entry'&&!hasMotherNames(r);apply.disabled=!records.length||motherMissing;const blockedNote=motherMissing?'لا يمكن تحميل السجل قبل استخراج اسم الأم لكل أسرة. راجع صياغة الرسالة أو أضف تسمية واضحة لاسم الأم.':'';details.textContent=(missing.length?'بيانات تحتاج مراجعة: '+missing.join('، '):'')+(missing.length&&blockedNote?' · ':'')+blockedNote;}
-analyze.addEventListener('click',()=>{const raw=input.value.trim();if(!raw){status.textContent='الصق رسالة واتساب أولاً.';return;}pendingIndex=null;try{sessionStorage.removeItem(storageKey);sessionStorage.removeItem(pendingKey);}catch(e){}records=applyMessageLevelFields(split(raw).map((t,i)=>profile==='entry'?entry(t,i):departure(t,i)),raw);render();status.textContent=records.length>1?'تم العثور على '+records.length+' سجلات منفصلة. اختر سجلاً لتحميله في النموذج.':'';});
-select.addEventListener('change',render);apply.addEventListener('click',()=>{const r=records[Number(select.value)||0];if(!r)return;if(profile==='entry'&&!hasMotherNames(r)){status.textContent='تعذر تحميل السجل: يجب استخراج اسم الأم لكل أسرة أولاً. لن يتم تحميل سجل ناقص.';return;}if(!window.confirm('سيتم تحميل البيانات المستخرجة في حقول النموذج. لن يتم حفظ أي بيانات. قد تُستبدل القيم الموجودة. هل تريد المتابعة؟'))return;let allocation={sponsorshipManual:false,servicesManual:false};if(profile==='entry')allocation=applyEntry(r);else applyDeparture(r);pendingIndex=Number(select.value)||0;const manual=[];if(allocation.sponsorshipManual)manual.push('الكفالة');if(allocation.servicesManual)manual.push('الخدمات');status.textContent=manual.length?'تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي. ':'';});
+function applyDeparture(record) {
+ const existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor');
+ if(choose(select,record.sponsor)){existingMode.checked=true;existingMode.dispatchEvent(new Event('change',{bubbles:true}));}
+ else{newMode.checked=true;newMode.dispatchEvent(new Event('change',{bubbles:true}));set($('#newSponsorName'),record.sponsor);set($('#newSponsorType'),record.type);set($('#newSponsorPhone'),record.phone);set($('#newSponsorAddress'),record.address);set($('#newSponsorNotes'),record.sponsorNotes);}
+ set($('#existingFileNumber'),record.file);set($('#newFileNumber'),record.file);set($('#departureDate'),record.date);if(!record.date)clear($('#departureDate'));
+ set($('#lastPaidMonth'),record.lastPaid);set($('#orphanCount'),record.count);if(record.count==='')clear($('#orphanCount'));
+ set($('#sponsorshipAmount'),record.sponsorship);if(record.sponsorship==='')clear($('#sponsorshipAmount'));
+ set($('#servicesAmount'),record.services);if(record.services==='')clear($('#servicesAmount'));
+ const unresolved=[];if(!record.entered||!choose($('#enteredBy'),record.entered)){clearPerson($('#enteredBy'));if(record.entered)unresolved.push('بواسطة: '+record.entered);}if(!record.supervisor||!choose($('#supervisorName'),record.supervisor)){clearPerson($('#supervisorName'));if(record.supervisor)unresolved.push('المشرف: '+record.supervisor);}
+ set($('#departureReason'),record.reason);set($('#departureNotes'),[record.notes,...unresolved].filter(Boolean).join(' | '));
+}
+const panel=$('[data-whatsapp-import]');
+if(!panel)return;
+const profile=panel.dataset.profile,input=$('#whatsappMessage',panel),analyze=$('#whatsappAnalyze',panel),select=$('#whatsappRecord',panel),apply=$('#whatsappApply',panel),status=$('#whatsappStatus',panel),details=$('#whatsappDetails',panel);
+let records=[],pendingIndex=null;
+const storageKey='mdeWhatsappQueue:'+profile,pendingKey='mdeWhatsappPending:'+profile;
+function hasRequiredFields(record) {
+ if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0&&!!record.date;
+ return !!record.sponsor&&!!record.date&&!!record.count;
+}
+function render() {
+ select.innerHTML='';
+ records.forEach((record,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent='سجل '+(index+1)+(record.sponsor?' — '+record.sponsor:' — اسم الكفيل غير واضح');select.append(option);});
+ select.disabled=records.length<2;
+ const record=records[Number(select.value)||0];
+ if(!record){apply.disabled=true;details.textContent='';return;}
+ const missing=profile==='entry'
+  ?['اسم الكفيل','اسم أم واحدة على الأقل','اسم يتيم واحد على الأقل','تاريخ الانضمام'].filter((label,index)=>![record.sponsor,Parser.hasMotherNames(record),record.orphans.length,record.date][index])
+  :['اسم الكفيل','تاريخ المغادرة','عدد الأيتام'].filter((label,index)=>![record.sponsor,record.date,record.count][index]);
+ const warnings=[...(record.warnings||[])];
+ details.textContent=[missing.length?'بيانات مطلوبة للمراجعة: '+missing.join('، '):'',warnings.length?'تنبيهات: '+[...new Set(warnings)].join('، '):''].filter(Boolean).join(' · ');
+ apply.disabled=!hasRequiredFields(record);
+}
+function restoreQueue() {
+ try {
+  const saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');
+  if(!saved)return;
+  const wasSaved=new URLSearchParams(location.search).get('whatsapp_saved')==='1';
+  const pendingRaw=sessionStorage.getItem(pendingKey),pending=pendingRaw===null?NaN:Number(pendingRaw);
+  if(wasSaved&&Number.isInteger(pending)){saved.records.splice(pending,1);sessionStorage.removeItem(pendingKey);if(!saved.records.length){sessionStorage.removeItem(storageKey);return;}}
+  records=saved.records||[];input.value=saved.raw||'';render();
+  status.textContent=wasSaved?'تم حفظ السجل السابق. اختر السجل التالي لتحميله ومراجعته.':'تم استعادة قائمة السجلات من هذه الجلسة.';
+ } catch(error){sessionStorage.removeItem(storageKey);sessionStorage.removeItem(pendingKey);}
+}
+analyze.addEventListener('click',()=>{
+ const raw=input.value.trim();
+ if(!raw){status.textContent='الصق رسالة واتساب أولاً.';return;}
+ pendingIndex=null;
+ try{sessionStorage.removeItem(storageKey);sessionStorage.removeItem(pendingKey);}catch(error){}
+ const contextDate=profile==='entry'?$('#entryDate')?.value:$('#departureDate')?.value;
+ records=Parser.applyMessageLevelFields(Parser.split(raw).map((part,index)=>profile==='entry'?Parser.entry(part,index,contextDate):Parser.departure(part,index,contextDate)),raw);
+ render();
+ status.textContent=records.length>1?'تم العثور على '+records.length+' سجلات منفصلة. اختر سجلاً لتحميله في النموذج.':'';
+});
+select.addEventListener('change',render);
+apply.addEventListener('click',()=>{
+ const record=records[Number(select.value)||0];
+ if(!record)return;
+ if(!hasRequiredFields(record)){status.textContent='تعذر تحميل السجل بأمان. راجع البيانات الناقصة في التنبيهات وأصلح الرسالة قبل إعادة التحليل.';return;}
+ if(!window.confirm('سيتم تحميل البيانات المستخرجة في حقول النموذج. لن يتم حفظ أي بيانات. قد تُستبدل القيم الموجودة. هل تريد المتابعة؟'))return;
+ const allocation=profile==='entry'?applyEntry(record):(applyDeparture(record),{sponsorshipManual:false,servicesManual:false});
+ pendingIndex=Number(select.value)||0;
+ const manual=[];if(allocation.sponsorshipManual)manual.push('الكفالة');if(allocation.servicesManual)manual.push('الخدمات');
+ status.textContent=manual.length?'تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي. ':'';
+});
 const targetForm=profile==='entry'?$('#entryForm'):document.querySelector('form.card');
-if(targetForm)targetForm.addEventListener('submit',()=>{if(pendingIndex!==null&&records.length){try{sessionStorage.setItem(storageKey,JSON.stringify({records,raw:input.value}));sessionStorage.setItem(pendingKey,String(pendingIndex));}catch(e){status.textContent='تعذر الاحتفاظ ببقية السجلات في الجلسة؛ يمكنك إعادة لصق الرسالة بعد الحفظ.';}}});
+if(targetForm)targetForm.addEventListener('submit',()=>{
+ if(pendingIndex!==null&&records.length){try{sessionStorage.setItem(storageKey,JSON.stringify({records,raw:input.value}));sessionStorage.setItem(pendingKey,String(pendingIndex));}catch(error){status.textContent='تعذر الاحتفاظ ببقية السجلات في الجلسة؛ يمكنك إعادة لصق الرسالة بعد الحفظ.';}}
+});
 restoreQueue();
 })();

@@ -18,4 +18,5 @@ if (!in_array($whatsappImportProfile, ['entry', 'departure'], true)) {
     <div class="small mt-2" id="whatsappDetails" aria-live="polite"></div>
     <div class="small text-primary mt-1" id="whatsappStatus" aria-live="polite"></div>
 </section>
+<script src="assets/js/whatsapp-parser.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/whatsapp-parser.js') ?>" defer></script>
 <script src="assets/js/whatsapp-import.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/whatsapp-import.js') ?>" defer></script>
