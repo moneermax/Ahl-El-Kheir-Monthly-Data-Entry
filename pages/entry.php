@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException('راجع أسماء الأيتام والمبالغ؛ يجب أن تكون المبالغ أرقاماً صحيحة غير سالبة.');
                 }
 
-                $pairKey = $motherId . "\\0" . mb_strtolower($orphanName, 'UTF-8');
+                $pairKey = $motherId . "\\0" . strtolower($orphanName);
                 if (isset($submittedPairs[$pairKey])) {
                     throw new InvalidArgumentException('اليتيم نفسه مكرر في نموذج الإدخال. راجع أسماء الأسر والأيتام قبل الحفظ.');
                 }
