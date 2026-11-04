@@ -134,6 +134,8 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
         foreach ($groups as $sid => $group) {
             $sponsor = $group['sponsor'];
             $items = $group['rows'];
+            $groupSponsorshipTotal = array_sum(array_map(static fn(array $item): int => (int) ($item['sponsorship_amount'] ?? 0), $items));
+            $groupServicesTotal = array_sum(array_map(static fn(array $item): int => (int) ($item['services_amount'] ?? 0), $items));
             $sponsorForm = 'sponsor-form-' . $sid;
             $rowCount = count($items);
             $messageCounts = [];
@@ -262,7 +264,7 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 }
                 echo '</td></tr>';
             }
-            echo '</tbody></table></div>';
+            echo '</tbody><tfoot><tr class="table-success fw-bold"><th colspan="6" class="text-end">الإجمالي</th><th class="text-center">' . number_format($groupSponsorshipTotal) . '</th><th class="text-center">' . number_format($groupServicesTotal) . '</th><th colspan="3"></th></tr></tfoot></table></div>';
             echo '<div class="small text-secondary mt-2">تاريخ الانضمام وحالة العلاقة معروضان كسجل تاريخي. التعديل يشمل بيانات الكفيل والأم واليتيم والإدخال الشهري. التبرعات الأخرى معروضة هنا دون تعديل.</div>';
             echo '</section>';
         }
