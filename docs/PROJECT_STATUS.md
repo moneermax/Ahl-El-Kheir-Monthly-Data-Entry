@@ -110,3 +110,12 @@ Deletion scopes are separate:
 Successful deletions run in a transaction and record before-data snapshots in the audit log. Migration 005 extends audit entity types for sponsorship and donation deletion records. No request-time DDL is used.
 
 Automated PHP lint and JavaScript checks do not replace live MariaDB/browser verification of all three delete scopes and message-group editing.
+
+
+## Sponsor deletion behavior — 2026-11-04
+
+The data-management page now supports deleting a selected sponsor together with all records owned by that sponsor in one database transaction. The confirmation shows live counts for sponsorship relationships, monthly sponsorship entries, other donations, and departure records. The delete operation snapshots every removed sponsor, relationship, monthly entry, donation, and departure in `mde_change_log` before removing dependent rows in foreign-key-safe order.
+
+Orphan and mother master records are deliberately retained, as are any sponsorship relationships those orphans have with other sponsors. Sponsor-level legacy donations and sponsorship-linked donations are both included in the deletion scope. A failed delete rolls back the entire transaction.
+
+Existing databases must apply migration 006 after migrations 004 and 005 to allow departure deletion snapshots. Fresh installations receive the expanded audit enum from `database/schema.sql`. Automated checks and live MariaDB/browser deletion tests are pending; do not treat the feature as runtime-verified until those tests are completed.
