@@ -87,3 +87,12 @@ The existing parser test corpus has been extended with the exact reported messag
 - Run PHP lint and JavaScript tests where the available environment permits. Clearly distinguish code inspection from tests actually executed.
 - Do not discard local changes, reset, force-push, or overwrite unknown work. If Git reports divergence or conflicts, stop and inspect.
 - Commit and push complete, verified changes to GitHub; report exact commit hashes and any migration/test steps.
+
+
+## Search and inline register editing — 2026-11-04
+
+The data-management page now uses the same 11-column register layout as the entry page, including sponsor and mother row grouping. Search filters as the user types (debounced server-side request, no page reload) across sponsor name, file number, mother/orphan names, report month, entry date, amounts, operator, supervisor, notes, and sponsorship-linked other-donation descriptions. Results show historical monthly rows, ordered newest month first, with a 500-row cap.
+
+Inline editing is grouped by sponsor: choose “تعديل هذا الكفيل” to edit the sponsor details, displayed mother/orphan names, and monthly entry date, sponsorship/services amounts, operator, supervisor, and notes together; Save commits the group in one transaction and writes supported before/after audit records. Cancel reloads the displayed search results. Other donations are shown per sponsorship and report month but remain read-only; sponsor departures are not yet included in this register editor. Sponsorship start dates and statuses are displayed as historical relationship data and are not editable here.
+
+Automated GitHub Actions PHP lint / JavaScript syntax / parser / reference-option checks passed on commit `e5475a0dff55bf02141697c8d727dc9ab01f11ea` (run 129). This does not verify SQL execution against MariaDB or actual browser behavior. Live local database and browser testing remain required before treating the editor as production-ready.
