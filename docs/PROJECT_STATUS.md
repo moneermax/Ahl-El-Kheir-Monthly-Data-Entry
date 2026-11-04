@@ -16,7 +16,7 @@ This is a standalone data-entry project. Never modify the separate Ahl El Kheir 
 - Per-orphan sponsorship and services amounts, with optional combined-total checks.
 - One or more other donations per orphan, stored against the exact `mde_sponsorships.id`.
 - WhatsApp parser queue for multiple sponsor records. The `بواسطة` operator and `المشرف` are independently extracted once from the complete pasted message and copied to every sponsor record split from that message.
-- After a successful database commit, the last saved sponsor name is stored in `$_SESSION['mde_last_saved_sponsor']` and displayed in a prominent red alert immediately above the entry register table. New and existing sponsors are both supported. Failed saves must never update the indicator.
+- After a successful database commit, the last saved sponsor name is stored in `$_SESSION['mde_last_saved_sponsor']` and displayed in a prominent red alert immediately before the entry register heading. New and existing sponsors are both supported. Failed saves must never update the indicator.
 - Monthly reports and PDF/XLSX/CSV exports include mother/orphan details for sponsorship-linked other donations. Historical sponsor-level donations with a NULL sponsorship link remain supported.
 - No request-time DDL. Schema changes are static SQL migrations.
 
@@ -31,7 +31,7 @@ Fresh installations should import `database/schema.sql`, which includes the late
 
 ## Immediate next verification
 
-The latest UI update moves the last-saved sponsor indicator from the general page header to the exact position immediately above the register table and changes it to a red, high-visibility alert. Verify it after a successful save and redirect, and confirm it displays the correct name for both new and existing sponsors.
+The latest UI update places the last-saved sponsor indicator immediately before the `سجل الكفالة` heading, in a red high-visibility alert. The save handler explicitly writes the session before redirecting. Verify it after a successful save and redirect, and confirm it displays the correct name for both new and existing sponsors. The WhatsApp import panel no longer shows the `تجريبي` badge, explanatory paragraph, or textarea label; routine extraction/allocation/success explanations were removed while actionable validation and manual-allocation warnings remain.
 
 Then verify:
 1. One sponsor, one mother, two orphans.
