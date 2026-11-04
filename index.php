@@ -6,15 +6,20 @@ ob_start();
 require __DIR__ . '/includes/bootstrap.php';
 
 $page = (string) ($_GET['page'] ?? 'entry');
-$allowed = ['entry', 'manage', 'departures', 'reports'];
+$allowed = ['entry', 'manage', 'departures', 'reports', 'reports-new', 'reports-departures'];
 if (!in_array($page, $allowed, true)) {
     $page = 'entry';
 }
+if ($page === 'reports') {
+    $page = 'reports-new';
+}
+$reportType = $page === 'reports-departures' ? 'departures' : 'new';
 $pages = [
     'entry' => ['title' => 'إدخال الكفالات الجديدة', 'file' => __DIR__ . '/pages/entry.php'],
     'manage' => ['title' => 'بحث وإدارة البيانات', 'file' => __DIR__ . '/pages/manage.php'],
     'departures' => ['title' => 'تسجيل مغادرة كفيل', 'file' => __DIR__ . '/pages/departures.php'],
-    'reports' => ['title' => 'التقارير الشهرية', 'file' => __DIR__ . '/pages/reports.php'],
+    'reports-new' => ['title' => 'تقرير الكفلاء الجدد', 'file' => __DIR__ . '/pages/reports.php'],
+    'reports-departures' => ['title' => 'تقرير الكفلاء المغادرين', 'file' => __DIR__ . '/pages/reports.php'],
 ];
 $flash = $_SESSION['mde_flash'] ?? null;
 unset($_SESSION['mde_flash']);
