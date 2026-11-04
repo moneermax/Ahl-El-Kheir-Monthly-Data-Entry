@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new InvalidArgumentException('اختر نوع الكفيل بصورة صحيحة.');
         }
         $selectedSponsorId = filter_var($_POST['existing_sponsor_id'] ?? null, FILTER_VALIDATE_INT);
+        $savedSponsorName = '';
         $entryDate = (string) ($_POST['entry_date'] ?? '');
         $enteredBy = trim((string) ($_POST['entered_by'] ?? ''));
         $supervisor = trim((string) ($_POST['supervisor_name'] ?? ''));
@@ -57,23 +58,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
 
         if ($selectedSponsorId) {
-            $sponsorCheck = $pdo->prepare('SELECT id FROM mde_sponsors WHERE id = ?');
+            $sponsorCheck = $pdo->prepare('SELECT id, sponsor_name FROM mde_sponsors WHERE id = ?');
             $sponsorCheck->execute([$selectedSponsorId]);
-            if (!$sponsorCheck->fetch()) {
+            $existingSponsor = $sponsorCheck->fetch();
+            if (!$existingSponsor) {
                 throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
             }
             $sponsorId = $selectedSponsorId;
+            $savedSponsorName = (string) $existingSponsor['sponsor_name'];
             $pdo->prepare('UPDATE mde_sponsors SET is_active = 1, sponsor_type = ?, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$sponsorType, $fileNumber, $sponsorId]);
         } else {
             $stmt = $pdo->prepare('INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number) VALUES (?, ?, ?)');
             $stmt->execute([$sponsorName, $sponsorType, $fileNumber ?: null]);
             $sponsorId = (int) $pdo->lastInsertId();
+            $savedSponsorName = $sponsorName;
         }
 
         $motherStmt = $pdo->prepare('INSERT INTO mde_mothers (mother_name) VALUES (?)');
         $orphanStmt = $pdo->prepare('INSERT INTO mde_orphans (mother_id, orphan_name) VALUES (?, ?)');
         $sponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
         $monthlyStmt = $pdo->prepare('INSERT INTO mde_monthly_sponsorship_entries (sponsorship_id, report_month, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        $donationStmt = $pdo->prepare('INSERT INTO mde_monthly_other_donations (sponsor_id, sponsorship_id, report_month, donation_date, donation_type, amount, entered_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
 
         $savedOrphans = 0;
         foreach ($families as $family) {
@@ -97,26 +102,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sponsorshipStmt->execute([$sponsorId, $orphanId, $entryDate]);
                 $sponsorshipId = (int) $pdo->lastInsertId();
                 $monthlyStmt->execute([$sponsorshipId, $month, $entryDate, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null]);
+
+                $orphanDonations = $orphan['donations'] ?? [];
+                if (!is_array($orphanDonations)) {
+                    throw new InvalidArgumentException('تفاصيل التبرعات الأخرى لليتيم غير صالحة.');
+                }
+                foreach ($orphanDonations as $donation) {
+                    if (!is_array($donation)) {
+                        throw new InvalidArgumentException('تفاصيل التبرعات الأخرى لليتيم غير صالحة.');
+                    }
+                    $type = trim((string) ($donation['type'] ?? ''));
+                    $rawAmount = trim((string) ($donation['amount'] ?? ''));
+                    if ($type === '' && $rawAmount === '') {
+                        continue;
+                    }
+                    $donationAmount = filter_var($rawAmount, FILTER_VALIDATE_INT);
+                    if ($type === '' || $donationAmount === false || $donationAmount < 0) {
+                        throw new InvalidArgumentException('راجع نوع وقيمة التبرع الآخر لكل يتيم.');
+                    }
+                    $donationStmt->execute([$sponsorId, $sponsorshipId, $month, $entryDate, $type, $donationAmount, $enteredBy ?: null]);
+                }
                 $savedOrphans++;
             }
         }
 
-        $donationTypes = $_POST['donation_type'] ?? [];
-        $donationAmounts = $_POST['donation_amount'] ?? [];
-        $donationStmt = $pdo->prepare('INSERT INTO mde_monthly_other_donations (sponsor_id, report_month, donation_date, donation_type, amount, entered_by) VALUES (?, ?, ?, ?, ?, ?)');
-        foreach ($donationTypes as $i => $type) {
-            $type = trim((string) $type);
-            $amount = filter_var($donationAmounts[$i] ?? null, FILTER_VALIDATE_INT);
-            if ($type === '' && ($amount === false || $amount === 0)) {
-                continue;
-            }
-            if ($type === '' || $amount === false || $amount < 0) {
-                throw new InvalidArgumentException('راجع تفاصيل التبرعات الأخرى.');
-            }
-            $donationStmt->execute([$sponsorId, $month, $entryDate, $type, $amount, $enteredBy ?: null]);
-        }
-
         $pdo->commit();
+        $_SESSION['mde_last_saved_sponsor'] = [
+            'name' => $savedSponsorName,
+            'saved_at' => date('Y-m-d H:i:s'),
+        ];
         mde_flash('success', 'تم حفظ الكفيل وبيانات الأيتام بنجاح (' . $savedOrphans . ' يتيم).');
         mde_redirect('entry', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
@@ -132,6 +146,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  <h1 class="h3 mb-0">إدخال كفالة جديدة</h1><span class="badge text-bg-secondary">المبالغ بالجنيه السوداني</span>
 </div>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
+<?php $lastSavedSponsor = $_SESSION['mde_last_saved_sponsor'] ?? null; ?>
+<?php if (is_array($lastSavedSponsor) && !empty($lastSavedSponsor['name'])): ?>
+ <div class="alert alert-info py-2 mb-3" role="status">آخر كفيل تم حفظه بنجاح: <strong><?= mde_h($lastSavedSponsor['name']) ?></strong></div>
+<?php endif; ?>
 <?php $whatsappImportProfile = 'entry'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
 <form method="post" id="entryForm" class="card p-2 p-md-3">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
@@ -150,8 +168,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <tr>
    <th class="h-sponsor">#</th><th class="h-sponsor">الكفيل</th><th class="h-sponsor">الملف / النوع</th><th class="h-sponsor">تاريخ الانضمام</th>
    <th class="h-mother">الأم</th>
-   <th class="h-orphan">اليتيم</th><th class="h-orphan">الكفالة</th><th class="h-orphan">الخدمات</th>
-   <th class="h-sponsor">تبرعات أخرى</th><th class="h-sponsor">بواسطة / المشرف</th><th class="h-sponsor">ملاحظات</th>
+   <th class="h-orphan">اليتيم</th><th class="h-orphan">الكفالة</th><th class="h-orphan">الخدمات</th><th class="h-orphan">تبرعات أخرى (لليتيم)</th>
+   <th class="h-sponsor">بواسطة / المشرف</th><th class="h-sponsor">ملاحظات</th>
   </tr>
  </thead>
  <tbody id="families"></tbody>
@@ -184,10 +202,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <select class="form-select form-select-sm" name="sponsor_type" id="sponsorType" aria-label="نوع الكفيل" required><option value="individual">فردي</option><option value="tree">🌳 شجرة</option></select>
  </td>
  <td class="sponsor-span-cell"><input type="date" class="form-control form-control-sm date-input" name="entry_date" id="entryDate" aria-label="تاريخ الانضمام" required value="<?= date('Y-m-d') ?>"></td>
- <td class="sponsor-span-cell donation-cell">
-  <div id="donations" class="donations"></div>
-  <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="addDonation">+ تبرع</button>
- </td>
  <td class="sponsor-span-cell">
   <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة'); ?>
   <div class="mt-1"><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'المشرف'); ?></div>
@@ -209,6 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <td class="orphan-cell"><div class="d-flex gap-1"><input class="form-control form-control-sm orphan-name" aria-label="اسم اليتيم" placeholder="اسم اليتيم" required><button type="button" class="btn btn-outline-danger btn-sm remove-orphan" tabindex="-1" aria-label="إزالة اليتيم">×</button></div></td>
   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-amount" aria-label="قيمة الكفالة" value="0" required></td>
   <td><input type="number" min="0" step="1" class="form-control form-control-sm orphan-services" aria-label="الخدمات" value="0"></td>
+  <td class="orphan-donations-cell"><div class="donations"></div><button type="button" class="btn btn-outline-secondary btn-sm w-100 add-donation">+ تبرع</button></td>
  </tr></tbody></table>
 </template>
 <template id="donationTemplate">
