@@ -30,6 +30,23 @@ function mde_manage_delete_log(PDO $pdo, string $type, int $id, array $before): 
     $stmt->execute([$type, $id, 'delete', json_encode($before, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), 'null']);
 }
 
+function mde_manage_sponsor_delete_counts(PDO $pdo, int $sponsorId): array
+{
+    $counts = [];
+    $queries = [
+        'relationships' => 'SELECT COUNT(*) FROM mde_sponsorships WHERE sponsor_id = ?',
+        'monthly_entries' => 'SELECT COUNT(*) FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE ss.sponsor_id = ?',
+        'donations' => 'SELECT COUNT(*) FROM mde_monthly_other_donations d WHERE d.sponsor_id = ? OR d.sponsorship_id IN (SELECT ss.id FROM mde_sponsorships ss WHERE ss.sponsor_id = ?)',
+        'departures' => 'SELECT COUNT(*) FROM mde_sponsor_departures WHERE sponsor_id = ?',
+    ];
+    foreach ($queries as $key => $sql) {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($key === 'donations' ? [$sponsorId, $sponsorId] : [$sponsorId]);
+        $counts[$key] = (int) $stmt->fetchColumn();
+    }
+    return $counts;
+}
+
 function mde_manage_message_key(array $row): string
 {
     return hash('sha256', implode("\0", [
@@ -138,9 +155,16 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
             echo '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">';
             echo '<div class="fw-bold">' . mde_h($sponsor['sponsor_name']) . ($sponsor['sponsor_type'] === 'tree' ? ' <span class="badge text-bg-success">🌳 شجرة</span>' : '') . ' <span class="small text-secondary">#' . $sid . '</span></div>';
             echo '<div class="d-flex gap-2 align-items-center"><span class="small text-secondary">' . $rowCount . ' صف</span>';
-            echo '<form method="post" class="d-inline" onsubmit="return confirm(this.dataset.confirm)" data-confirm="سيُحذف سجل الكفيل فقط إذا لم تعد له علاقات كفالة أو سجلات مغادرة أو تبرعات مرتبطة. هل تريد المتابعة؟">';
+            $deleteCounts = mde_manage_sponsor_delete_counts($pdo, (int) $sid);
+            $deleteConfirm = 'سيتم حذف الكفيل «' . $sponsor['sponsor_name'] . '» وكل سجلاته التابعة نهائياً:' . "\\n" .
+                'علاقات الكفالة: ' . $deleteCounts['relationships'] . "\\n" .
+                'الإدخالات الشهرية: ' . $deleteCounts['monthly_entries'] . "\\n" .
+                'التبرعات الأخرى: ' . $deleteCounts['donations'] . "\\n" .
+                'سجلات المغادرة: ' . $deleteCounts['departures'] . "\\n\\n" .
+                'ستبقى سجلات الأمهات والأيتام وهوياتهم وعلاقاتهم بكفلاء آخرين دون حذف. هل أنت متأكد؟';
+            echo '<form method="post" class="d-inline" onsubmit="return confirm(this.dataset.confirm)" data-confirm="' . mde_h($deleteConfirm) . '">';
             echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_sponsor"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
-            echo '<button type="submit" class="btn btn-outline-danger btn-sm">حذف الكفيل</button></form>';
+            echo '<button type="submit" class="btn btn-outline-danger btn-sm">حذف الكفيل وسجلاته</button></form>';
             echo '<button type="button" class="btn btn-outline-primary btn-sm manage-edit-toggle">تعديل هذا الكفيل</button>';
             echo '<button type="submit" form="' . $sponsorForm . '" class="btn btn-success btn-sm manage-save d-none">حفظ التعديلات</button>';
             echo '<button type="button" class="btn btn-outline-secondary btn-sm manage-cancel d-none">إلغاء</button></div></div>';
@@ -295,21 +319,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lock->execute([$sponsorIdForDelete]);
                 $beforeSponsorDelete = $lock->fetch();
                 if (!$beforeSponsorDelete) throw new InvalidArgumentException('الكفيل غير موجود.');
-                $counts = [];
-                foreach ([
-                    'علاقات الكفالة' => ['mde_sponsorships', 'sponsor_id'],
-                    'سجلات المغادرة' => ['mde_sponsor_departures', 'sponsor_id'],
-                    'التبرعات العامة' => ['mde_monthly_other_donations', 'sponsor_id'],
-                ] as $label => [$table, $column]) {
-                    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column} = ?");
-                    $countStmt->execute([$sponsorIdForDelete]);
-                    $counts[$label] = (int) $countStmt->fetchColumn();
-                }
-                $details = [];
-                foreach ($counts as $label => $count) if ($count > 0) $details[] = $label . ': ' . $count;
-                if ($details) throw new InvalidArgumentException('لا يمكن حذف الكفيل قبل معالجة السجلات التابعة: ' . implode('، ', $details) . '. لا تحذف سجلات تاريخية صحيحة لمجرد تشابه الاسم.');
-                $pdo->prepare('DELETE FROM mde_sponsors WHERE id = ?')->execute([$sponsorIdForDelete]);
+
+                // Lock and snapshot every dependent row before deleting anything.
+                $relationshipStmt = $pdo->prepare('SELECT * FROM mde_sponsorships WHERE sponsor_id = ? FOR UPDATE');
+                $relationshipStmt->execute([$sponsorIdForDelete]);
+                $relationshipRows = $relationshipStmt->fetchAll();
+
+                $entryStmt = $pdo->prepare('SELECT me.* FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE ss.sponsor_id = ? FOR UPDATE');
+                $entryStmt->execute([$sponsorIdForDelete]);
+                $entryRows = $entryStmt->fetchAll();
+
+                $donationStmt = $pdo->prepare('SELECT d.* FROM mde_monthly_other_donations d WHERE d.sponsor_id = ? OR d.sponsorship_id IN (SELECT ss.id FROM mde_sponsorships ss WHERE ss.sponsor_id = ?) FOR UPDATE');
+                $donationStmt->execute([$sponsorIdForDelete, $sponsorIdForDelete]);
+                $donationRows = $donationStmt->fetchAll();
+
+                $departureStmt = $pdo->prepare('SELECT * FROM mde_sponsor_departures WHERE sponsor_id = ? FOR UPDATE');
+                $departureStmt->execute([$sponsorIdForDelete]);
+                $departureRows = $departureStmt->fetchAll();
+
+                foreach ($entryRows as $entry) mde_manage_delete_log($pdo, 'monthly_entry', (int) $entry['id'], $entry);
+                foreach ($donationRows as $donation) mde_manage_delete_log($pdo, 'donation', (int) $donation['id'], $donation);
+                foreach ($departureRows as $departure) mde_manage_delete_log($pdo, 'departure', (int) $departure['id'], $departure);
+                foreach ($relationshipRows as $relationship) mde_manage_delete_log($pdo, 'sponsorship', (int) $relationship['id'], $relationship);
                 mde_manage_delete_log($pdo, 'sponsor', (int) $sponsorIdForDelete, $beforeSponsorDelete);
+
+                $pdo->prepare('DELETE FROM mde_monthly_sponsorship_entries WHERE sponsorship_id IN (SELECT id FROM mde_sponsorships WHERE sponsor_id = ?)')->execute([$sponsorIdForDelete]);
+                $pdo->prepare('DELETE FROM mde_monthly_other_donations WHERE sponsor_id = ? OR sponsorship_id IN (SELECT id FROM mde_sponsorships WHERE sponsor_id = ?)')->execute([$sponsorIdForDelete, $sponsorIdForDelete]);
+                $pdo->prepare('DELETE FROM mde_sponsor_departures WHERE sponsor_id = ?')->execute([$sponsorIdForDelete]);
+                $pdo->prepare('DELETE FROM mde_sponsorships WHERE sponsor_id = ?')->execute([$sponsorIdForDelete]);
+                $pdo->prepare('DELETE FROM mde_sponsors WHERE id = ?')->execute([$sponsorIdForDelete]);
             }
             $pdo->commit();
             mde_flash('success', 'تم الحذف المحدد مع حفظ لقطات السجلات المحذوفة في سجل المراجعة.');
