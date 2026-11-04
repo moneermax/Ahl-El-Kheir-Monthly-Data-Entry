@@ -51,12 +51,12 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         $headers = [];
         $prototype = null;
         foreach ($sheetData->childNodes as $child) {
-            if (!$child instanceof DOMElement || $child->localName !== 'row') continue;
+            if (!($child instanceof DOMElement) || $child->localName !== 'row') continue;
             $n = (int)$child->getAttribute('r');
             if ($n >= 1 && $n <= 4) $headers[] = $child->cloneNode(true);
             if ($n === 5) $prototype = $child->cloneNode(true);
         }
-        if (!$prototype instanceof DOMElement) throw new RuntimeException('صف تنسيق البيانات غير موجود.');
+        if (!($prototype instanceof DOMElement)) throw new RuntimeException('صف تنسيق البيانات غير موجود.');
         while ($sheetData->firstChild) $sheetData->removeChild($sheetData->firstChild);
         foreach ($headers as $header) $sheetData->appendChild($header);
 
@@ -84,7 +84,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             $row=$prototype->cloneNode(true);
             $row->setAttribute('r',(string)$rowNumber);
             foreach ($row->childNodes as $cell) {
-                if (!$cell instanceof DOMElement || $cell->localName !== 'c') continue;
+                if (!($cell instanceof DOMElement) || $cell->localName !== 'c') continue;
                 if (!preg_match('/^([A-Z]+)/',$cell->getAttribute('r'),$m)) continue;
                 $col=$m[1];
                 $cell->setAttribute('r',$col.$rowNumber);
@@ -98,7 +98,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             $row=$prototype->cloneNode(true);
             $row->setAttribute('r',(string)$rowNumber);
             foreach ($row->childNodes as $cell) {
-                if (!$cell instanceof DOMElement || $cell->localName !== 'c') continue;
+                if (!($cell instanceof DOMElement) || $cell->localName !== 'c') continue;
                 if (!preg_match('/^([A-Z]+)/',$cell->getAttribute('r'),$m)) continue;
                 $col=$m[1];
                 $cell->setAttribute('r',$col.$rowNumber);
