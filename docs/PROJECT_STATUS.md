@@ -96,3 +96,17 @@ The data-management page now uses the same 11-column register layout as the entr
 Inline editing is grouped by sponsor: choose “تعديل هذا الكفيل” to edit the sponsor details, displayed mother/orphan names, and monthly entry date, sponsorship/services amounts, operator, supervisor, and notes together; Save commits the group in one transaction and writes supported before/after audit records. Cancel reloads the displayed search results. Other donations are shown per sponsorship and report month but remain read-only; sponsor departures are not yet included in this register editor. Sponsorship start dates and statuses are displayed as historical relationship data and are not editable here.
 
 Automated GitHub Actions PHP lint / JavaScript syntax / parser / reference-option checks passed on commit `e5475a0dff55bf02141697c8d727dc9ab01f11ea` (run 129). This does not verify SQL execution against MariaDB or actual browser behavior. Live local database and browser testing remain required before treating the editor as production-ready.
+
+
+## Message-level personnel editing and audited deletion — 2026-11-04
+
+The management register now presents operator and supervisor once for a saved single-sponsor submission group rather than as independent controls on each orphan row. Existing rows are grouped conservatively by sponsor, reporting month, database creation timestamp, and identical operator/supervisor values. Changing either name updates every monthly orphan row in that group. The legacy schema does not retain a WhatsApp source-message identifier across different sponsors, so this reconstructs the single-sponsor form submission boundary and does not claim cross-sponsor edit grouping.
+
+Deletion scopes are separate:
+- Monthly entry: removes one orphan's monthly sponsorship row and other donations linked to that sponsorship/month; the relationship and other months remain.
+- Sponsorship relationship: removes that sponsor/orphan relationship, its monthly entries, and donations linked to that relationship; the orphan and its other sponsor relationships remain.
+- Sponsor: removes only an empty sponsor master record. If relationships, departures, or donations remain, deletion is blocked with dependency counts.
+
+Successful deletions run in a transaction and record before-data snapshots in the audit log. Migration 005 extends audit entity types for sponsorship and donation deletion records. No request-time DDL is used.
+
+Automated PHP lint and JavaScript checks do not replace live MariaDB/browser verification of all three delete scopes and message-group editing.
