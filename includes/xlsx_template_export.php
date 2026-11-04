@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /** Fill the original two-sheet Excel register without changing its design. */
-function mde_export_xlsx_from_template(string $monthInput, array $sponsors, array $departures, callable $dateText): never
+function mde_export_xlsx_from_template(string $monthInput, array $sponsors, array $departures, callable $dateText, string $reportType = 'both'): never
 {
     $templatePath = dirname(__DIR__) . '/templates/monthly-register-template.xlsx';
     if (!class_exists(ZipArchive::class) || !class_exists(DOMDocument::class) || !is_file($templatePath)) {
@@ -146,6 +146,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
 
         $rows1=[];
         $merges1=[];
+        $sumSponsorship1=0; $sumServices1=0;
         $excelRow=5;
         foreach ($sponsors as $sponsorIndex=>$sponsor) {
             $sponsorRows=$sponsor['rows'] ?? [];
@@ -161,6 +162,8 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             }
             $offset=count($rows1);
             foreach ($sponsorRows as $i=>$row) {
+                $sumSponsorship1+=(int)($row['sponsorship_amount'] ?? 0);
+                $sumServices1+=(int)($row['services_amount'] ?? 0);
                 $items=$row['other_donation_items'] ?? [];
                 $types=[]; $amounts=[];
                 foreach ($items as $item) { $types[]=(string)($item['type'] ?? ''); $amounts[]=(int)($item['amount'] ?? 0); }
@@ -205,6 +208,9 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             $excelRow+=$count;
         }
 
+        $total1=[0=>'الإجمالي',5=>$sumSponsorship1,6=>$sumServices1,'_styles'=>['A'=>114,'B'=>115,'C'=>115,'D'=>115,'E'=>116,'F'=>54,'G'=>54,'H'=>69,'I'=>41,'J'=>41,'K'=>41,'L'=>41]];
+        $merges1[]='A'.$excelRow.':E'.$excelRow;
+
         $rows2=[];
         $sumSponsorship=0; $sumServices=0;
         foreach ($departures as $i=>$row) {
@@ -224,7 +230,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         }
         $total=[0=>'المجموع',5=>$sumSponsorship,6=>$sumServices,'_styles'=>['A'=>114,'B'=>115,'C'=>115,'D'=>115,'E'=>116,'F'=>54,'G'=>54,'H'=>69,'I'=>41]];
         $merges2=['A'.(5+count($rows2)).':E'.(5+count($rows2))];
-        $buildWorksheet($workDir.'/xl/worksheets/sheet1.xml',12,$rows1,$merges1,$monthTitle);
+        $buildWorksheet($workDir.'/xl/worksheets/sheet1.xml',12,$rows1,$merges1,$monthTitle,$total1);
         $buildWorksheet($workDir.'/xl/worksheets/sheet2.xml',9,$rows2,$merges2,$monthTitle,$total);
 
         // The source workbook has a fixed print area from its old data. Expand it to this report.
@@ -233,6 +239,16 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         $workbookDom->preserveWhiteSpace=false;
         if (!$workbookDom->load($workbookPath)) throw new RuntimeException('تعذر تحديث إعدادات طباعة Excel.');
         $mainNs='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        if (in_array($reportType, ['new', 'departures'], true)) {
+            foreach ($workbookDom->getElementsByTagNameNS($mainNs, 'sheet') as $sheet) {
+                if (!($sheet instanceof DOMElement)) continue;
+                $isNewSheet = str_contains($sheet->getAttribute('name'), 'جدد');
+                $sheet->setAttribute('state', ($reportType === 'new') === $isNewSheet ? 'visible' : 'hidden');
+            }
+            foreach ($workbookDom->getElementsByTagNameNS($mainNs, 'workbookView') as $view) {
+                if ($view instanceof DOMElement) $view->setAttribute('activeTab', $reportType === 'new' ? '0' : '1');
+            }
+        }
         foreach ($workbookDom->getElementsByTagNameNS($mainNs,'definedName') as $definedName) {
             if ($definedName instanceof DOMElement
                 && $definedName->getAttribute('name')==='_xlnm.Print_Area'
@@ -253,7 +269,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         }
         if (!$output->close()) throw new RuntimeException('تعذر إغلاق ملف Excel النهائي.');
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="monthly-registers-'.$monthInput.'.xlsx"');
+        header('Content-Disposition: attachment; filename="monthly-'.$reportType.'-'.$monthInput.'.xlsx"');
         header('Content-Length: '.filesize($tmp));
         readfile($tmp);
     } catch (Throwable $e) {
