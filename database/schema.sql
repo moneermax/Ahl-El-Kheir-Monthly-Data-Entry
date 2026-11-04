@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS mde_sponsor_departures (
 -- Stores before/after snapshots for corrections made through the data-management page.
 CREATE TABLE IF NOT EXISTS mde_change_log (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    entity_type ENUM('sponsor','mother','orphan','monthly_entry','sponsorship','donation') NOT NULL,
+    entity_type ENUM('sponsor','mother','orphan','monthly_entry','sponsorship','donation','departure') NOT NULL,
     entity_id BIGINT UNSIGNED NOT NULL,
     action VARCHAR(40) NOT NULL DEFAULT 'update',
     before_data LONGTEXT NOT NULL,
@@ -166,4 +166,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6);
