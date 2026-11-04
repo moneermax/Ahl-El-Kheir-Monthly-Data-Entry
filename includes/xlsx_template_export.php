@@ -227,6 +227,21 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         $buildWorksheet($workDir.'/xl/worksheets/sheet1.xml',12,$rows1,$merges1,$monthTitle);
         $buildWorksheet($workDir.'/xl/worksheets/sheet2.xml',9,$rows2,$merges2,$monthTitle,$total);
 
+        // The source workbook has a fixed print area from its old data. Expand it to this report.
+        $workbookPath=$workDir.'/xl/workbook.xml';
+        $workbookDom=new DOMDocument('1.0','UTF-8');
+        $workbookDom->preserveWhiteSpace=false;
+        if (!$workbookDom->load($workbookPath)) throw new RuntimeException('تعذر تحديث إعدادات طباعة Excel.');
+        $mainNs='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        foreach ($workbookDom->getElementsByTagNameNS($mainNs,'definedName') as $definedName) {
+            if ($definedName instanceof DOMElement
+                && $definedName->getAttribute('name')==='_xlnm.Print_Area'
+                && $definedName->getAttribute('localSheetId')==='0') {
+                $definedName->textContent="'كفلاء جدد2026'!$A$1:$L$".(4+count($rows1));
+            }
+        }
+        if ($workbookDom->save($workbookPath)===false) throw new RuntimeException('تعذر حفظ إعدادات طباعة Excel.');
+
         $output=new ZipArchive();
         if ($output->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true) throw new RuntimeException('تعذر إنشاء ملف Excel النهائي.');
         $iterator=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($workDir,FilesystemIterator::SKIP_DOTS));
