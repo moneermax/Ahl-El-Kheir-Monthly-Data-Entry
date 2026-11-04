@@ -150,12 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php $whatsappImportProfile = 'entry'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
 <form method="post" id="entryForm" class="card p-2 p-md-3">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
-<?php if (is_array($lastSavedSponsor) && trim((string) ($lastSavedSponsor['name'] ?? '')) !== ''): ?>
-<div class="alert alert-danger border-danger border-2 py-2 px-3 mb-2 fw-bold text-center" role="status" aria-live="polite">
- <span>آخر كفيل تم إدخاله وحفظه بنجاح:</span>
- <span class="fs-5"><?= mde_h($lastSavedSponsor['name']) ?></span>
-</div>
-<?php endif; ?>
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
  <h2 class="h5 mb-0">سجل الكفالة — كفيل ← أم ← يتيم</h2>
  <div class="d-flex gap-2 flex-wrap">
@@ -163,6 +157,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <button type="button" class="btn btn-outline-success btn-sm" id="addFamily">إضافة أم</button>
  </div>
 </div>
+
+<?php if (is_array($lastSavedSponsor) && trim((string) ($lastSavedSponsor['name'] ?? '')) !== ''): ?>
+<div class="alert alert-danger border-danger border-2 py-2 px-3 mb-2 fw-bold text-center" role="status" aria-live="polite">
+ <span>آخر كفيل تم إدخاله وحفظه بنجاح:</span>
+ <span class="fs-5"><?= mde_h($lastSavedSponsor['name']) ?></span>
+</div>
+<?php endif; ?>
 
 <div class="entry-register-wrap">
 <table class="entry-register" id="entryRegister">
