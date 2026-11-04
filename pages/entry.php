@@ -233,6 +233,7 @@ $lastSavedSponsorName = $pdo->query(
   </tr>
  </thead>
  <tbody id="families"></tbody>
+ <tfoot><tr class="table-success fw-bold"><th colspan="6" class="text-end">الإجمالي</th><th class="text-center" id="entryTotalSponsorship">0</th><th class="text-center" id="entryTotalServices">0</th><th colspan="3"></th></tr></tfoot>
 </table>
 </div>
 
