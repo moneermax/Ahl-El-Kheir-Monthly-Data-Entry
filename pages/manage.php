@@ -145,7 +145,7 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 echo '<td class="sponsor-span-cell"><div class="small fw-semibold">' . mde_h($item['start_date'] ?? '—') . '</div>';
                 echo '<div class="small text-secondary">' . ($item['report_month'] ? 'شهر ' . mde_h(substr((string) $item['report_month'], 0, 7)) : 'لا يوجد إدخال شهري') . '</div>';
                 if ($item['monthly_id']) {
-                    echo '<div class="manage-input d-none mt-1"><input type="date" class="form-control form-control-sm" name="monthly[' . (int) $item['monthly_id'] . '][entry_date]" form="' . $monthlyForm . '" value="' . mde_h($item['entry_date']) . '" required></div>';
+                    echo '<div class="manage-input d-none mt-1"><input type="date" class="form-control form-control-sm" name="monthly[' . (int) $item['monthly_id'] . '][entry_date]" form="' . $sponsorForm . '" value="' . mde_h($item['entry_date']) . '" required></div>';
                 }
                 echo '</td>';
                 if (!isset($seenMothers[$mid])) {
@@ -166,7 +166,7 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                     echo '<td class="text-center">';
                     echo '<div class="manage-view">' . ($item[$field] === null ? '—' : number_format((int) $item[$field])) . '</div>';
                     if ($item['monthly_id']) {
-                        echo '<input type="number" min="0" step="1" class="form-control form-control-sm text-center manage-input d-none" name="monthly[' . (int) $item['monthly_id'] . '][' . $field . ']" form="' . $monthlyForm . '" value="' . (int) $item[$field] . '" required>';
+                        echo '<input type="number" min="0" step="1" class="form-control form-control-sm text-center manage-input d-none" name="monthly[' . (int) $item['monthly_id'] . '][' . $field . ']" form="' . $sponsorForm . '" value="' . (int) $item[$field] . '" required>';
                     }
                     echo '</td>';
                 }
@@ -174,21 +174,18 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                 echo '<td><div class="manage-view small">' . mde_h($item['entered_by'] ?: '—') . ' / ' . mde_h($item['supervisor_name'] ?: '—') . '</div>';
                 if ($item['monthly_id']) {
                     echo '<div class="manage-input d-none">';
-                    echo '<select class="form-select form-select-sm mb-1" name="monthly[' . (int) $item['monthly_id'] . '][entered_by]" form="' . $monthlyForm . '"><option value="">— بواسطة —</option>';
+                    echo '<select class="form-select form-select-sm mb-1" name="monthly[' . (int) $item['monthly_id'] . '][entered_by]" form="' . $sponsorForm . '"><option value="">— بواسطة —</option>';
                     foreach ($GLOBALS['mdeEnteredByOptions'] as $person) echo '<option value="' . mde_h($person) . '"' . ($item['entered_by'] === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
-                    echo '</select><select class="form-select form-select-sm" name="monthly[' . (int) $item['monthly_id'] . '][supervisor_name]" form="' . $monthlyForm . '"><option value="">— المشرف —</option>';
+                    echo '</select><select class="form-select form-select-sm" name="monthly[' . (int) $item['monthly_id'] . '][supervisor_name]" form="' . $sponsorForm . '"><option value="">— المشرف —</option>';
                     foreach ($GLOBALS['mdeSupervisorOptions'] as $person) echo '<option value="' . mde_h($person) . '"' . ($item['supervisor_name'] === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
                     echo '</select></div>';
                 }
                 echo '</td>';
                 echo '<td><div class="manage-view small">' . nl2br(mde_h($item['monthly_notes'] ?? '')) . '</div>';
                 if ($item['monthly_id']) {
-                    echo '<textarea class="form-control form-control-sm manage-input d-none" rows="2" name="monthly[' . (int) $item['monthly_id'] . '][notes]" form="' . $monthlyForm . '">' . mde_h($item['monthly_notes']) . '</textarea>';
+                    echo '<textarea class="form-control form-control-sm manage-input d-none" rows="2" name="monthly[' . (int) $item['monthly_id'] . '][notes]" form="' . $sponsorForm . '">' . mde_h($item['monthly_notes']) . '</textarea>';
                 }
                 echo '</td></tr>';
-                if ($item['monthly_id']) {
-                    echo '<form id="' . $monthlyForm . '" class="d-none" method="post"><input type="hidden" name="action" value="monthly_marker"></form>';
-                }
             }
             echo '</tbody></table></div>';
             echo '<div class="small text-secondary mt-2">تاريخ الانضمام وحالة العلاقة معروضان كسجل تاريخي. التعديل يشمل بيانات الكفيل والأم واليتيم والإدخال الشهري. التبرعات الأخرى معروضة هنا دون تعديل.</div>';
@@ -362,6 +359,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
   });
  };
  input.addEventListener('input', () => {
+  if (editing) { status.textContent = 'احفظ أو ألغِ التعديل المفتوح قبل تغيير البحث.'; return; }
   clearTimeout(timer);
   timer = setTimeout(search, 180);
  });
