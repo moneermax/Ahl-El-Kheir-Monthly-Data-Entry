@@ -18,10 +18,10 @@ Continue work on my **separate Ahl El Kheir Monthly Data Entry** project. Read `
 4. Updated reports and PDF/XLSX/CSV exports to show mother/orphan details for linked donations.
 5. WhatsApp parsing extracts one `بواسطة` and one independent `المشرف` value from the entire pasted message and applies both to every sponsor record split from that message.
 6. Added tests for shared message-level fields.
-7. After a successful DB commit, the last saved sponsor name is stored in the session and displayed in a prominent **red alert immediately above the entry register table**. It must show the actual stored name for both new and existing sponsors and must not change on a failed save.
+7. After a successful DB commit, the last saved sponsor name is stored in the session and displayed in a prominent **red alert immediately before the `سجل الكفالة` heading**. The save handler explicitly writes the session before redirecting. It must show the actual stored name for both new and existing sponsors and must not change on a failed save.
 
 ## Immediate task
-Verify that the red last-saved sponsor indicator appears exactly above the table after a successful save. The user specifically wants it red and highly visible to prevent accidental duplicate/re-entry. Do not move it above the WhatsApp panel or leave it hidden elsewhere.
+Verify that the red last-saved sponsor indicator appears immediately before the `سجل الكفالة` heading after a successful save. The WhatsApp panel has had its `تجريبي` badge, explanatory paragraph, and textarea label removed, as have routine extraction/allocation/success messages; actionable warnings remain. The user specifically wants it red and highly visible to prevent accidental duplicate/re-entry. Do not move it above the WhatsApp panel or leave it hidden elsewhere.
 
 Then perform a full consistency review of per-orphan donations from entry HTML/JS through PHP persistence, schema, reports, and all exports. Check nested input reindexing after adding/removing mothers, orphans, and donation rows. Verify WhatsApp multi-sponsor shared values. Run available PHP lint and JavaScript tests. Do not claim browser/database tests were run unless they actually were.
 
