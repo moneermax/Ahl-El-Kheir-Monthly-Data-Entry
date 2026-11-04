@@ -11,6 +11,7 @@
  const motherCells=new Map();
  const expectedSponsorship=$('expectedSponsorship'),expectedServices=$('expectedServices');
  const actualSponsorship=$('actualSponsorship'),actualServices=$('actualServices'),amountCheck=$('amountCheck'),entryForm=$('entryForm');
+ const tableTotalSponsorship=$('entryTotalSponsorship'),tableTotalServices=$('entryTotalServices');
  let nextFamilyId=1;
 
  const allRows=()=>[...families.querySelectorAll('.orphan-row')];
@@ -64,6 +65,7 @@
   let sponsorship=0,services=0;
   allRows().forEach(row=>{sponsorship+=Math.max(0,Number(row.querySelector('.orphan-amount').value)||0);services+=Math.max(0,Number(row.querySelector('.orphan-services').value)||0);});
   actualSponsorship.textContent=sponsorship.toLocaleString('en-US');actualServices.textContent=services.toLocaleString('en-US');
+  tableTotalSponsorship.textContent=sponsorship.toLocaleString('en-US');tableTotalServices.textContent=services.toLocaleString('en-US');
   const expectedS=expectedSponsorship.value===''?null:Number(expectedSponsorship.value),expectedV=expectedServices.value===''?null:Number(expectedServices.value),errors=[];
   if(expectedS!==null&&sponsorship!==expectedS)errors.push('إجمالي الكفالة الموزع لا يطابق الإجمالي الوارد');
   if(expectedV!==null&&services!==expectedV)errors.push('إجمالي الخدمات الموزع لا يطابق الإجمالي الوارد');
