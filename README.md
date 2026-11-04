@@ -29,7 +29,7 @@ The application opens directly at its entry page. There is no login system, as r
 - Each orphan belongs to one mother; one mother can have multiple orphans.
 - Each sponsor/orphan relationship is stored separately, so one sponsor can sponsor multiple orphans and one orphan can have more than one sponsor.
 - Record monthly sponsorship and service amounts per sponsorship. When a source gives a combined family total, split it into per-orphan amounts and ensure the per-orphan values add back to the supplied total.
-- Search by sponsor, mother, or orphan and edit master data or a specific monthly entry from the data-management page. Edits are recorded in an audit log; records are not physically deleted.
+- Search by sponsor, mother, or orphan and edit master data or a specific monthly entry from the data-management page. Operator and supervisor are edited once per saved submission group and applied to all orphan rows in that group. Deletion is available separately for one monthly entry, one sponsor/orphan relationship, and an empty sponsor master record; dependent records are protected and deletion snapshots are audited.
 - Record one or more other donations against the exact sponsor/orphan sponsorship. Older sponsor-level donation records remain readable and included in totals.
 - The new-sponsorship entry form follows the October Excel register layout in a full-browser-width table on the entry page (other pages retain the standard 1200px content width): sponsor number/name, joining date, mother, orphan, sponsorship, services, other-donation type/value, operator, supervisor, and notes. Sponsor-level cells are visually merged across all orphan rows, and each mother's cell is merged across that mother's orphans. Orphans remain one row each so their amounts are individually editable. Sponsor type and optional file number sit inside the sponsor cell; optional other donations are entered in the matching Excel columns. The WhatsApp import panel, combined-total allocation/checks, existing-sponsor workflow, and original save/database structure are preserved.
 - Record sponsor departure with date, file number, last-paid month, orphan count, and financial snapshots. Active sponsorships are ended without deleting historical records.
@@ -74,7 +74,7 @@ The two original CSV files are retained under \`reference-csv/\` without importi
 - Historical monthly entries remain reportable after a sponsorship ends.
 - Amounts are integer SDG units; no floating-point arithmetic is used.
 
-For existing installations, apply migration `004_link_other_donations_to_sponsorship.sql` once after migration 003. It adds a nullable sponsorship link; historical sponsor-level donations are not rewritten. Fresh installations receive the same structure from `database/schema.sql`.
+For existing installations, apply migration `004_link_other_donations_to_sponsorship.sql` once after migration 003, then migration `005_audit_deletions.sql`. Migration 004 adds a nullable sponsorship link; migration 005 extends audit entity types for deletion snapshots. Historical sponsor-level donations are not rewritten. Fresh installations receive the latest audit schema from `database/schema.sql`.
 
 ## Privacy and separation
 
