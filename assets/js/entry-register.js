@@ -7,7 +7,7 @@
  const sponsorCells=[...$('sponsorCellsTemplate').content.querySelector('tr').children];
  const preCells=sponsorCells.slice(0,4),postCells=sponsorCells.slice(4);   // before the mother cell / after the amounts
  const q=sel=>sponsorCells.map(c=>c.querySelector(sel)).find(Boolean);
- const donations=q('#donations'),existing=q('#existingSponsor'),sponsorName=q('#sponsorName'),sponsorType=q('#sponsorType');
+ const existing=q('#existingSponsor'),sponsorName=q('#sponsorName'),sponsorType=q('#sponsorType');
  const motherCells=new Map();
  const expectedSponsorship=$('expectedSponsorship'),expectedServices=$('expectedServices');
  const actualSponsorship=$('actualSponsorship'),actualServices=$('actualServices'),amountCheck=$('amountCheck'),entryForm=$('entryForm');
@@ -51,9 +51,13 @@
     row.querySelector('.orphan-services').name='families['+fi+'][orphans]['+oi+'][services]';
    });
   });
-  [...donations.querySelectorAll('.donation-row')].forEach((row,i)=>{
-   row.querySelector('.donation-type').name='donation_type['+i+']';
-   row.querySelector('.donation-amount').name='donation_amount['+i+']';
+  ids.forEach((id,fi)=>{
+   rowsForFamily(id).forEach((row,oi)=>{
+    [...row.querySelectorAll('.donation-row')].forEach((donation,di)=>{
+     donation.querySelector('.donation-type').name='families['+fi+'][orphans]['+oi+'][donations]['+di+'][type]';
+     donation.querySelector('.donation-amount').name='families['+fi+'][orphans]['+oi+'][donations]['+di+'][amount]';
+    });
+   });
   });
  }
  function updateAmountTotals(){
@@ -90,11 +94,16 @@
  addFamily();syncSponsorMode();
  $('addFamily').addEventListener('click',addFamily);
  $('addFamilyBottom').addEventListener('click',addFamily);
- $('addDonation').addEventListener('click',()=>{donations.append(donationTpl.content.cloneNode(true));reindex();});
 
  document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
   if(t.matches('.add-orphan')){addOrphan(t.closest('.mother-span-cell').dataset.family).querySelector('.orphan-name').focus();}
+  else if(t.matches('.add-donation')){
+   const row=t.closest('.orphan-row');
+   row.querySelector('.donations').append(donationTpl.content.cloneNode(true));
+   reindex();
+   row.querySelector('.donation-type:last-of-type')?.focus();
+  }
   else if(t.matches('.remove-family')){
    const id=t.closest('.mother-span-cell').dataset.family;
    if(familyIds().length>1){rowsForFamily(id).forEach(r=>r.remove());motherCells.delete(id);}
