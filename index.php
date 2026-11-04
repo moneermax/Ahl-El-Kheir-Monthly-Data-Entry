@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+
+// Buffer the page shell so POST handlers can still issue clean redirects.
+ob_start();
 require __DIR__ . '/includes/bootstrap.php';
 
 $page = (string) ($_GET['page'] ?? 'entry');
