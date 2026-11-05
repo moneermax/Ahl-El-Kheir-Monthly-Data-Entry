@@ -156,122 +156,121 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
 
 <?php $whatsappImportProfile = 'departure'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
-<form method="post" class="card p-3 p-md-4">
+<form method="post" class="card p-2 p-md-3" id="departureForm">
     <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
 
-    <div class="mb-3">
-        <label class="form-label required d-block">بيانات الكفيل</label>
-        <div class="d-flex flex-wrap gap-3">
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="sponsor_mode" id="modeExisting" value="existing" <?= $selectedMode === 'existing' ? 'checked' : '' ?>>
-                <label class="form-check-label" for="modeExisting">كفيل مسجل</label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="sponsor_mode" id="modeNew" value="new" <?= $selectedMode === 'new' ? 'checked' : '' ?>>
-                <label class="form-check-label" for="modeNew">تسجيل كفيل جديد ومغادرته</label>
-            </div>
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        <span class="form-label required mb-0">بيانات الكفيل</span>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="sponsor_mode" id="modeExisting" value="existing" <?= $selectedMode === 'existing' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="modeExisting">كفيل مسجل</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="sponsor_mode" id="modeNew" value="new" <?= $selectedMode === 'new' ? 'checked' : '' ?>>
+            <label class="form-check-label" for="modeNew">تسجيل كفيل جديد ومغادرته</label>
         </div>
     </div>
 
-    <div id="existingSponsorFields" class="<?= $selectedMode === 'new' ? 'd-none' : '' ?>">
-        <div class="row g-3 mb-3">
-            <div class="col-md-8">
-                <label class="form-label required" for="departureSponsor">الكفيل المسجل</label>
-                <select class="form-select" name="sponsor_id" id="departureSponsor" <?= $selectedMode === 'existing' ? 'required' : 'disabled' ?>>
-                    <option value="">اختر الكفيل</option>
-                    <?php foreach ($sponsors as $s): ?>
-                        <option
-                            value="<?= (int) $s['id'] ?>"
-                            data-file="<?= mde_h($s['file_number'] ?? '') ?>"
-                            data-active="<?= (int) $s['is_active'] ?>"
-                            <?= (string) ($old['sponsor_id'] ?? '') === (string) $s['id'] ? 'selected' : '' ?>
-                            <?= !(int) $s['is_active'] ? 'disabled' : '' ?>
-                        >
-                            <?= mde_h($s['sponsor_name']) ?><?= !(int) $s['is_active'] ? ' — مغادر سابقاً' : '' ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <div class="form-text">تظهر السجلات المغادرة سابقاً للتوضيح فقط ولا يمكن تسجيل مغادرة مكررة لها. عند عودة الكفيل، سجّل كفالته الجديدة أولاً.</div>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="existingFileNumber">رقم الملف (لقطة وقت المغادرة)</label>
-                <input class="form-control" name="file_number" id="existingFileNumber" maxlength="100" value="<?= mde_h($old['file_number'] ?? '') ?>">
-            </div>
-        </div>
+    <div class="entry-register-wrap">
+        <table class="entry-register departure-register" id="departureRegister">
+            <colgroup>
+                <col style="width:3%">
+                <col style="width:18%">
+                <col style="width:8%">
+                <col style="width:10%">
+                <col style="width:8%">
+                <col style="width:6%">
+                <col style="width:9%">
+                <col style="width:8%">
+                <col style="width:13%">
+                <col style="width:17%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="h-sponsor">#</th>
+                    <th class="h-sponsor">الكفيل</th>
+                    <th class="h-sponsor">رقم الملف</th>
+                    <th class="h-sponsor">تاريخ المغادرة</th>
+                    <th class="h-sponsor">آخر سداد</th>
+                    <th class="h-orphan">عدد الأيتام</th>
+                    <th class="h-orphan">الكفالة</th>
+                    <th class="h-orphan">الخدمات</th>
+                    <th class="h-sponsor">بواسطة / المشرف</th>
+                    <th class="h-sponsor">سبب وملاحظات المغادرة</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="seq-cell fw-bold text-center">1</td>
+                    <td class="sponsor-span-cell">
+                        <div id="existingSponsorFields" class="<?= $selectedMode === 'new' ? 'd-none' : '' ?>">
+                            <label class="form-label required small" for="departureSponsor">الكفيل المسجل</label>
+                            <select class="form-select form-select-sm" name="sponsor_id" id="departureSponsor" <?= $selectedMode === 'existing' ? 'required' : 'disabled' ?>>
+                                <option value="">اختر الكفيل</option>
+                                <?php foreach ($sponsors as $s): ?>
+                                    <option value="<?= (int) $s['id'] ?>"
+                                        data-file="<?= mde_h($s['file_number'] ?? '') ?>"
+                                        data-active="<?= (int) $s['is_active'] ?>"
+                                        <?= (string) ($old['sponsor_id'] ?? '') === (string) $s['id'] ? 'selected' : '' ?>
+                                        <?= !(int) $s['is_active'] ? 'disabled' : '' ?>>
+                                        <?= mde_h($s['sponsor_name']) ?><?= !(int) $s['is_active'] ? ' — مغادر سابقاً' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">السجلات المغادرة سابقاً غير قابلة للتحديد.</div>
+                        </div>
+                        <div id="newSponsorFields" class="<?= $selectedMode === 'new' ? '' : 'd-none' ?>">
+                            <label class="form-label required small" for="newSponsorName">اسم الكفيل الجديد</label>
+                            <input class="form-control form-control-sm mb-1" name="new_sponsor_name" id="newSponsorName" maxlength="255" value="<?= mde_h($old['new_sponsor_name'] ?? '') ?>" <?= $selectedMode === 'new' ? 'required' : 'disabled' ?>>
+                            <label class="form-label small" for="newSponsorType">نوع الكفيل</label>
+                            <select class="form-select form-select-sm mb-1" name="new_sponsor_type" id="newSponsorType" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
+                                <option value="individual">فردي</option>
+                                <option value="tree" <?= ($old['new_sponsor_type'] ?? 'individual') === 'tree' ? 'selected' : '' ?>>🌳 شجرة (داخلي)</option>
+                            </select>
+                            <input class="form-control form-control-sm mb-1" name="new_sponsor_phone" id="newSponsorPhone" maxlength="50" placeholder="رقم الهاتف" value="<?= mde_h($old['new_sponsor_phone'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
+                            <input class="form-control form-control-sm mb-1" name="new_sponsor_address" id="newSponsorAddress" maxlength="500" placeholder="العنوان" value="<?= mde_h($old['new_sponsor_address'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
+                            <textarea class="form-control form-control-sm" name="new_sponsor_notes" id="newSponsorNotes" rows="2" placeholder="ملاحظات عن الكفيل" <?= $selectedMode === 'new' ? '' : 'disabled' ?>><?= mde_h($old['new_sponsor_notes'] ?? '') ?></textarea>
+                        </div>
+                    </td>
+                    <td class="sponsor-span-cell">
+                        <input class="form-control form-control-sm mb-1" name="file_number" id="existingFileNumber" maxlength="100" placeholder="الملف" value="<?= mde_h($old['file_number'] ?? '') ?>" <?= $selectedMode === 'new' ? 'disabled' : '' ?>>
+                        <input class="form-control form-control-sm" name="file_number" id="newFileNumber" maxlength="100" placeholder="الملف" value="<?= mde_h($old['file_number'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
+                    </td>
+                    <td>
+                        <input type="date" class="form-control form-control-sm date-input" name="departure_date" id="departureDate" value="<?= mde_h($old['departure_date'] ?? '') ?>" required>
+                    </td>
+                    <td>
+                        <input type="month" class="form-control form-control-sm" name="last_paid_month" id="lastPaidMonth" value="<?= mde_h($old['last_paid_month'] ?? '') ?>">
+                    </td>
+                    <td>
+                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="orphan_count" id="orphanCount" value="<?= mde_h($old['orphan_count'] ?? '0') ?>" required>
+                    </td>
+                    <td>
+                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="sponsorship_amount" id="sponsorshipAmount" value="<?= mde_h($old['sponsorship_amount'] ?? '0') ?>">
+                    </td>
+                    <td>
+                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="services_amount" id="servicesAmount" value="<?= mde_h($old['services_amount'] ?? '0') ?>">
+                    </td>
+                    <td class="sponsor-span-cell">
+                        <div class="small mb-1">بواسطة</div>
+                        <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'اختر الاسم', (string) ($old['entered_by'] ?? '')); ?>
+                        <div class="small mt-2 mb-1">المشرف</div>
+                        <?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'اختر الاسم', (string) ($old['supervisor_name'] ?? '')); ?>
+                    </td>
+                    <td class="sponsor-span-cell">
+                        <label class="form-label small" for="departureReason">سبب المغادرة</label>
+                        <textarea class="form-control form-control-sm mb-1 notes-input" name="reason" id="departureReason" rows="2" maxlength="500"><?= mde_h($old['reason'] ?? '') ?></textarea>
+                        <label class="form-label small" for="departureNotes">ملاحظات</label>
+                        <textarea class="form-control form-control-sm notes-input" name="notes" id="departureNotes" rows="3"><?= mde_h($old['notes'] ?? '') ?></textarea>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
-    <div id="newSponsorFields" class="<?= $selectedMode === 'new' ? '' : 'd-none' ?>">
-        <div class="row g-3 mb-3">
-            <div class="col-md-6">
-                <label class="form-label required" for="newSponsorName">اسم الكفيل الجديد</label>
-                <input class="form-control" name="new_sponsor_name" id="newSponsorName" maxlength="255" value="<?= mde_h($old['new_sponsor_name'] ?? '') ?>" <?= $selectedMode === 'new' ? 'required' : 'disabled' ?>>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label required" for="newSponsorType">نوع الكفيل</label>
-                <select class="form-select" name="new_sponsor_type" id="newSponsorType" <?= $selectedMode === 'new' ? '' : 'disabled' ?>><option value="individual">فردي</option><option value="tree" <?= ($old['new_sponsor_type'] ?? 'individual') === 'tree' ? 'selected' : '' ?>>🌳 شجرة (داخلي)</option></select>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label" for="newFileNumber">رقم الملف</label>
-                <input class="form-control" name="file_number" id="newFileNumber" maxlength="100" value="<?= mde_h($old['file_number'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="newSponsorPhone">رقم الهاتف</label>
-                <input class="form-control" name="new_sponsor_phone" id="newSponsorPhone" maxlength="50" value="<?= mde_h($old['new_sponsor_phone'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
-            </div>
-            <div class="col-md-8">
-                <label class="form-label" for="newSponsorAddress">العنوان</label>
-                <input class="form-control" name="new_sponsor_address" id="newSponsorAddress" maxlength="500" value="<?= mde_h($old['new_sponsor_address'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
-            </div>
-            <div class="col-12">
-                <label class="form-label" for="newSponsorNotes">ملاحظات عن الكفيل</label>
-                <textarea class="form-control" name="new_sponsor_notes" id="newSponsorNotes" rows="2" <?= $selectedMode === 'new' ? '' : 'disabled' ?>><?= mde_h($old['new_sponsor_notes'] ?? '') ?></textarea>
-            </div>
-        </div>
-        <div class="alert alert-info py-2">سيُنشأ سجل للكفيل بحالة «غير نشط» مع تسجيل المغادرة مباشرة. لن تُنشأ له كفالات أو مبالغ شهرية تلقائياً.</div>
-    </div>
-
-    <hr class="my-2">
-    <div class="row g-3">
-        <div class="col-md-4">
-            <label class="form-label required" for="departureDate">تاريخ المغادرة</label>
-            <input type="date" class="form-control" name="departure_date" id="departureDate" value="<?= mde_h($old['departure_date'] ?? date('Y-m-d')) ?>" required>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label" for="lastPaidMonth">آخر سداد (الشهر)</label>
-            <input type="month" class="form-control" name="last_paid_month" id="lastPaidMonth" value="<?= mde_h($old['last_paid_month'] ?? '') ?>">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label required" for="orphanCount">عدد الأيتام</label>
-            <input type="number" min="0" step="1" class="form-control" name="orphan_count" id="orphanCount" value="<?= mde_h($old['orphan_count'] ?? '0') ?>" required>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label" for="sponsorshipAmount">قيمة الكفالة الإجمالية</label>
-            <input type="number" min="0" step="1" class="form-control" name="sponsorship_amount" id="sponsorshipAmount" value="<?= mde_h($old['sponsorship_amount'] ?? '0') ?>">
-        </div>
-        <div class="col-md-6">
-            <label class="form-label" for="servicesAmount">قيمة الخدمات</label>
-            <input type="number" min="0" step="1" class="form-control" name="services_amount" id="servicesAmount" value="<?= mde_h($old['services_amount'] ?? '0') ?>">
-        </div>
-        <div class="col-md-6">
-            <label class="form-label" for="enteredBy">بواسطة</label>
-            <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'اختر الاسم', (string) ($old['entered_by'] ?? '')); ?>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label" for="supervisorName">المشرف</label>
-            <?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'اختر الاسم', (string) ($old['supervisor_name'] ?? '')); ?>
-        </div>
-        <div class="col-12">
-            <label class="form-label" for="departureReason">سبب المغادرة</label>
-            <input class="form-control" name="reason" id="departureReason" maxlength="500" value="<?= mde_h($old['reason'] ?? '') ?>">
-        </div>
-        <div class="col-12">
-            <label class="form-label" for="departureNotes">ملاحظات المغادرة</label>
-            <textarea class="form-control" name="notes" id="departureNotes" rows="2"><?= mde_h($old['notes'] ?? '') ?></textarea>
-        </div>
-        <div class="col-12">
-            <button type="submit" class="btn btn-danger px-5">تسجيل المغادرة</button>
-            <p class="form-text mt-2 mb-0">ستنتهي جميع الكفالات النشطة لهذا الكفيل فقط، مع الاحتفاظ بكل السجلات والمبالغ الشهرية السابقة. تتم العملية كاملة أو لا يُحفظ منها شيء.</p>
-        </div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+        <p class="form-text mb-0">لن تُحفظ البيانات إلا بعد استكمال تاريخ المغادرة والتحقق من القيم. تتم عملية إنهاء الكفالات النشطة للكفيل كاملة أو لا يُحفظ منها شيء.</p>
+        <button type="submit" class="btn btn-danger px-5">تسجيل المغادرة</button>
     </div>
 </form>
 
