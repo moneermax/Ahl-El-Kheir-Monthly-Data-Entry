@@ -26,7 +26,17 @@ function matchingSponsorOptions(select,name) {
  const wanted=normalizeName(name);
  return [...select.options].filter(option=>option.value&&!option.disabled&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted);
 }
-window.MDEWhatsAppImportHelpers={matchingSponsorOptions};
+function resolveDepartureSponsor(select,sponsorName,fileNumber) {
+ const matches=matchingSponsorOptions(select,sponsorName),wantedFile=normalizeName(fileNumber);
+ const fileMatches=wantedFile?[...select.options].filter(option=>option.value&&!option.disabled&&normalizeName(option.dataset.file)===wantedFile):[];
+ const nameFileMatches=wantedFile?matches.filter(option=>normalizeName(option.dataset.file)===wantedFile):[];
+ if(matches.length===1)return {id:matches[0].value,ambiguous:false,message:''};
+ if(matches.length>1&&nameFileMatches.length===1)return {id:nameFileMatches[0].value,ambiguous:false,message:''};
+ if(matches.length>1)return {id:'',ambiguous:true,message:'الاسم موجود لأكثر من كفيل؛ عدّل رقم الملف ليطابق السجل الصحيح'};
+ if(fileMatches.length===1)return {id:fileMatches[0].value,ambiguous:false,message:''};
+ return {id:'',ambiguous:false,message:matches.length===0?'لم يتم العثور على سجل مطابق؛ راجع الاسم ورقم الملف':'رقم الملف لا يحدد سجلاً واحداً؛ راجع البيانات'};
+}
+window.MDEWhatsAppImportHelpers={matchingSponsorOptions,resolveDepartureSponsor};
 function departureSponsorMatches(name) {
  const select=$('#departureSponsor');
  const matches=matchingSponsorOptions(select,name);
@@ -122,132 +132,45 @@ function applyEntry(record) {
  return {...result,ambiguousSponsor};
 }
 function applyDeparture(record,options={}) {
- const payload=Parser.buildDepartureFormPayload(record);
- const payloadFields=payload.fields;
- const existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor');
- const ambiguousSponsor=!!options.ambiguousSponsor;
- const matched=ambiguousSponsor?false:choose(select,payloadFields.sponsor);
- const useExistingMode=matched||ambiguousSponsor;
- if(useExistingMode){
-  existingMode.checked=true;
-  existingMode.dispatchEvent(new Event('change',{bubbles:true}));
-  if(ambiguousSponsor)clear(select);
- } else {
-  newMode.checked=true;
-  newMode.dispatchEvent(new Event('change',{bubbles:true}));
- }
- const fileValue=payloadFields.file||(matched?(select.selectedOptions[0]?.dataset.file||''):'');
- const fields=[
-  ['رقم الملف',useExistingMode?'#existingFileNumber':'#newFileNumber',fileValue],
-  ['تاريخ المغادرة','#departureDate',payloadFields.date],
-  ['آخر سداد','#lastPaidMonth',payloadFields.lastPaid],
-  ['عدد الأيتام','#orphanCount',payloadFields.count],
-  ['الكفالة','#sponsorshipAmount',payloadFields.sponsorship],
-  ['الخدمات','#servicesAmount',payloadFields.services],
-  ['ملاحظات','#departureNotes',payload.notes]
- ];
- if(!useExistingMode){
-  fields.push(
-   ['اسم الكفيل','#newSponsorName',payloadFields.sponsor],
-   ['نوع الكفيل','#newSponsorType',payloadFields.type],
-   ['الهاتف','#newSponsorPhone',payloadFields.phone],
-   ['العنوان','#newSponsorAddress',payloadFields.address],
-   ['ملاحظات الكفيل','#newSponsorNotes',payloadFields.sponsorNotes]
-  );
- }
- const failed=[];
- const populated=[];
- fields.forEach(([label,selector,value])=>{
-  const el=$(selector);
-  if(value===undefined||value===null||value===''){
-   if(el)clear(el);
-   return;
-  }
-  if(!set(el,String(value))||String(el.value)!==String(value))failed.push(label);
-  else populated.push(label);
- });
- const unresolved=[];
- if(!record.entered||!choose($('#enteredBy'),record.entered)){
-  clearPerson($('#enteredBy'));
-  if(record.entered)unresolved.push('بواسطة: '+record.entered);
- }
- if(!record.supervisor||!choose($('#supervisorName'),record.supervisor)){
-  clearPerson($('#supervisorName'));
-  if(record.supervisor)unresolved.push('المشرف: '+record.supervisor);
- }
- const notes=[payload.notes,...unresolved].filter(Boolean).join(' | ');
- set($('#departureNotes'),notes);
- return {
-  matched,
-  ambiguousSponsor,
-  populated,
-  failed,
-  unresolved,
-  missingDate:!record.date,
-  missingLastPaid:!record.lastPaid
- };
+ const payload=Parser.buildDepartureFormPayload(record),payloadFields=payload.fields,existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor'),sponsorNameInput=$('#departureSponsorName'),sponsorIdInput=$('#departureSponsorId');
+ const resolution=resolveDepartureSponsor(select,payloadFields.sponsor,payloadFields.file),ambiguousSponsor=!!options.ambiguousSponsor||resolution.ambiguous,matched=!!resolution.id,useExistingMode=matched||ambiguousSponsor;
+ if(useExistingMode){existingMode.checked=true;existingMode.dispatchEvent(new Event('change',{bubbles:true}));if(sponsorNameInput)set(sponsorNameInput,payloadFields.sponsor);if(sponsorIdInput)sponsorIdInput.value=resolution.id;const hint=$('#departureSponsorHint');if(hint){hint.textContent=resolution.message||'يمكن تعديل الاسم ورقم الملف لهذا السجل فقط؛ لن يتغير اسم الكفيل في القائمة الرئيسية.';hint.classList.toggle('text-danger',!!resolution.message);hint.classList.toggle('text-muted',!resolution.message);}}
+ else{newMode.checked=true;newMode.dispatchEvent(new Event('change',{bubbles:true}));}
+ const matchedOption=matched?[...select.options].find(option=>option.value===resolution.id):null,fileValue=payloadFields.file||(matched?(matchedOption?.dataset.file||''):'');
+ const fields=[['اسم الكفيل','#departureSponsorName',useExistingMode?payloadFields.sponsor:''],['رقم الملف',useExistingMode?'#existingFileNumber':'#newFileNumber',fileValue],['تاريخ المغادرة','#departureDate',payloadFields.date],['آخر سداد','#lastPaidMonth',payloadFields.lastPaid],['عدد الأيتام','#orphanCount',payloadFields.count],['الكفالة','#sponsorshipAmount',payloadFields.sponsorship],['الخدمات','#servicesAmount',payloadFields.services],['ملاحظات','#departureNotes',payload.notes]];
+ if(!useExistingMode)fields.push(['اسم الكفيل','#newSponsorName',payloadFields.sponsor],['نوع الكفيل','#newSponsorType',payloadFields.type],['الهاتف','#newSponsorPhone',payloadFields.phone],['العنوان','#newSponsorAddress',payloadFields.address],['ملاحظات الكفيل','#newSponsorNotes',payloadFields.sponsorNotes]);
+ const failed=[],populated=[];fields.forEach(([label,selector,value])=>{const el=$(selector);if(value===undefined||value===null||value===''){if(el)clear(el);return;}if(!set(el,String(value))||String(el.value)!==String(value))failed.push(label);else populated.push(label);});
+ const unresolved=[];if(!record.entered||!choose($('#enteredBy'),record.entered)){clearPerson($('#enteredBy'));if(record.entered)unresolved.push('بواسطة: '+record.entered);}if(!record.supervisor||!choose($('#supervisorName'),record.supervisor)){clearPerson($('#supervisorName'));if(record.supervisor)unresolved.push('المشرف: '+record.supervisor);}
+ set($('#departureNotes'),[payload.notes,...unresolved].filter(Boolean).join(' | '));return {matched,ambiguousSponsor,populated,failed,unresolved,missingDate:!record.date,missingLastPaid:!record.lastPaid};
 }
 
 function renderDepartureBatch(batchRecords) {
- const panel=$('#departureBatchPanel'),body=$('#departureBatchRows'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag');
- const sourceSelect=$('#departureSponsor');
+ const panel=$('#departureBatchPanel'),body=$('#departureBatchRows'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag'),sourceSelect=$('#departureSponsor');
  if(!panel||!body||!fieldset||!flag||!sourceSelect)return false;
- body.replaceChildren();
- const name=(index,field)=>'departures['+index+']['+field+']';
- const makeField=(tag,type,fieldName,value,placeholder='')=>{
-  const el=document.createElement(tag);
-  if(tag==='input')el.type=type;
-  el.name=fieldName;el.className='form-control form-control-sm';
-  if(value!==undefined&&value!==null)el.value=String(value);
-  if(placeholder)el.placeholder=placeholder;
-  if(type==='number'){el.min='0';el.step='1';}
-  return el;
- };
- batchRecords.forEach((record,index)=>{
-  const payload=Parser.buildDepartureFormPayload(record),f=payload.fields;
-  const tr=document.createElement('tr');
-  const cell=()=>{const td=document.createElement('td');tr.append(td);return td;};
-  let td=cell();td.className='text-center fw-bold';td.textContent=String(index+1);
-  td=cell();td.style.minWidth='220px';
-  const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');td.append(mode);
-  const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';sponsorSelect.removeAttribute('disabled');
-  const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
-  const fileMatches=f.file?matches.filter(option=>normalizeName(option.dataset.file)===normalizeName(f.file)):[];
-  const resolvedMatches=f.file?fileMatches:matches;
-  mode.value='existing';
-  const sponsorLabel=document.createElement('div');sponsorLabel.className='fw-semibold mb-1';sponsorLabel.textContent=f.sponsor||'اسم الكفيل غير متوفر';
-  const hint=document.createElement('small');hint.className='text-danger d-block';
-  if(resolvedMatches.length===1){sponsorSelect.value=resolvedMatches[0].value;hint.classList.add('d-none');}
-  else if(matches.length>1){sponsorSelect.value='';hint.textContent=f.file?'لم يتطابق رقم الملف مع سجل واحد؛ اختر السجل الصحيح':'توجد عدة سجلات بهذا الاسم؛ اختر السجل الصحيح من القائمة';}
-  else if(matches.length===1&&f.file){sponsorSelect.value='';hint.textContent='رقم الملف في الرسالة لا يطابق رقم الملف المسجل؛ راجع الاختيار';}
-  else if(matches.length===1){sponsorSelect.value=matches[0].value;hint.classList.add('d-none');}
-  else{sponsorSelect.value='';hint.textContent='لم يتم العثور على كفيل مطابق؛ اختر السجل الصحيح من القائمة';}
-  td.append(sponsorLabel,sponsorSelect,hint);
-  sponsorSelect.addEventListener('change',()=>{mode.value='existing';hint.classList.add('d-none');});
-  const add=(value,field,kind='text')=>{const c=cell();c.append(makeField('input',kind,name(index,field),value));};
-  add(f.file,'file_number');
-  add(f.date,'departure_date','date');
-  add(f.lastPaid,'last_paid_month','month');
-  add(f.count,'orphan_count','number');
-  add(f.sponsorship,'sponsorship_amount','number');
-  add(f.services,'services_amount','number');
-  add(f.entered,'entered_by');
-  add(f.supervisor,'supervisor_name');
-  td=cell();td.style.minWidth='190px';const notes=makeField('textarea','',name(index,'notes'),payload.notes);notes.rows=2;td.append(notes);
-  td=cell();const remove=document.createElement('button');remove.type='button';remove.className='btn btn-outline-danger btn-sm';remove.textContent='حذف';remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>{row.cells[0].textContent=String(i+1);});});td.append(remove);
-  body.append(tr);
+ body.replaceChildren();const name=(index,field)=>'departures['+index+']['+field+']';
+ const makeField=(tag,type,fieldName,value,placeholder='')=>{const el=document.createElement(tag);if(tag==='input')el.type=type;el.name=fieldName;el.className='form-control form-control-sm';if(value!==undefined&&value!==null)el.value=String(value);if(placeholder)el.placeholder=placeholder;if(type==='number'){el.min='0';el.step='1';}return el;};
+ batchRecords.forEach((record,index)=>{const payload=Parser.buildDepartureFormPayload(record),f=payload.fields,tr=document.createElement('tr'),cell=()=>{const td=document.createElement('td');tr.append(td);return td;};
+  let td=cell();td.className='text-center fw-bold';td.textContent=String(index+1);td=cell();td.style.minWidth='220px';
+  const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing'),sponsorId=makeField('input','hidden',name(index,'sponsor_id'),'');
+  const sponsorName=makeField('input','text',name(index,'sponsor_name_snapshot'),f.sponsor,'اسم الكفيل كما ورد في الرسالة');sponsorName.maxLength=255;const hint=document.createElement('small');hint.className='text-muted d-block mt-1';td.append(mode,sponsorId,sponsorName,hint);
+  const add=(value,field,kind='text')=>{const c=cell(),el=makeField('input',kind,name(index,field),value);c.append(el);return el;},fileInput=add(f.file,'file_number');
+  const refresh=()=>{const result=resolveDepartureSponsor(sourceSelect,sponsorName.value,fileInput.value);sponsorId.value=result.id;hint.textContent=result.message||'سيُحفظ الاسم ورقم الملف في سجل المغادرة فقط.';hint.classList.toggle('text-danger',!!result.message);hint.classList.toggle('text-muted',!result.message);};
+  sponsorName.addEventListener('input',refresh);fileInput.addEventListener('input',refresh);refresh();
+  add(f.date,'departure_date','date');add(f.lastPaid,'last_paid_month','month');add(f.count,'orphan_count','number');add(f.sponsorship,'sponsorship_amount','number');add(f.services,'services_amount','number');add(f.entered,'entered_by');add(f.supervisor,'supervisor_name');
+  td=cell();td.style.minWidth='190px';const notes=makeField('textarea','',name(index,'notes'),payload.notes);notes.rows=2;td.append(notes);td=cell();const remove=document.createElement('button');remove.type='button';remove.className='btn btn-outline-danger btn-sm';remove.textContent='حذف';remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>row.cells[0].textContent=String(i+1));});td.append(remove);body.append(tr);
  });
- if(!body.rows.length)return false;
- fieldset.disabled=true;fieldset.classList.add('d-none');panel.classList.remove('d-none');flag.value='1';
- const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='حفظ جميع سجلات المغادرة';
- return true;
+ if(!body.rows.length)return false;fieldset.disabled=true;fieldset.classList.add('d-none');panel.classList.remove('d-none');flag.value='1';const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='حفظ جميع سجلات المغادرة';return true;
 }
+
 function leaveDepartureBatch(){
  const panel=$('#departureBatchPanel'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag');
  if(!panel||!fieldset||!flag)return;
  panel.classList.add('d-none');fieldset.disabled=false;fieldset.classList.remove('d-none');flag.value='0';
  const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='تسجيل المغادرة';
 }
+
+const singleDepartureName=$('#departureSponsorName'),singleDepartureId=$('#departureSponsorId'),singleDepartureFile=$('#existingFileNumber'),singleDepartureSource=$('#departureSponsor'),singleDepartureHint=$('#departureSponsorHint');
+if(singleDepartureName&&singleDepartureId&&singleDepartureFile&&singleDepartureSource){const refresh=()=>{const result=resolveDepartureSponsor(singleDepartureSource,singleDepartureName.value,singleDepartureFile.value);singleDepartureId.value=result.id;if(singleDepartureHint){singleDepartureHint.textContent=result.message||'يمكن تعديل الاسم ورقم الملف لهذا السجل فقط؛ لن يتغير اسم الكفيل في القائمة الرئيسية.';singleDepartureHint.classList.toggle('text-danger',!!result.message);singleDepartureHint.classList.toggle('text-muted',!result.message);}};singleDepartureName.addEventListener('input',refresh);singleDepartureFile.addEventListener('input',refresh);refresh();}
 
 const panel=$('[data-whatsapp-import]');
 if(!panel)return;
