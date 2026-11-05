@@ -18,7 +18,8 @@ assert.ok(!entryPageSource.includes('ORDER BY monthly.created_at DESC'), 'timest
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
 assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
 assert.ok(entryPageSource.includes("$link['status'] === 'ended'"), 'historical monthly entries must reuse the sponsorship episode whose dates cover the entry');
-assert.ok(entryPageSource.includes('$futureActiveLinks'), 'an earlier entry must not be attached to a later sponsorship episode');
+assert.ok(entryPageSource.includes('recorded_end_date'), 'relationship matching must respect the effective end date from departure history');
+assert.ok(entryPageSource.includes('$futureLinks'), 'an earlier entry must not be attached to a later sponsorship episode');
 assert.ok(departurePageSource.includes('start_date <= ?'), 'a past departure must not end a later sponsorship episode');
 const departureColGroup = departurePageSource.match(/<colgroup>([\s\S]*?)<\/colgroup>/);
 assert.ok(departureColGroup, 'departure register must retain a column group');
