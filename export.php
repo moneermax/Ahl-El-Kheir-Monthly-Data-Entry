@@ -133,6 +133,14 @@ $departureStmt = $pdo->prepare("
 ");
 $departureStmt->execute([$monthStart, $monthEnd]);
 $departures = $departureStmt->fetchAll();
+foreach ($departures as &$departureRow) {
+    $departureNotes = trim((string) $departureRow['notes']);
+    if (!empty($departureRow['duplicate_in_other_month'])) {
+        $departureNotes .= ($departureNotes !== '' ? ' | ' : '') . 'مكرر في شهر آخر';
+    }
+    $departureRow['notes'] = $departureNotes;
+}
+unset($departureRow);
 
 $dateText = static function (?string $value): string {
     if (!$value) return '';
@@ -159,15 +167,11 @@ foreach ($sponsors as $sponsor) {
 }
 $departureFlatRows = [];
 foreach ($departures as $i => $row) {
-    $departureNotes = trim((string) $row['notes']);
-    if (!empty($row['duplicate_in_other_month'])) {
-        $departureNotes .= ($departureNotes !== '' ? ' | ' : '') . 'مكرر في شهر آخر';
-    }
     $departureFlatRows[] = [
         $i + 1, $row['file_number_snapshot'], $row['sponsor_name'],
         $dateText($row['departure_date']), $row['orphan_count_snapshot'] === null ? '' : (int) $row['orphan_count_snapshot'],
         (int) $row['sponsorship_amount_snapshot'], $row['services_amount_snapshot'] === null ? '' : (int) $row['services_amount_snapshot'],
-        $row['last_paid_month'], $departureNotes,
+        $row['last_paid_month'], $row['notes'],
     ];
 }
 
