@@ -61,6 +61,22 @@ The parser stages are:
 - Operator and supervisor are independent fields.
 - In a multi-sponsor message, a field is applied as a shared message-level value only when exactly one occurrence exists in the complete message and that occurrence is in the trailing message footer. If multiple occurrences exist, the parser preserves each sponsor record's own value. A missing shared value never overwrites a record-level value.
 
+## Departure-message parsing
+
+Departure messages use a separate segmentation path; the entry parser is unchanged.
+
+- A heading such as `⛔كفلاء طلعو⛔` or `إلغاء كفالة` is treated as message context, never as a sponsor name.
+- Numbered lines such as `1• اسم الكفيل` start distinct departure records. A record ends at the next numbered sponsor line or a file-context heading.
+- A standalone cancellation message starts at the first unlabelled Arabic sponsor-name line after its title and file heading.
+- `ملف 25` and `ملف 24` carry forward to subsequent numbered records until the next file heading. `ملف 2024` is preserved literally when supplied; it is not silently changed to `24`.
+- `ملف الشجرة` establishes a tree section. Each named tree line starts a separate tree departure. A tree row with no orphan count is represented as count zero because the departure table requires a numeric count; its tree type and tree file marker are retained.
+- Tree rows with a standalone amount line (for example `2000`) use that value as sponsorship and zero services when no service amount is supplied.
+- Arabic month names for last payment are interpreted using the year from the selected departure date only when exactly one month is present. Ambiguous ranges such as `سبتمبر/اكتوبر` are left unresolved for manual review.
+- Unlabelled explanatory lines are retained in the departure notes instead of being discarded. The original raw message remains attached to every record.
+- File headings are read only when they occupy their own line; a mention of another file inside a note must not silently change the record's file context.
+
+The workbook and messages contain two source discrepancies that are deliberately not auto-corrected: one message says file `2024` where the October workbook row shows file `24`, and one tree-message name says `محمد عثمان جمعة` where the workbook row shows `الطيب عثمان جمعه`. The parser preserves the text actually pasted. These require human reconciliation, not fuzzy name/file substitution.
+
 ## Review and failure behaviour
 
 - Missing sponsor, mother, orphan, or required date prevents loading an entry record.
