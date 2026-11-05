@@ -111,7 +111,7 @@ let records=[],pendingIndex=null;
 const storageKey='mdeWhatsappQueue:'+profile,pendingKey='mdeWhatsappPending:'+profile;
 function hasRequiredFields(record) {
  if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0&&!!record.date;
- return !!record.sponsor&&!!record.date&&!!record.count;
+ return !!record.sponsor&&record.count!=='';
 }
 function render() {
  select.innerHTML='';
