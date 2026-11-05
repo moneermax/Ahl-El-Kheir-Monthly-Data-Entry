@@ -54,7 +54,7 @@ function departureNameLine(line){const cleanLine=clean(stripEmoji(line).replace(
 function splitDepartures(raw,contextDate){
  const lines=String(raw??'').replace(/\\r/g,'').split('\\n');
  const records=[];let currentFile='',currentLines=[],currentTree=false,hasNumbered=false;
- const flush=()=>{const body=currentLines.join('\\n').trim();if(!body)return;const record=departure(body,records.length,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳')record.type='tree';records.push(record);currentLines=[];};
+ const flush=()=>{const body=currentLines.join('\\n').trim();if(!body)return;const record=departure(body,records.length,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳'){record.type='tree';if(record.count==='')record.count='0';if(record.sponsorship===''){const amount=body.match(/(?:^|\\n)\\s*([\\d٠-٩۰-۹][\\d٠-٩۰-۹.,،٬ ]*)\\s*(?:جنيه)?\\s*(?:$|\\n)/u);if(amount)record.sponsorship=num(amount[1]);}if(record.services==='')record.services='0';}records.push(record);currentLines=[];};
  for(const rawLine of lines){const line=rawLine.trim();if(!line)continue;
   const heading=departureFileHeading(line);
   if(heading!==null){flush();currentFile=heading;currentTree=heading==='🌳';continue;}
@@ -71,7 +71,7 @@ function splitDepartures(raw,contextDate){
   currentLines.push(line);
  }
  flush();
- if(!records.length){const record=departure(lines.filter(line=>!departureHeader(line)&&departureFileHeading(line)===null).join('\\n'),0,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳')record.type='tree';return[record];}
+ if(!records.length){const record=departure(lines.filter(line=>!departureHeader(line)&&departureFileHeading(line)===null).join('\\n'),0,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳'){record.type='tree';if(record.count==='')record.count='0';if(record.services==='')record.services='0';}return[record];}
  return records;
 }
 
@@ -107,7 +107,7 @@ function departure(t,i,c){
  const pair=String(t??'').match(/(?:المبلغ|قيمة\s+الكفاله|قيمة\s+الكفالة|مبلغ\s+الكفاله|مبلغ\s+الكفالة)\s*[:=：-]?\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*\/\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)(?!\s*\/)/u);
  const residual=departureResidualNotes(t),explicitNotes=value(t,L.notes);
  const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(value(t,L.lastPaid),c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason),notes:[explicitNotes,residual].filter(Boolean).join(' | '),type:/🌳|شجرة/i.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t)};
- r.warnings=[];if(!r.sponsor)r.warnings.push('اسم الكفيل غير واضح');if(!r.date)r.warnings.push('تاريخ المغادرة غير محسوم');if(!r.count)r.warnings.push('عدد الأيتام غير واضح');if(!r.lastPaid&&/اخر\s+سداد|آخر\s+سداد/u.test(norm(t)))r.warnings.push('آخر سداد غير محسوم؛ راجع الشهر يدوياً');if(r.unrecognizedLines.length)r.warnings.push('أسطر غير مصنفة وتحتاج مراجعة: '+r.unrecognizedLines.join(' / '));return r;
+ r.warnings=[];if(!r.sponsor)r.warnings.push('اسم الكفيل غير واضح');if(!r.date)r.warnings.push('تاريخ المغادرة غير محسوم');if(r.count==='')r.warnings.push('عدد الأيتام غير واضح');if(!r.lastPaid&&/اخر\s+سداد|آخر\s+سداد/u.test(norm(t)))r.warnings.push('آخر سداد غير محسوم؛ راجع الشهر يدوياً');if(r.unrecognizedLines.length)r.warnings.push('أسطر غير مصنفة وتحتاج مراجعة: '+r.unrecognizedLines.join(' / '));return r;
 }
 function hasMotherNames(r){return!!(r&&Array.isArray(r.families)&&r.families.length&&r.families.every(f=>String(f.mother||'').trim()!==''));}
 function applyMessageLevelFields(records,raw){if(split(raw).length<2)return records;const tail=String(raw??'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(-3).join('\n');const allEntered=values(raw,L.entered),allSupervisors=supervisors(raw);const tailEntered=values(tail,L.entered),tailSupervisors=supervisors(tail);const e=allEntered.length===1&&tailEntered.length===1?allEntered[0]:'';const s=allSupervisors.length===1&&tailSupervisors.length===1?allSupervisors[0]:'';return records.map(r=>({...r,entered:e||r.entered,supervisor:s||r.supervisor}));}
