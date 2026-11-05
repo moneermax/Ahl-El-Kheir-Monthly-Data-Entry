@@ -206,7 +206,6 @@ function renderDepartureBatch(batchRecords) {
   const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';sponsorSelect.removeAttribute('disabled');
   const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
   mode.value='existing';
-  const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
   const hint=document.createElement('small');hint.className='text-danger';
   if(matches.length===1){sponsorSelect.value=matches[0].value;hint.classList.add('d-none');}
   else if(matches.length>1){sponsorSelect.value='';hint.textContent='اسم مكرر: اختر سجل الكفيل الصحيح يدوياً';}
