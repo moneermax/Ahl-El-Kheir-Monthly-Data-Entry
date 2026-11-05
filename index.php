@@ -40,7 +40,7 @@ unset($_SESSION['mde_flash']);
         .required:after{content:' *';color:#c0392b}
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
-        .entry-register-wrap{border:1px solid #c5d2ca;border-radius:.5rem;background:#fff}
+        .entry-register-wrap{border:1px solid #c5d2ca;border-radius:.5rem;background:#fff;overflow-x:auto}.departure-register{min-width:1280px}
         .entry-register{width:100%;table-layout:fixed;margin:0;font-size:.78rem;border-collapse:collapse}
         .entry-register th,.entry-register td{border:1px solid #d5dfd9}
         .entry-register th{text-align:center;vertical-align:middle;font-weight:700;padding:.4rem .2rem;font-size:.74rem;color:#203a34}
