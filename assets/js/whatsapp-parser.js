@@ -60,7 +60,7 @@ function departureFileHeading(line){
  const m=n.match(/^(?:رقم\s+)?ملف(?:\s+رقم)?\s*[:：=-]?\s*(\d{1,4})$/u);
  return m?m[1]:null;
 }
-function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز(?:\s+.*)?|مسدده\s+(?:الى|الي)\s+شهر.*|طلب\s+الالغاء.*)$/u.test(norm(line));}
+function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|داخل\s+قروب\s+الشجره(?:\s+.*)?|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز(?:\s+.*)?|مسدده\s+(?:الى|الي)\s+شهر.*|طلب\s+الالغاء.*)$/u.test(norm(line));}
 function departureNameLine(line){
  if(departureNoteLine(line))return'';
  const cleanLine=clean(stripEmoji(line).replace(/^\s*\d+\s*[/／•.)_-]\s*/u,''));
@@ -171,7 +171,7 @@ function departure(t,i,c){
  const residual=departureResidualNotes(t),explicitNotes=value(t,L.notes),lastPaidRaw=value(t,L.lastPaid);
  const lastPaidMonths=(norm(lastPaidRaw).match(/يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر/gu)||[]);
  const preservedLastPaid=lastPaidMonths.length>1&&!residual.includes(lastPaidRaw)?'آخر سداد كما ورد: '+lastPaidRaw:'';
- const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(lastPaidRaw,c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason)||((String(t).match(/(?:^|\n)\s*(طلب\s+الالغاء[^\n]+)/u)||[])[1]||''),notes:[explicitNotes,residual,preservedLastPaid].filter(Boolean).join(' | '),type:/🌳|ملف\s*الشجر[ةه]/iu.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t).filter(line=>!departureResidualNotes(t).split(' | ').includes(line))};;
+ const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(lastPaidRaw,c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason)||((String(t).match(/(?:^|\n)\s*(طلب\s+الالغاء[^\n]+)/u)||[])[1]||''),notes:[explicitNotes,residual,preservedLastPaid].filter(Boolean).join(' | '),type:entryTreeMarker(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t).filter(line=>!departureResidualNotes(t).split(' | ').includes(line))};;
  r.warnings=[];if(!r.sponsor)r.warnings.push('اسم الكفيل غير واضح');if(!r.date)r.warnings.push('تاريخ المغادرة غير محسوم');if(r.count==='')r.warnings.push('عدد الأيتام غير واضح');if(!r.lastPaid&&/اخر\s+سداد|آخر\s+سداد/u.test(norm(t)))r.warnings.push('آخر سداد غير محسوم؛ راجع الشهر يدوياً');if(r.unrecognizedLines.length)r.warnings.push('أسطر غير مصنفة وتحتاج مراجعة: '+r.unrecognizedLines.join(' / '));return r;
 }
 function hasMotherNames(r){return!!(r&&Array.isArray(r.families)&&r.families.length&&r.families.every(f=>String(f.mother||'').trim()!==''));}
