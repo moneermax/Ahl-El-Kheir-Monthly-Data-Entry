@@ -89,8 +89,8 @@
  function syncSponsorMode(){
   const isExisting=!!existing.value;sponsorName.required=!isExisting;sponsorName.disabled=isExisting;
   sponsorName.placeholder=isExisting?'من الكفيل المحدد':'اسم الكفيل الجديد';
-  if(isExisting){sponsorName.value='';sponsorType.value=existing.selectedOptions[0].dataset.type||'individual';if(existing.selectedOptions[0].dataset.file)fileNumber.value=existing.selectedOptions[0].dataset.file;}
-  else sponsorType.value='individual';
+  if(isExisting){sponsorName.value='';sponsorType.value=existing.selectedOptions[0].dataset.type||'individual';fileNumber.value=existing.selectedOptions[0].dataset.file||'';}
+  else {sponsorType.value='individual';fileNumber.value='';}
  }
 
  addFamily();syncSponsorMode();
