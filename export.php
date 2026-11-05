@@ -112,7 +112,7 @@ unset($sponsor);
 $sponsors = array_values($sponsors);
 
 $departureStmt = $pdo->prepare("
- SELECT d.file_number_snapshot, sp.sponsor_name, d.departure_date,
+ SELECT d.file_number_snapshot, COALESCE(NULLIF(d.sponsor_name_snapshot, ''), sp.sponsor_name) AS sponsor_name, d.departure_date,
         d.orphan_count_snapshot, d.sponsorship_amount_snapshot,
         d.services_amount_snapshot, d.last_paid_month,
         CASE
