@@ -84,8 +84,11 @@ The workbook and messages contain two source discrepancies that are deliberately
 - Missing sponsor, mother, or orphan data prevents loading an entry record. A departure with a sponsor may be loaded for review even if the source omits its departure date or (for a tree sponsor) orphan count; missing required values remain blank and must be completed before saving. Individual sponsors still require an orphan count.
 - Missing or ambiguous values remain blank; the parser does not invent replacements. A blank tree service fee is distinct from an explicit zero and is saved as NULL.
 - Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
-- If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained.
+- If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained. The full `هبه خلف الله` value from the reported message is included in both applicable dropdown lists.
+- Departure source reason text is folded into the general notes field; the departure page has no separate leave-reason control.
 - The existing multi-record queue, explicit user confirmation, save button, expected-total validation, and remove-after-successful-save flow remain in the DOM integration module.
+- Previously departed sponsors remain selectable for a new month's departure record; inactive status is informational, not a parser/import rejection.
+- A tested departure payload builder combines any extracted reason with general notes, matching the source workbook's single-notes-field structure.
 
 ## Known limitations
 
