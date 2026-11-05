@@ -150,8 +150,8 @@ $departureFlatRows = [];
 foreach ($departures as $i => $row) {
     $departureFlatRows[] = [
         $i + 1, $row['file_number_snapshot'], $row['sponsor_name'],
-        $dateText($row['departure_date']), (int) $row['orphan_count_snapshot'],
-        (int) $row['sponsorship_amount_snapshot'], (int) $row['services_amount_snapshot'],
+        $dateText($row['departure_date']), $row['orphan_count_snapshot'] === null ? '' : (int) $row['orphan_count_snapshot'],
+        (int) $row['sponsorship_amount_snapshot'], $row['services_amount_snapshot'] === null ? '' : (int) $row['services_amount_snapshot'],
         $row['last_paid_month'], $row['notes'],
     ];
 }
