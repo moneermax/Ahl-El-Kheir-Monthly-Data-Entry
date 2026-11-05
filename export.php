@@ -159,11 +159,15 @@ foreach ($sponsors as $sponsor) {
 }
 $departureFlatRows = [];
 foreach ($departures as $i => $row) {
+    $departureNotes = trim((string) $row['notes']);
+    if (!empty($row['duplicate_in_other_month'])) {
+        $departureNotes .= ($departureNotes !== '' ? ' | ' : '') . 'مكرر في شهر آخر';
+    }
     $departureFlatRows[] = [
         $i + 1, $row['file_number_snapshot'], $row['sponsor_name'],
         $dateText($row['departure_date']), $row['orphan_count_snapshot'] === null ? '' : (int) $row['orphan_count_snapshot'],
         (int) $row['sponsorship_amount_snapshot'], $row['services_amount_snapshot'] === null ? '' : (int) $row['services_amount_snapshot'],
-        $row['last_paid_month'], trim((string) $row['notes'] . (!empty($row['duplicate_in_other_month']) ? ' | مكرر في شهر آخر' : '')),
+        $row['last_paid_month'], $departureNotes,
     ];
 }
 
