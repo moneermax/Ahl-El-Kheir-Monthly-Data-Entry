@@ -30,6 +30,7 @@ The parser stages are:
 ### Names and family structure
 
 - Sponsor labels: `الكفيل`, `الكفيلة`, `الكافل`, `الكافلة`, and `اسم الكفيل/الكافلة` variants.
+- Entry sponsor type is classified as a tree only from an explicit tree marker/token, a tree-file heading, or an explicit type label. A note that merely mentions a tree WhatsApp group does not change an individual sponsor's type.
 - An unlabelled sponsor name on the first meaningful line is accepted only when it looks like a person/entity name and appears before family labels.
 - Mother labels include `الأم`, `الام`, `اسم الأم`, `الوالدة`, and spelling variants.
 - Orphan labels include `الأيتام`, `الايتام`, `اليتيم`, `الطفل`, `الأطفال`, and spelling variants.
