@@ -241,7 +241,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                                         data-active="<?= (int) $s['is_active'] ?>"
                                         <?= (string) ($old['sponsor_id'] ?? '') === (string) $s['id'] ? 'selected' : '' ?>
                                         >
-                                        <?= mde_h($s['sponsor_name']) ?><?= !(int) $s['is_active'] ? ' — مغادر سابقاً' : '' ?>
+                                        <?= mde_h($s['sponsor_name']) ?> — <?= !empty($s['file_number']) ? 'ملف ' . mde_h($s['file_number']) . ' · ' : '' ?>سجل #<?= (int) $s['id'] ?><?= !(int) $s['is_active'] ? ' — مغادر سابقاً' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
