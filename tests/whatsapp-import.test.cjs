@@ -642,5 +642,8 @@ assert.equal(mixedStyleRecords[5].sponsorship, '2000', 'a single tree amount is 
 assert.equal(mixedStyleRecords[5].services, '', 'an omitted tree service fee remains blank');
 assert.match(mixedStyleRecords[1].notes, /سبتمبر.*اكتوبر/, 'the source month range is retained in notes');
 assert.ok(mixedStyleRecords.every(r => r.warnings.length === 0), 'recognized source formats should not produce false unrecognized-line warnings');
+const mixedStyleWithoutFormDate = parser.splitDepartures(mixedStyleDeparture, '');
+assert.ok(mixedStyleWithoutFormDate.every(r => r.date === '2026-10-31'), 'the message date supplies the departure year when the form date is blank');
+assert.deepEqual(Array.from(mixedStyleWithoutFormDate, r => r.lastPaid), ['2026-09', '2026-10', '2026-10', '2026-09', '2026-10', '2026-10'], 'the shared departure date also supplies the year for month-only last-payment values');
 
 console.log('WhatsApp parser tests passed.');
