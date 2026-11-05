@@ -94,39 +94,7 @@ function splitDepartures(raw,contextDate){
  return records;
 }
 
-function monthWithContext(v,c){
- const direct=month(v);if(direct)return direct;
- const s=norm(v).replace(/\s+/g,'');
- const names={يناير:1,فبراير:2,مارس:3,ابريل:4,مايو:5,يونيو:6,يوليو:7,اغسطس:8,سبتمبر:9,اكتوبر:10,نوفمبر:11,ديسمبر:12};
- const found=Object.entries(names).filter(([name])=>s.includes(name));
- if(found.length!==1)return'';
- const year=contextYear(c);return year?String(year)+'-'+String(found[0][1]).padStart(2,'0'):'';
-}
-function departureResidualNotes(t){
- const lines=String(t??'').split(/\r?\n/).map(clean).filter(Boolean);let sponsorRemoved=false;
- return lines.filter(line=>{
-  if(departureHeader(line)||departureFileHeading(line)!==null)return false;
-  if(/^\d{1,3}\s*[•.)/_-]/u.test(line))return false;
-  if(!sponsorRemoved&&departureNameLine(line)){sponsorRemoved=true;return false;}
-  const n=norm(line);
-  if(ALL.some(label=>n.startsWith(norm(label)))||/^\d[\d,،٬. ]*\s*خدمات/u.test(n))return false;
-  if(/^(?:🌳|شجره)$/u.test(stripEmoji(line)))return false;
-  return true;
- }).join(' | ');
-}
-function departure(t,i,c){
- const sponsorshipLabel=value(t,L.sponsorship),servicesLabel=value(t,L.services);
- const pair=String(t??'').match(/(?:المبلغ|قيمة\s+الكفاله|قيمة\s+الكفالة|مبلغ\s+الكفاله|مبلغ\s+الكفالة)\s*[:=：-]?\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*\/\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)(?!\s*\/)/u);
- const residual=departureResidualNotes(t),explicitNotes=value(t,L.notes);
- const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(value(t,L.lastPaid),c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason),notes:[explicitNotes,residual].filter(Boolean).join(' | '),type:/🌳|شجرة/i.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t)};
- r.warnings=[];if(!r.sponsor)r.warnings.push('اسم الكفيل غير واضح');if(!r.date)r.warnings.push('تاريخ المغادرة غير محسوم');if(r.count==='')r.warnings.push('عدد الأيتام غير واضح');if(!r.lastPaid&&/اخر\s+سداد|آخر\s+سداد/u.test(norm(t)))r.warnings.push('آخر سداد غير محسوم؛ راجع الشهر يدوياً');if(r.unrecognizedLines.length)r.warnings.push('أسطر غير مصنفة وتحتاج مراجعة: '+r.unrecognizedLines.join(' / '));return r;
-}
-function hasMotherNames(r){return!!(r&&Array.isArray(r.families)&&r.families.length&&r.families.every(f=>String(f.mother||'').trim()!==''));}
-function applyMessageLevelFields(records,raw){if(split(raw).length<2)return records;const tail=String(raw??'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(-3).join('\n');const allEntered=values(raw,L.entered),allSupervisors=supervisors(raw);const tailEntered=values(tail,L.entered),tailSupervisors=supervisors(tail);const e=allEntered.length===1&&tailEntered.length===1?allEntered[0]:'';const s=allSupervisors.length===1&&tailSupervisors.length===1?allSupervisors[0]:'';return records.map(r=>({...r,entered:e||r.entered,supervisor:s||r.supervisor}));}
-function buildEntryFormPayload(r){const fs=(r.families||[]).map(f=>({mother:String(f.mother||''),orphans:Array.isArray(f.orphans)?f.orphans.map(String):[]}));const count=fs.reduce((n,f)=>n+f.orphans.length,0);const each=!!r.each&&count>0&&(r.sponsorship===''||Number(r.sponsorship)===Number(r.each)*count);const sa=each?Array(count).fill(String(r.each)):allocateEvenly(r.sponsorship,count),va=allocateEvenly(r.services,count);return{fields:{sponsor:String(r.sponsor||''),file:String(r.file||''),type:String(r.type||''),date:String(r.date||''),entered:String(r.entered||''),supervisor:String(r.supervisor||''),notes:String(r.notes||'')},families:fs,orphanCount:count,expectedSponsorship:String(r.sponsorship||''),expectedServices:String(r.services||''),sponsorshipAllocation:sa,servicesAllocation:va,sponsorshipManual:r.sponsorship!==''&&!sa,servicesManual:r.services!==''&&!va};}
-function populateEntryForm(p,a){for(const [k,v]of Object.entries(p.fields)){if(k!=='notes')a.setField(k,v);}const notes=[p.fields.notes];if(p.fields.entered&&a.fieldWasSet&&!a.fieldWasSet('entered'))notes.push('بواسطة: '+p.fields.entered);if(p.fields.supervisor&&a.fieldWasSet&&!a.fieldWasSet('supervisor'))notes.push('المشرف: '+p.fields.supervisor);a.setField('notes',notes.filter(Boolean).join(' | '));a.setFamilies(p.families);a.setAmounts({sponsorshipAllocation:p.sponsorshipAllocation,servicesAllocation:p.servicesAllocation,orphanCount:p.orphanCount,expectedSponsorship:p.expectedSponsorship,expectedServices:p.expectedServices,sponsorshipManual:p.sponsorshipManual,servicesManual:p.servicesManual});if(a.updateTotals)a.updateTotals();return{sponsorshipManual:p.sponsorshipManual,servicesManual:p.servicesManual};}
-window.MDEWhatsAppParser={split,splitDepartures,entry,departure,hasMotherNames,allocateEvenly,applyMessageLevelFields,parseDate,buildEntryFormPayload,populateEntryForm};
-})()function departureFileValue(t){
+function departureFileValue(t){
  const text=String(t??'');
  const returned=text.match(/رجعت\s+لملفها\s*[:=：-]?\s*(\d{1,4})/u);
  if(returned)return returned[1];
