@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $syncSponsorStatus = $pdo->prepare(
             "UPDATE mde_sponsors AS sponsor
-             SET sponsor.is_active = CASE WHEN EXISTS (
+             SET is_active = CASE WHEN EXISTS (
                 SELECT 1 FROM mde_sponsorships AS rel
                 WHERE rel.sponsor_id = sponsor.id AND rel.status = 'active'
              ) THEN 1 ELSE 0 END
