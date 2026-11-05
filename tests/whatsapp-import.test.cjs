@@ -8,6 +8,21 @@ vm.runInNewContext(fs.readFileSync('assets/js/whatsapp-import.js', 'utf8'), cont
 const parser = context.window.MDEWhatsAppParser;
 assert.ok(parser, 'parser API should be available for tests');
 
+const entryPageSource = fs.readFileSync('pages/entry.php', 'utf8');
+const departurePageSource = fs.readFileSync('pages/departures.php', 'utf8');
+const importSource = fs.readFileSync('assets/js/whatsapp-import.js', 'utf8');
+const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
+const exportSource = fs.readFileSync('export.php', 'utf8');
+assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC'), 'last saved sponsor must follow the latest inserted monthly row');
+assert.ok(!entryPageSource.includes('ORDER BY monthly.created_at DESC'), 'timestamp ties must not outrank insertion order');
+assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
+assert.ok(departurePageSource.includes('start_date <= ?'), 'a past departure must not end a later sponsorship episode');
+assert.ok(!departurePageSource.includes("if (!(int) $sponsor['is_active'])"), 'inactive sponsors must remain eligible for monthly departure entry');
+assert.ok(!departurePageSource.includes('id="departureReason"'), 'departure form must not invent a separate leave-reason field');
+assert.ok(!importSource.includes('مسجل كمغادر سابقاً. لم يتم تحويله'), 'the importer must not reject a previously departed sponsor');
+assert.ok(reportPageSource.includes('duplicate_in_other_month'), 'on-screen departure reports must flag cross-month repeats');
+assert.ok(exportSource.includes('duplicate_in_other_month'), 'downloaded departure reports must flag cross-month repeats');
+
 assert.deepEqual(Array.from(parser.allocateEvenly('20000', 2)), ['10000', '10000'], 'an evenly divisible sponsorship total should be split equally');
 assert.deepEqual(Array.from(parser.allocateEvenly('4000', 2)), ['2000', '2000'], 'an evenly divisible service total should be split equally');
 assert.equal(parser.allocateEvenly('20000', 3), null, 'a total with a remainder must require manual allocation');
@@ -294,6 +309,7 @@ assert.equal(exactRecord.file, '24', 'رجعت لملفها 24 is a file-number 
 assert.equal(exactRecord.entered, 'هبه خلف الله');
 assert.equal(exactRecord.supervisor, 'هبه خلف الله');
 assert.equal(exactRecord.raw, exactWhatsAppMessage, 'the original message remains attached to the parsed record');
+assert.equal(parser.hasMotherNames(exactRecord), true, 'the exact previously failing message remains loadable');
 assert.deepEqual(Array.from(exactRecord.warnings), [], 'the complete exact message has no required-field warnings');
 
 // A yearless date must not be guessed from the computer clock.
@@ -471,6 +487,14 @@ assert.ok(groupedRecords.every(r => r.date === '2026-10-31'));
 
 // A single cancellation message must ignore its title/file heading and find
 // the actual sponsor name; "ملف 2024" is retained as the supplied file value.
+const departurePayload = parser.buildDepartureFormPayload({
+  sponsor: 'انس فتح الرحمن احمد محمد', file: '25', date: '2026-10-31', lastPaid: '2026-09',
+  count: '10', sponsorship: '100000', services: '20000', reason: 'عدم تواجده في الواتس والاتصال',
+  notes: 'ما داخل قروب', entered: 'مها', supervisor: 'هبه', type: 'individual'
+});
+assert.equal(departurePayload.fields.sponsor, 'انس فتح الرحمن احمد محمد');
+assert.equal(departurePayload.notes, 'السبب كما ورد: عدم تواجده في الواتس والاتصال | ما داخل قروب', 'source reason must be preserved inside the single notes field');
+
 const singleCancellation = parser.splitDepartures([
   'إلغاء كفالة',
   'ملف 2024',
