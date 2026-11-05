@@ -503,4 +503,77 @@ const pastedTreeName = parser.splitDepartures([
 assert.equal(pastedTreeName[0].sponsor, 'محمد عثمان جمعة');
 assert.equal(pastedTreeName[0].file, '🌳');
 
+
+// Real-world October cancellation list: slash-numbered entries, a letter-file
+// heading, compact amount labels, and file numbers inside each sponsor block.
+const octoberCancellationMessage = [
+  'قائمة إلغاء اكتوبر',
+  '⛔',
+  'ملف حرف ص ض ط ظ ق ف ك ل نساء',
+  '1/ فاطمة هاشم محمد الامين',
+  'عدد الايتام 4',
+  'الكفالة62000',
+  'خدمات8000',
+  'اخر سداد اغسطس',
+  'ملف24',
+  'ماموجودة في القروب',
+  '2/ لمياء عبدالرحمن بابكر',
+  'عدد الايتام 1',
+  'الكفالة20000',
+  'الخدمات2000',
+  'اخر سداد اغسطس',
+  'ملف24',
+  'ماموجودة في القروب',
+  '3/ فاطمة هاشم ابوزلال',
+  'عدد الايتام1',
+  'كفالة10000',
+  'خدمات 2000',
+  'ملف26',
+  'اخر سداد اغسطس',
+  'ماموجودة في القروب',
+  '4/ قنال عثمان عطاالعون',
+  'عدد الايتام 4',
+  'كفالة 40000',
+  'خدمات8000',
+  'ملف 26',
+  'طلعت بدون عجز',
+  'طلعت من القروب',
+  '5/ كوثر عبدالله محمد',
+  'عدد الايتام1',
+  'كفالة20000',
+  'خدمات3000',
+  'ملف24',
+  'اخر سداد سبتمبر',
+  'ماموجودة في القروب',
+  '6/ فاطمة عوض الطيب',
+  'عدد الايتام 4',
+  'كفالة 90000',
+  'خدمات12000',
+  'ملف24',
+  'طلعت بدون عجز مسددة إلى شهر ديسمبر',
+  'ماموجودة ف القروب'
+].join('\n');
+const octoberDepartures = parser.splitDepartures(octoberCancellationMessage, '2026-11-05');
+assert.equal(octoberDepartures.length, 6, 'six numbered cancellations should produce six records');
+assert.deepEqual(Array.from(octoberDepartures, r => r.sponsor), [
+  'فاطمة هاشم محمد الامين',
+  'لمياء عبدالرحمن بابكر',
+  'فاطمة هاشم ابوزلال',
+  'قنال عثمان عطاالعون',
+  'كوثر عبدالله محمد',
+  'فاطمة عوض الطيب'
+]);
+assert.deepEqual(Array.from(octoberDepartures, r => r.file), ['24','24','26','26','24','24']);
+assert.deepEqual(Array.from(octoberDepartures, r => r.count), ['4','1','1','4','1','4']);
+assert.deepEqual(Array.from(octoberDepartures, r => r.sponsorship), ['62000','20000','10000','40000','20000','90000']);
+assert.deepEqual(Array.from(octoberDepartures, r => r.services), ['8000','2000','2000','8000','3000','12000']);
+assert.deepEqual(Array.from(octoberDepartures, r => r.lastPaid), ['2026-08','2026-08','2026-08','','2026-09','']);
+assert.ok(octoberDepartures[0].notes.includes('ماموجودة في القروب'));
+assert.ok(octoberDepartures[3].notes.includes('طلعت بدون عجز'));
+assert.ok(octoberDepartures[3].notes.includes('طلعت من القروب'));
+assert.ok(octoberDepartures[5].notes.includes('مسددة إلى شهر ديسمبر'));
+assert.ok(octoberDepartures.every(r => !r.sponsor.includes('قائمة إلغاء')));
+assert.ok(octoberDepartures.every(r => !r.date), 'the source does not provide a day/date; do not invent one');
+assert.ok(octoberDepartures.every(r => r.warnings.some(w => w.includes('تاريخ المغادرة'))), 'missing departure date must remain visible for manual completion');
+
 console.log('WhatsApp parser tests passed.');
