@@ -34,13 +34,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lastPaidDate = mde_month_start($lastPaid . '-01');
         }
 
-        $count = filter_var($_POST['orphan_count'] ?? null, FILTER_VALIDATE_INT);
+        $countRaw = trim((string) ($_POST['orphan_count'] ?? ''));
+        $count = null;
+        if ($countRaw !== '') {
+            $count = filter_var($countRaw, FILTER_VALIDATE_INT);
+            if ($count === false || $count < 0) {
+                throw new InvalidArgumentException('أدخل عدد أيتام صحيحاً غير سالب.');
+            }
+        }
+
         $amount = filter_var($_POST['sponsorship_amount'] ?? null, FILTER_VALIDATE_INT);
-        $services = filter_var($_POST['services_amount'] ?? null, FILTER_VALIDATE_INT);
-        if ($count === false || $count === null || $count < 0 ||
-            $amount === false || $amount === null || $amount < 0 ||
-            $services === false || $services === null || $services < 0) {
-            throw new InvalidArgumentException('أكمل عدد الأيتام والمبالغ بأرقام صحيحة غير سالبة.');
+        if ($amount === false || $amount === null || $amount < 0) {
+            throw new InvalidArgumentException('أدخل مبلغ كفالة صحيحاً غير سالب.');
+        }
+
+        $servicesRaw = trim((string) ($_POST['services_amount'] ?? ''));
+        $services = null;
+        if ($servicesRaw !== '') {
+            $services = filter_var($servicesRaw, FILTER_VALIDATE_INT);
+            if ($services === false || $services < 0) {
+                throw new InvalidArgumentException('أدخل مبلغ خدمات صحيحاً غير سالب أو اتركه فارغاً إذا لم يرد في المصدر.');
+            }
         }
 
         $fileNumber = trim((string) ($_POST['file_number'] ?? ''));
@@ -56,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new InvalidArgumentException('اختر الكفيل المسجل.');
             }
 
-            $check = $pdo->prepare('SELECT id, sponsor_name, file_number, is_active FROM mde_sponsors WHERE id = ? FOR UPDATE');
+            $check = $pdo->prepare('SELECT id, sponsor_name, file_number, sponsor_type, is_active FROM mde_sponsors WHERE id = ? FOR UPDATE');
             $check->execute([$sponsorId]);
             $sponsor = $check->fetch();
             if (!$sponsor) {
@@ -65,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!(int) $sponsor['is_active']) {
                 throw new InvalidArgumentException('هذا الكفيل مسجل كمغادر بالفعل. إذا عاد للتعامل مع المنظمة، سجّل كفالته الجديدة أولاً ثم سجّل مغادرته عند الحاجة.');
             }
+            $sponsorType = (string) ($sponsor['sponsor_type'] ?? 'individual');
 
             // The departure form stores a snapshot only; it never edits sponsor identity data.
             if ($fileNumber === '') {
@@ -96,6 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 trim((string) ($_POST['new_sponsor_notes'] ?? '')) ?: null,
             ]);
             $sponsorId = (int) $pdo->lastInsertId();
+            $sponsorType = $newSponsorType;
+        }
+
+        if ($count === null && $sponsorType !== 'tree') {
+            throw new InvalidArgumentException('عدد الأيتام مطلوب للكفيل الفردي. يمكن تركه فارغاً لكفيل الشجرة إذا لم يرد في الرسالة.');
         }
 
         $stmt = $pdo->prepare(
@@ -243,13 +263,13 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                         <input type="month" class="form-control form-control-sm" name="last_paid_month" id="lastPaidMonth" value="<?= mde_h($old['last_paid_month'] ?? '') ?>">
                     </td>
                     <td>
-                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="orphan_count" id="orphanCount" value="<?= mde_h($old['orphan_count'] ?? '0') ?>" required>
+                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="orphan_count" id="orphanCount" value="<?= mde_h($old['orphan_count'] ?? '') ?>">
                     </td>
                     <td>
                         <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="sponsorship_amount" id="sponsorshipAmount" value="<?= mde_h($old['sponsorship_amount'] ?? '0') ?>">
                     </td>
                     <td>
-                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="services_amount" id="servicesAmount" value="<?= mde_h($old['services_amount'] ?? '0') ?>">
+                        <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="services_amount" id="servicesAmount" value="<?= mde_h($old['services_amount'] ?? '') ?>">
                     </td>
                     <td class="sponsor-span-cell">
                         <div class="small mb-1">بواسطة</div>
