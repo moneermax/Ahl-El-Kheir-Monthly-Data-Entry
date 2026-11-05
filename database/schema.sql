@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS mde_sponsor_departures (
     last_paid_month DATE NULL,
     orphan_count_snapshot SMALLINT UNSIGNED NULL,
     sponsorship_amount_snapshot BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    services_amount_snapshot BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    services_amount_snapshot BIGINT UNSIGNED NULL DEFAULT NULL,
     entered_by VARCHAR(190) NULL,
     supervisor_name VARCHAR(190) NULL,
     reason VARCHAR(500) NULL,
@@ -166,4 +166,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7);
