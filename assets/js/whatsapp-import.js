@@ -104,14 +104,63 @@ function applyEntry(record) {
 }
 function applyDeparture(record) {
  const existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor');
- if(choose(select,record.sponsor)){existingMode.checked=true;existingMode.dispatchEvent(new Event('change',{bubbles:true}));}
- else{newMode.checked=true;newMode.dispatchEvent(new Event('change',{bubbles:true}));set($('#newSponsorName'),record.sponsor);set($('#newSponsorType'),record.type);set($('#newSponsorPhone'),record.phone);set($('#newSponsorAddress'),record.address);set($('#newSponsorNotes'),record.sponsorNotes);}
- set($('#existingFileNumber'),record.file);set($('#newFileNumber'),record.file);set($('#departureDate'),record.date);if(!record.date)clear($('#departureDate'));
- set($('#lastPaidMonth'),record.lastPaid);set($('#orphanCount'),record.count);if(record.count==='')clear($('#orphanCount'));
- set($('#sponsorshipAmount'),record.sponsorship);if(record.sponsorship==='')clear($('#sponsorshipAmount'));
- set($('#servicesAmount'),record.services);if(record.services==='')clear($('#servicesAmount'));
- const unresolved=[];if(!record.entered||!choose($('#enteredBy'),record.entered)){clearPerson($('#enteredBy'));if(record.entered)unresolved.push('بواسطة: '+record.entered);}if(!record.supervisor||!choose($('#supervisorName'),record.supervisor)){clearPerson($('#supervisorName'));if(record.supervisor)unresolved.push('المشرف: '+record.supervisor);}
- set($('#departureReason'),record.reason);set($('#departureNotes'),[record.notes,...unresolved].filter(Boolean).join(' | '));
+ const matched=choose(select,record.sponsor);
+ if(matched){
+  existingMode.checked=true;
+  existingMode.dispatchEvent(new Event('change',{bubbles:true}));
+ } else {
+  newMode.checked=true;
+  newMode.dispatchEvent(new Event('change',{bubbles:true}));
+ }
+ const fields=[
+  ['رقم الملف',matched?'#existingFileNumber':'#newFileNumber',record.file],
+  ['تاريخ المغادرة','#departureDate',record.date],
+  ['آخر سداد','#lastPaidMonth',record.lastPaid],
+  ['عدد الأيتام','#orphanCount',record.count],
+  ['الكفالة','#sponsorshipAmount',record.sponsorship],
+  ['الخدمات','#servicesAmount',record.services],
+  ['سبب المغادرة','#departureReason',record.reason],
+  ['ملاحظات','#departureNotes',[record.notes].filter(Boolean).join(' | ')]
+ ];
+ if(!matched){
+  fields.push(
+   ['اسم الكفيل','#newSponsorName',record.sponsor],
+   ['نوع الكفيل','#newSponsorType',record.type||'individual'],
+   ['الهاتف','#newSponsorPhone',record.phone],
+   ['العنوان','#newSponsorAddress',record.address],
+   ['ملاحظات الكفيل','#newSponsorNotes',record.sponsorNotes]
+  );
+ }
+ const failed=[];
+ const populated=[];
+ fields.forEach(([label,selector,value])=>{
+  const el=$(selector);
+  if(value===undefined||value===null||value===''){
+   if(el)clear(el);
+   return;
+  }
+  if(!set(el,String(value))||String(el.value)!==String(value))failed.push(label);
+  else populated.push(label);
+ });
+ const unresolved=[];
+ if(!record.entered||!choose($('#enteredBy'),record.entered)){
+  clearPerson($('#enteredBy'));
+  if(record.entered)unresolved.push('بواسطة: '+record.entered);
+ }
+ if(!record.supervisor||!choose($('#supervisorName'),record.supervisor)){
+  clearPerson($('#supervisorName'));
+  if(record.supervisor)unresolved.push('المشرف: '+record.supervisor);
+ }
+ const notes=[record.notes,...unresolved].filter(Boolean).join(' | ');
+ set($('#departureNotes'),notes);
+ return {
+  matched,
+  populated,
+  failed,
+  unresolved,
+  missingDate:!record.date,
+  missingLastPaid:!record.lastPaid
+ };
 }
 const panel=$('[data-whatsapp-import]');
 if(!panel)return;
@@ -173,10 +222,22 @@ apply.addEventListener('click',()=>{
   }
  }
  if(!window.confirm('سيتم تحميل البيانات المستخرجة في حقول النموذج. لن يتم حفظ أي بيانات. قد تُستبدل القيم الموجودة. هل تريد المتابعة؟'))return;
- const allocation=profile==='entry'?applyEntry(record):(applyDeparture(record),{sponsorshipManual:false,servicesManual:false});
+ let allocation,population=null;
+ if(profile==='entry')allocation=applyEntry(record);
+ else {population=applyDeparture(record);allocation={sponsorshipManual:false,servicesManual:false};}
  pendingIndex=Number(select.value)||0;
  const manual=[];if(allocation.sponsorshipManual)manual.push('الكفالة');if(allocation.servicesManual)manual.push('الخدمات');
- status.textContent=manual.length?'تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي. ':'';
+ if(profile==='departure'){
+  const parts=[];
+  if(population.populated.length)parts.push('تم تحميل: '+population.populated.join('، '));
+  if(population.failed.length)parts.push('تعذر تعبئة: '+population.failed.join('، '));
+  if(population.unresolved.length)parts.push('راجع الأسماء: '+population.unresolved.join('، '));
+  if(population.missingDate)parts.push('تاريخ المغادرة غير موجود في الرسالة ويجب إدخاله يدوياً');
+  if(population.missingLastPaid)parts.push('آخر سداد غير محسوم ويجب مراجعته يدوياً');
+  status.textContent=parts.join(' · ');
+ } else {
+  status.textContent=manual.length?'تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي. ':'';
+ }
 });
 const targetForm=profile==='entry'?$('#entryForm'):document.querySelector('form.card');
 if(targetForm)targetForm.addEventListener('submit',()=>{
