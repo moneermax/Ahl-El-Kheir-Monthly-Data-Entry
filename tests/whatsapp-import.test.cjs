@@ -420,4 +420,74 @@ parser.populateEntryForm(fallbackPayload, {
 assert.match(fallbackFields.notes, /بواسطة: مستخدم غير موجود/);
 assert.match(fallbackFields.notes, /المشرف: مشرف غير موجود/);
 
+
+// Departure messages use numbered records, file-context headings, and a
+// separate tree section rather than explicit "الكفيل:" labels.
+const groupedDepartures = [
+  '⛔كفلاء طلعو⛔',
+  'ملف 25',
+  '1• انس فتح الرحمن احمد محمد',
+  'عدد الأيتام: 10',
+  'قيمة الكفالة: 100000',
+  'الخدمات: 20000',
+  'آخر سداد: سبتمبر',
+  'بتاريخ: 31/10/2026',
+  'ملاحظات: ما داخل قروب والاتصال غير متاح',
+  '2• التجاني محمد الشايب',
+  'عدد الأيتام: 1',
+  'قيمة الكفالة: 27000',
+  'الخدمات: 2000',
+  'آخر سداد: أكتوبر',
+  'بتاريخ: 31/10/2026',
+  'ملف 24',
+  '3• نهي عثمان عبد الحليم',
+  'عدد الأيتام: 1',
+  'قيمة الكفالة: 10000',
+  'الخدمات: 2000',
+  'آخر سداد: أغسطس',
+  'بتاريخ: 31/10/2026',
+  'ملف الشجرة',
+  'الطيب عثمان جمعه 🌳',
+  '2000',
+  'آخر سداد: أكتوبر',
+  'بتاريخ: 31/10/2026'
+].join('\n');
+const groupedRecords = parser.splitDepartures(groupedDepartures, '2026-10-31');
+assert.equal(groupedRecords.length, 4);
+assert.deepEqual(Array.from(groupedRecords, r => r.sponsor), [
+  'انس فتح الرحمن احمد محمد',
+  'التجاني محمد الشايب',
+  'نهي عثمان عبد الحليم',
+  'الطيب عثمان جمعه'
+]);
+assert.deepEqual(Array.from(groupedRecords, r => r.file), ['25', '25', '24', '🌳']);
+assert.deepEqual(Array.from(groupedRecords, r => r.sponsorship), ['100000', '27000', '10000', '2000']);
+assert.deepEqual(Array.from(groupedRecords, r => r.services), ['20000', '2000', '2000', '0']);
+assert.deepEqual(Array.from(groupedRecords, r => r.lastPaid), ['2026-09', '2026-10', '2026-08', '2026-10']);
+assert.equal(groupedRecords[0].notes.includes('ما داخل قروب'), true);
+assert.equal(groupedRecords[3].type, 'tree');
+assert.equal(groupedRecords[3].count, '0');
+assert.ok(groupedRecords.every(r => r.date === '2026-10-31'));
+
+// A single cancellation message must ignore its title/file heading and find
+// the actual sponsor name; "ملف 2024" is retained as the supplied file value.
+const singleCancellation = parser.splitDepartures([
+  'إلغاء كفالة',
+  'ملف 2024',
+  'عثمان جمعة العجب',
+  'عدد الأيتام: 1',
+  'قيمة الكفالة: 10000',
+  'الخدمات: 2000',
+  'آخر سداد: أكتوبر',
+  'بتاريخ: 31/10/2026',
+  'عن طريق هناء عثمان',
+  'ما داخل قروب'
+].join('\n'), '2026-10-31');
+assert.equal(singleCancellation.length, 1);
+assert.equal(singleCancellation[0].sponsor, 'عثمان جمعة العجب');
+assert.equal(singleCancellation[0].file, '2024');
+assert.equal(singleCancellation[0].entered, 'هناء عثمان');
+assert.equal(singleCancellation[0].notes.includes('ما داخل قروب'), true);
+assert.equal(singleCancellation[0].lastPaid, '2026-10');
+
 console.log('WhatsApp parser tests passed.');
