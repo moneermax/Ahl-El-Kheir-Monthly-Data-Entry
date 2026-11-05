@@ -217,10 +217,6 @@ apply.addEventListener('click',()=>{
    status.textContent='يوجد أكثر من كفيل بالاسم المطابق «'+record.sponsor+'». لم يتم تحميل السجل لتجنب اختيار كفيل خاطئ أو إنشاء سجل مكرر.';
    return;
   }
-  if(matches.inactive.length===1){
-   status.textContent='الكفيل «'+record.sponsor+'» موجود بالفعل لكنه مسجل كمغادر سابقاً. لم يتم تحويله إلى كفيل جديد؛ راجع سجل المغادرة بدلاً من إنشاء نسخة مكررة.';
-   return;
-  }
  }
  if(!window.confirm('سيتم تحميل البيانات المستخرجة في حقول النموذج. لن يتم حفظ أي بيانات. قد تُستبدل القيم الموجودة. هل تريد المتابعة؟'))return;
  let allocation,population=null;
