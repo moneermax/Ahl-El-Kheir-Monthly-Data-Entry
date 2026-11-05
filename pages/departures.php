@@ -117,6 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($count === null && $sponsorType !== 'tree') {
             throw new InvalidArgumentException('عدد الأيتام مطلوب للكفيل الفردي. يمكن تركه فارغاً لكفيل الشجرة إذا لم يرد في الرسالة.');
         }
+        if ($services === null && $sponsorType !== 'tree') {
+            throw new InvalidArgumentException('مبلغ الخدمات مطلوب للكفيل الفردي. يمكن تركه فارغاً لكفيل الشجرة إذا لم يرد في الرسالة.');
+        }
 
         $stmt = $pdo->prepare(
             'INSERT INTO mde_sponsor_departures
