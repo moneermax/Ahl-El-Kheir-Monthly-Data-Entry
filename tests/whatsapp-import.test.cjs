@@ -22,6 +22,8 @@ const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
 const exportSource = fs.readFileSync('export.php', 'utf8');
 assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC'), 'last saved sponsor must follow the latest inserted monthly row');
 assert.ok(entryPageSource.includes('data-file='), 'existing sponsor choices must expose their file number for safe manual disambiguation');
+assert.ok(entryPageSource.includes('سجل #<?= (int)$existing[\'id\'] ?>'), 'entry sponsor options must expose a stable record identifier when names repeat');
+assert.ok(departurePageSource.includes('سجل #<?= (int) $s[\'id\'] ?>'), 'departure sponsor options must expose a stable record identifier when names repeat');
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(!entryPageSource.includes('ORDER BY monthly.created_at DESC'), 'timestamp ties must not outrank insertion order');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
