@@ -76,9 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$sponsor) {
                 throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
             }
-            if (!(int) $sponsor['is_active']) {
-                throw new InvalidArgumentException('هذا الكفيل مسجل كمغادر بالفعل. إذا عاد للتعامل مع المنظمة، سجّل كفالته الجديدة أولاً ثم سجّل مغادرته عند الحاجة.');
-            }
             $sponsorType = (string) ($sponsor['sponsor_type'] ?? 'individual');
 
             // The departure form stores a snapshot only; it never edits sponsor identity data.
@@ -138,18 +135,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $services,
             trim((string) ($_POST['entered_by'] ?? '')) ?: null,
             trim((string) ($_POST['supervisor_name'] ?? '')) ?: null,
-            trim((string) ($_POST['reason'] ?? '')) ?: null,
+            null,
             trim((string) ($_POST['notes'] ?? '')) ?: null,
         ]);
 
         $end = $pdo->prepare(
             "UPDATE mde_sponsorships
              SET status = 'ended', end_date = ?
-             WHERE sponsor_id = ? AND status = 'active'"
+             WHERE sponsor_id = ? AND status = 'active' AND start_date <= ?"
         );
-        $end->execute([$departureDate, $sponsorId]);
+        $end->execute([$departureDate, $sponsorId, $departureDate]);
 
-        $pdo->prepare('UPDATE mde_sponsors SET is_active = 0 WHERE id = ?')->execute([$sponsorId]);
+        $syncSponsorStatus = $pdo->prepare(
+            "UPDATE mde_sponsors AS sponsor
+             SET sponsor.is_active = CASE WHEN EXISTS (
+                SELECT 1 FROM mde_sponsorships AS rel
+                WHERE rel.sponsor_id = sponsor.id AND rel.status = 'active'
+             ) THEN 1 ELSE 0 END
+             WHERE sponsor.id = ?"
+        );
+        $syncSponsorStatus->execute([$sponsorId]);
         $pdo->commit();
 
         mde_flash(
@@ -198,15 +203,14 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         <table class="entry-register departure-register" id="departureRegister">
             <colgroup>
                 <col style="width:3%">
-                <col style="width:18%">
+                <col style="width:20%">
                 <col style="width:8%">
                 <col style="width:10%">
                 <col style="width:8%">
                 <col style="width:6%">
                 <col style="width:9%">
                 <col style="width:8%">
-                <col style="width:13%">
-                <col style="width:17%">
+                <col style="width:28%">
             </colgroup>
             <thead>
                 <tr>
@@ -219,7 +223,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                     <th class="h-orphan">الكفالة</th>
                     <th class="h-orphan">الخدمات</th>
                     <th class="h-sponsor">بواسطة / المشرف</th>
-                    <th class="h-sponsor">سبب وملاحظات المغادرة</th>
+                    <th class="h-sponsor">ملاحظات</th>
                 </tr>
             </thead>
             <tbody>
@@ -235,12 +239,12 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                                         data-file="<?= mde_h($s['file_number'] ?? '') ?>"
                                         data-active="<?= (int) $s['is_active'] ?>"
                                         <?= (string) ($old['sponsor_id'] ?? '') === (string) $s['id'] ? 'selected' : '' ?>
-                                        <?= !(int) $s['is_active'] ? 'disabled' : '' ?>>
+                                        >
                                         <?= mde_h($s['sponsor_name']) ?><?= !(int) $s['is_active'] ? ' — مغادر سابقاً' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="form-text">السجلات المغادرة سابقاً غير قابلة للتحديد.</div>
+                            <div class="form-text">يمكن اختيار الكفيل حتى لو كان مسجلاً كمغادر في شهر سابق؛ كل مغادرة تحفظ كسجل شهري مستقل.</div>
                         </div>
                         <div id="newSponsorFields" class="<?= $selectedMode === 'new' ? '' : 'd-none' ?>">
                             <label class="form-label required small" for="newSponsorName">اسم الكفيل الجديد</label>
@@ -281,10 +285,8 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                         <?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'اختر الاسم', (string) ($old['supervisor_name'] ?? '')); ?>
                     </td>
                     <td class="sponsor-span-cell">
-                        <label class="form-label small" for="departureReason">سبب المغادرة</label>
-                        <textarea class="form-control form-control-sm mb-1 notes-input" name="reason" id="departureReason" rows="2" maxlength="500"><?= mde_h($old['reason'] ?? '') ?></textarea>
-                        <label class="form-label small" for="departureNotes">ملاحظات</label>
-                        <textarea class="form-control form-control-sm notes-input" name="notes" id="departureNotes" rows="3"><?= mde_h($old['notes'] ?? '') ?></textarea>
+                        <label class="form-label small" for="departureNotes">ملاحظات كما وردت في المصدر</label>
+                        <textarea class="form-control form-control-sm notes-input" name="notes" id="departureNotes" rows="4"><?= mde_h($old['notes'] ?? '') ?></textarea>
                     </td>
                 </tr>
             </tbody>
