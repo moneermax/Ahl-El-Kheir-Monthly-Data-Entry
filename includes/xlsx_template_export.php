@@ -221,9 +221,9 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
                 $row['file_number_snapshot'] ?? '',
                 $row['sponsor_name'] ?? '',
                 $excelDate(is_string($row['departure_date'] ?? null)?$row['departure_date']:null),
-                (int)($row['orphan_count_snapshot'] ?? 0),
+                ($row['orphan_count_snapshot'] ?? null) === null ? null : (int)$row['orphan_count_snapshot'],
                 (int)($row['sponsorship_amount_snapshot'] ?? 0),
-                (int)($row['services_amount_snapshot'] ?? 0),
+                ($row['services_amount_snapshot'] ?? null) === null ? null : (int)$row['services_amount_snapshot'],
                 $row['last_paid_month'] ?? '',
                 $row['notes'] ?? '',
             ];
