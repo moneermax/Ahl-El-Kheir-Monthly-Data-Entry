@@ -50,7 +50,7 @@ function entry(t,i,c){const fs=families(t),methods=values(t,L.entered),contact=v
 
 function departureHeader(line){
  const n=norm(line).replace(/[⛔*_]/gu,'').trim();
- return !n||/^(?:قائمة\s+)?(?:الغاء|إلغاء)\s+(?:الكفاله|الكفالة|كفاله|كفالة)(?:\s+.*)?$/u.test(n)||/^(?:قائمة\s+)?كفلاء\s+(?:طلعو|خرجوا|غادروا)(?:\s+.*)?$/u.test(n)||/^(?:السلام عليكم|السلام عليكم ورحمه الله وبركاته)$/u.test(n)||/^قائمة\s+الغاء\s+.+$/u.test(n);
+ return !n||/^(?:قائمة\s+)?(?:الغاء|إلغاء)\s+(?:الكفاله|الكفالة|كفاله|كفالة)(?:\s+.*)?$/u.test(n)||/^(?:قائمة\s+)?كفلاء\s+(?:طلعو|خرجوا|غادروا)(?:\s+.*)?$/u.test(n)||/^(?:السلام عليكم|السلام عليكم ورحمه الله وبركاته)$/u.test(n)||/^قائمه\s+الغاء\s+.+$/u.test(n);
 }
 function departureFileHeading(line){
  const n=norm(line);
@@ -59,7 +59,9 @@ function departureFileHeading(line){
  const m=n.match(/^(?:رقم\s+)?ملف(?:\s+رقم)?\s*[:：=-]?\s*(\d{1,4})$/u);
  return m?m[1]:null;
 }
+function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز|مسدده\s+(?:الى|الي)\s+شهر)/u.test(norm(line));}
 function departureNameLine(line){
+ if(departureNoteLine(line))return'';
  const cleanLine=clean(stripEmoji(line).replace(/^\s*\d+\s*[/／•.)_-]\s*/u,''));
  if(!looksName(cleanLine)||departureHeader(cleanLine))return'';
  if(/^(?:ملف|عدد|قيمة|مبلغ|الكفاله|الكفالة|كفاله|كفالة|الخدمات|خدمات|اخر سداد|آخر سداد|بتاريخ|تاريخ|سبب|ملاحظات|عن طريق|بواسطه|مشرف)/u.test(norm(cleanLine)))return'';
