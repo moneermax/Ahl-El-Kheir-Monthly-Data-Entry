@@ -83,11 +83,13 @@ function sharedDepartureDate(raw,contextDate){
  return found.length>1||appearsAtTail?unique[0]:'';
 }
 function splitDepartures(raw,contextDate){
+ const messageDate=sharedDepartureDate(raw,contextDate);
+ const effectiveContextDate=messageDate||contextDate;
  const lines=String(raw??'').replace(/\r/g,'').split('\n');
  const records=[];let currentFile='',currentLines=[],currentTree=false;
  const numberedPattern=/^\s*\d{1,3}\s*[/／•.)_-]\s*(.*?)\s*$/u;
  const nextMeaningful=index=>{for(let j=index+1;j<lines.length;j++){const value=lines[j].trim();if(value)return value;}return'';};
- const flush=()=>{const body=currentLines.join('\n').trim();if(!body)return;const record=departure(body,records.length,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳'){record.type='tree';if(record.sponsorship===''){const amount=body.match(/(?:^|\n)\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*(?:جنيه)?\s*(?:$|\n)/u);if(amount){record.sponsorship=num(amount[1]);record.notes=String(record.notes||'').split(' | ').filter(note=>note!==amount[1].trim()).join(' | ');record.unrecognizedLines=(record.unrecognizedLines||[]).filter(line=>line!==amount[1].trim());record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('أسطر غير مصنفة'));}record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('عدد الأيتام غير واضح'));}}records.push(record);currentLines=[];};
+ const flush=()=>{const body=currentLines.join('\n').trim();if(!body)return;const record=departure(body,records.length,effectiveContextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳'){record.type='tree';if(record.sponsorship===''){const amount=body.match(/(?:^|\n)\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*(?:جنيه)?\s*(?:$|\n)/u);if(amount){record.sponsorship=num(amount[1]);record.notes=String(record.notes||'').split(' | ').filter(note=>note!==amount[1].trim()).join(' | ');record.unrecognizedLines=(record.unrecognizedLines||[]).filter(line=>line!==amount[1].trim());record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('أسطر غير مصنفة'));}record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('عدد الأيتام غير واضح'));}}records.push(record);currentLines=[];};
  for(let i=0;i<lines.length;i++){
   const line=lines[i].trim();if(!line)continue;
   const heading=departureFileHeading(line);
@@ -107,10 +109,10 @@ function splitDepartures(raw,contextDate){
   currentLines.push(line);
  }
  flush();
- if(!records.length){const fallback=lines.filter(line=>!departureHeader(line)&&departureFileHeading(line)===null).join('\n');if(fallback.trim()){const record=departure(fallback,0,contextDate);if(!record.file)record.file=currentFile;records.push(record);}}
- const sharedDate=sharedDepartureDate(raw,contextDate);
+ if(!records.length){const fallback=lines.filter(line=>!departureHeader(line)&&departureFileHeading(line)===null).join('\n');if(fallback.trim()){const record=departure(fallback,0,effectiveContextDate);if(!record.file)record.file=currentFile;records.push(record);}}
+ const sharedDate=messageDate;
  if(sharedDate)records.forEach(record=>{if(!record.date){record.date=sharedDate;record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('تاريخ المغادرة غير محسوم'));}});
- return applyDepartureMonthContext(records,raw,contextDate);
+ return applyDepartureMonthContext(records,raw,effectiveContextDate);
 }
 
 function departureFileValue(t){
