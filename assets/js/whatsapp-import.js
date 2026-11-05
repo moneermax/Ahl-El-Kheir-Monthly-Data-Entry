@@ -26,7 +26,7 @@ function departureSponsorMatches(name) {
  if(!select||!name)return {active:[],inactive:[]};
  const wanted=normalizeName(name);
  const matches=[...select.options].filter(option=>option.value&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted);
- return {active:matches.filter(option=>!option.disabled),inactive:matches.filter(option=>option.disabled)};
+ return {active:matches.filter(option=>option.dataset.active!=='0'),inactive:matches.filter(option=>option.dataset.active==='0')};
 }
 function choose(select,name) {
  if (!select || !name) return false;
@@ -103,8 +103,10 @@ function applyEntry(record) {
  return result;
 }
 function applyDeparture(record) {
+ const payload=Parser.buildDepartureFormPayload(record);
+ const fields=payload.fields;
  const existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor');
- const matched=choose(select,record.sponsor);
+ const matched=choose(select,fields.sponsor);
  if(matched){
   existingMode.checked=true;
   existingMode.dispatchEvent(new Event('change',{bubbles:true}));
@@ -113,22 +115,21 @@ function applyDeparture(record) {
   newMode.dispatchEvent(new Event('change',{bubbles:true}));
  }
  const fields=[
-  ['رقم الملف',matched?'#existingFileNumber':'#newFileNumber',record.file],
-  ['تاريخ المغادرة','#departureDate',record.date],
-  ['آخر سداد','#lastPaidMonth',record.lastPaid],
-  ['عدد الأيتام','#orphanCount',record.count],
-  ['الكفالة','#sponsorshipAmount',record.sponsorship],
-  ['الخدمات','#servicesAmount',record.services],
-  ['سبب المغادرة','#departureReason',record.reason],
-  ['ملاحظات','#departureNotes',[record.notes].filter(Boolean).join(' | ')]
+  ['رقم الملف',matched?'#existingFileNumber':'#newFileNumber',fields.file],
+  ['تاريخ المغادرة','#departureDate',fields.date],
+  ['آخر سداد','#lastPaidMonth',fields.lastPaid],
+  ['عدد الأيتام','#orphanCount',fields.count],
+  ['الكفالة','#sponsorshipAmount',fields.sponsorship],
+  ['الخدمات','#servicesAmount',fields.services],
+  ['ملاحظات','#departureNotes',payload.notes]
  ];
  if(!matched){
   fields.push(
-   ['اسم الكفيل','#newSponsorName',record.sponsor],
-   ['نوع الكفيل','#newSponsorType',record.type||'individual'],
-   ['الهاتف','#newSponsorPhone',record.phone],
-   ['العنوان','#newSponsorAddress',record.address],
-   ['ملاحظات الكفيل','#newSponsorNotes',record.sponsorNotes]
+   ['اسم الكفيل','#newSponsorName',fields.sponsor],
+   ['نوع الكفيل','#newSponsorType',fields.type],
+   ['الهاتف','#newSponsorPhone',fields.phone],
+   ['العنوان','#newSponsorAddress',fields.address],
+   ['ملاحظات الكفيل','#newSponsorNotes',fields.sponsorNotes]
   );
  }
  const failed=[];
@@ -151,7 +152,7 @@ function applyDeparture(record) {
   clearPerson($('#supervisorName'));
   if(record.supervisor)unresolved.push('المشرف: '+record.supervisor);
  }
- const notes=[record.notes,...unresolved].filter(Boolean).join(' | ');
+ const notes=[payload.notes,...unresolved].filter(Boolean).join(' | ');
  set($('#departureNotes'),notes);
  return {
   matched,
