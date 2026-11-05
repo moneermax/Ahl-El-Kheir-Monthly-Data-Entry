@@ -61,7 +61,7 @@ function splitDepartures(raw,contextDate){
   if(departureHeader(line))continue;
   const numbered=line.match(/^\\s*\\d{1,3}\\s*[•.)/_-]\\s*(.*?)\\s*$/u);
   if(numbered){flush();hasNumbered=true;currentLines=[numbered[1]];continue;}
-  if(currentTree&&departureNameLine(line)){
+  if((currentTree||/🌳/u.test(line))&&departureNameLine(line)){
    flush();currentLines=[line];continue;
   }
   if(!currentLines.length){
@@ -73,6 +73,22 @@ function splitDepartures(raw,contextDate){
  flush();
  if(!records.length){const record=departure(lines.filter(line=>!departureHeader(line)&&departureFileHeading(line)===null).join('\\n'),0,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳')record.type='tree';return[record];}
  return records;
+}
+
+function departureFileValue(t){
+ const text=String(t??'');
+ const returned=text.match(/رجعت\s+لملفها\s*[:=：-]?\s*(\d{1,4})/u);
+ if(returned)return returned[1];
+ const first=text.split(/\r?\n/).slice(0,2).join('\n');
+ return fileValue(first);
+}
+function monthWithContext(v,c){
+ const direct=month(v);if(direct)return direct;
+ const s=norm(v).replace(/\s+/g,'');
+ const names={يناير:1,فبراير:2,مارس:3,ابريل:4,مايو:5,يونيو:6,يوليو:7,اغسطس:8,سبتمبر:9,اكتوبر:10,نوفمبر:11,ديسمبر:12};
+ const found=Object.entries(names).filter(([name])=>s.includes(name));
+ if(found.length!==1)return'';
+ const year=contextYear(c);return year?String(year)+'-'+String(found[0][1]).padStart(2,'0'):'';
 }
 function departureResidualNotes(t){
  const lines=String(t??'').split(/\r?\n/).map(clean).filter(Boolean);let sponsorRemoved=false;
@@ -90,7 +106,7 @@ function departure(t,i,c){
  const sponsorshipLabel=value(t,L.sponsorship),servicesLabel=value(t,L.services);
  const pair=String(t??'').match(/(?:المبلغ|قيمة\s+الكفاله|قيمة\s+الكفالة|مبلغ\s+الكفاله|مبلغ\s+الكفالة)\s*[:=：-]?\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*\/\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)(?!\s*\/)/u);
  const residual=departureResidualNotes(t),explicitNotes=value(t,L.notes);
- const r={i,sponsor:sponsor(t),file:fileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:month(value(t,L.lastPaid)),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason),notes:[explicitNotes,residual].filter(Boolean).join(' | '),type:/🌳|شجرة/i.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t)};
+ const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(value(t,L.lastPaid),c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason),notes:[explicitNotes,residual].filter(Boolean).join(' | '),type:/🌳|شجرة/i.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t)};
  r.warnings=[];if(!r.sponsor)r.warnings.push('اسم الكفيل غير واضح');if(!r.date)r.warnings.push('تاريخ المغادرة غير محسوم');if(!r.count)r.warnings.push('عدد الأيتام غير واضح');if(!r.lastPaid&&/اخر\s+سداد|آخر\s+سداد/u.test(norm(t)))r.warnings.push('آخر سداد غير محسوم؛ راجع الشهر يدوياً');if(r.unrecognizedLines.length)r.warnings.push('أسطر غير مصنفة وتحتاج مراجعة: '+r.unrecognizedLines.join(' / '));return r;
 }
 function hasMotherNames(r){return!!(r&&Array.isArray(r.families)&&r.families.length&&r.families.every(f=>String(f.mother||'').trim()!==''));}
