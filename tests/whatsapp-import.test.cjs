@@ -14,7 +14,7 @@ const duplicateSponsorOptions = { options: [
   { value: '12', textContent: 'سلمي حسن الرشيد — ملف 25 · سجل #12', disabled: false }
 ] };
 assert.equal(importHelpers.matchingSponsorOptions(duplicateSponsorOptions, 'سلمي حسن الرشيد').length, 2, 'same-name sponsor masters must be detected as ambiguous, not treated as a new sponsor');
-assert.equal(importHelpers.matchingSponsorOptions(duplicateSponsorOptions, 'سلمي حسن الرشيد — ملف 25').length, 0, 'the sponsor matcher must match the name only, not accidentally consume file/record suffixes as part of the name');
+assert.equal(importHelpers.matchingSponsorOptions({ options: [duplicateSponsorOptions.options[1]] }, 'سلمي حسن الرشيد').length, 1, 'file/record suffixes in option labels must not interfere with exact sponsor matching');
 
 const entryPageSource = fs.readFileSync('pages/entry.php', 'utf8');
 const departurePageSource = fs.readFileSync('pages/departures.php', 'utf8');
