@@ -7,6 +7,13 @@ vm.runInNewContext(fs.readFileSync('assets/js/whatsapp-parser.js', 'utf8'), cont
 vm.runInNewContext(fs.readFileSync('assets/js/whatsapp-import.js', 'utf8'), context);
 const parser = context.window.MDEWhatsAppParser;
 assert.ok(parser, 'parser API should be available for tests');
+const importHelpers = context.window.MDEWhatsAppImportHelpers;
+assert.ok(importHelpers, 'browser import helpers should be available for regression tests');
+const duplicateSponsorOptions = { options: [
+  { value: '11', textContent: 'سلمي حسن الرشيد — ملف 24 · سجل #11', disabled: false },
+  { value: '12', textContent: 'سلمي حسن الرشيد — ملف 25 · سجل #12', disabled: false }
+] };
+assert.equal(importHelpers.matchingSponsorOptions(duplicateSponsorOptions, 'سلمي حسن الرشيد').length, 2, 'same-name sponsor masters must be detected as ambiguous, not treated as a new sponsor');
 
 const entryPageSource = fs.readFileSync('pages/entry.php', 'utf8');
 const departurePageSource = fs.readFileSync('pages/departures.php', 'utf8');
@@ -14,6 +21,8 @@ const importSource = fs.readFileSync('assets/js/whatsapp-import.js', 'utf8');
 const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
 const exportSource = fs.readFileSync('export.php', 'utf8');
 assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC'), 'last saved sponsor must follow the latest inserted monthly row');
+assert.ok(entryPageSource.includes('data-file='), 'existing sponsor choices must expose their file number for safe manual disambiguation');
+assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(!entryPageSource.includes('ORDER BY monthly.created_at DESC'), 'timestamp ties must not outrank insertion order');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
 assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
