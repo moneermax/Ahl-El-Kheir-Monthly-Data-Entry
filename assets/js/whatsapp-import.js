@@ -104,9 +104,9 @@ function applyEntry(record) {
 }
 function applyDeparture(record) {
  const payload=Parser.buildDepartureFormPayload(record);
- const fields=payload.fields;
+ const payloadFields=payload.fields;
  const existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor');
- const matched=choose(select,fields.sponsor);
+ const matched=choose(select,payloadFields.sponsor);
  if(matched){
   existingMode.checked=true;
   existingMode.dispatchEvent(new Event('change',{bubbles:true}));
@@ -115,21 +115,21 @@ function applyDeparture(record) {
   newMode.dispatchEvent(new Event('change',{bubbles:true}));
  }
  const fields=[
-  ['رقم الملف',matched?'#existingFileNumber':'#newFileNumber',fields.file],
-  ['تاريخ المغادرة','#departureDate',fields.date],
-  ['آخر سداد','#lastPaidMonth',fields.lastPaid],
-  ['عدد الأيتام','#orphanCount',fields.count],
-  ['الكفالة','#sponsorshipAmount',fields.sponsorship],
-  ['الخدمات','#servicesAmount',fields.services],
+  ['رقم الملف',matched?'#existingFileNumber':'#newFileNumber',payloadFields.file],
+  ['تاريخ المغادرة','#departureDate',payloadFields.date],
+  ['آخر سداد','#lastPaidMonth',payloadFields.lastPaid],
+  ['عدد الأيتام','#orphanCount',payloadFields.count],
+  ['الكفالة','#sponsorshipAmount',payloadFields.sponsorship],
+  ['الخدمات','#servicesAmount',payloadFields.services],
   ['ملاحظات','#departureNotes',payload.notes]
  ];
  if(!matched){
   fields.push(
-   ['اسم الكفيل','#newSponsorName',fields.sponsor],
-   ['نوع الكفيل','#newSponsorType',fields.type],
-   ['الهاتف','#newSponsorPhone',fields.phone],
-   ['العنوان','#newSponsorAddress',fields.address],
-   ['ملاحظات الكفيل','#newSponsorNotes',fields.sponsorNotes]
+   ['اسم الكفيل','#newSponsorName',payloadFields.sponsor],
+   ['نوع الكفيل','#newSponsorType',payloadFields.type],
+   ['الهاتف','#newSponsorPhone',payloadFields.phone],
+   ['العنوان','#newSponsorAddress',payloadFields.address],
+   ['ملاحظات الكفيل','#newSponsorNotes',payloadFields.sponsorNotes]
   );
  }
  const failed=[];
