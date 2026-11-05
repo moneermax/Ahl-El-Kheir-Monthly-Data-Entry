@@ -169,7 +169,7 @@ let records=[],pendingIndex=null;
 const storageKey='mdeWhatsappQueue:'+profile,pendingKey='mdeWhatsappPending:'+profile;
 function hasRequiredFields(record) {
  if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0&&!!record.date;
- return !!record.sponsor&&record.count!=='';
+ return !!record.sponsor;
 }
 function render() {
  select.innerHTML='';
@@ -179,7 +179,7 @@ function render() {
  if(!record){apply.disabled=true;details.textContent='';return;}
  const missing=profile==='entry'
   ?['اسم الكفيل','اسم أم واحدة على الأقل','اسم يتيم واحد على الأقل','تاريخ الانضمام'].filter((label,index)=>![record.sponsor,Parser.hasMotherNames(record),record.orphans.length,record.date][index])
-  :['اسم الكفيل','تاريخ المغادرة','عدد الأيتام'].filter((label,index)=>![record.sponsor,record.date,record.count][index]);
+  :['اسم الكفيل','تاريخ المغادرة',...(record.type==='tree'?[]:['عدد الأيتام'])].filter((label,index)=>![record.sponsor,record.date,...(record.type==='tree'?[]:[record.count])][index]);
  const warnings=[...(record.warnings||[])];
  details.textContent=[missing.length?'بيانات مطلوبة للمراجعة: '+missing.join('، '):'',warnings.length?'تنبيهات: '+[...new Set(warnings)].join('، '):''].filter(Boolean).join(' · ');
  apply.disabled=!hasRequiredFields(record);
