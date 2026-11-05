@@ -131,7 +131,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($orphanMatches) {
                     $orphanId = (int) $orphanMatches[0]['id'];
                 } else {
-                    $insertOrpha                $findMonthlyStmt->execute([$sponsorId, $orphanId, $month]);
+                    $insertOrphanStmt->execute([$motherId, $orphanName]);
+                    $orphanId = (int) $pdo->lastInsertId();
+                }
+
+                $findMonthlyStmt->execute([$sponsorId, $orphanId, $month]);
                 if ($findMonthlyStmt->fetch()) {
                     throw new InvalidArgumentException('يوجد إدخال شهري مسجل بالفعل لهذا الكفيل واليتيم في الشهر المحدد. لم نكرر السجل.');
                 }
@@ -166,8 +170,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     // Create a distinct episode only when no recorded relationship covers this date.
                     $insertSponsorshipStmt->execute([$sponsorId, $orphanId, $entryDate]);
-                    $sponsorshipId = (int) $pdo->lastInsertId();
-                }([$sponsorId, $orphanId, $entryDate]);
                     $sponsorshipId = (int) $pdo->lastInsertId();
                 }
 
