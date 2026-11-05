@@ -113,6 +113,7 @@ The suite covers the historical cases and the exact reported failure, including:
 - Operator/supervisor variants, independent values, shared trailing values, and preservation of per-record values when no shared footer exists.
 - Multiple sponsor segmentation and isolation of one sponsor's family/amount fields from the next.
 - Missing optional values, unrecognized-line warnings, and preservation of raw text.
+- Mixed-format previous-month departure messages, shared final departure dates, last-payment month ranges, and October workbook-derived tree rows with absent/present service fees and absent/explicit-zero orphan counts.
 - The form payload and the adapter calls used to populate sponsor, file, date, operator, supervisor, notes, families, orphan names, amount allocations, and totals.
 
 JavaScript syntax checks:
