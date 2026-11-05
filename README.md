@@ -79,3 +79,6 @@ For existing installations, apply migrations in order: `004_link_other_donations
 ## Privacy and separation
 
 This repository is private. The CSV reference folder is denied direct HTTP access by Apache. Database credentials are ignored by Git. The application does not read or write the original management system's database, sessions, permissions, or workflows.
+
+
+**Departure snapshot update:** Existing installations must apply `database/migrations/008_departure_sponsor_name_snapshot.sql` once, after migration 007, before using the editable departure sponsor-name field. The migration backfills existing departure names and does not rename sponsor master records.
