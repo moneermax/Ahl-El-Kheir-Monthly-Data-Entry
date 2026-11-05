@@ -22,7 +22,7 @@ const importSource = fs.readFileSync('assets/js/whatsapp-import.js', 'utf8');
 const entryRegisterSource = fs.readFileSync('assets/js/entry-register.js', 'utf8');
 const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
 const exportSource = fs.readFileSync('export.php', 'utf8');
-assert.ok(entryPageSource.includes('ORDER BY monthly.created_at DESC, monthly.id DESC'), 'last saved sponsor must follow the latest saved monthly row, using timestamp and ID as a deterministic tie-breaker');
+assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC'), 'last saved sponsor must follow the latest inserted monthly entry ID');
 assert.ok(entryPageSource.includes('data-file='), 'existing sponsor choices must expose their file number for safe manual disambiguation');
 assert.ok(entryPageSource.includes('سجل #<?= (int)$existing[\'id\'] ?>'), 'entry sponsor options must expose a stable record identifier when names repeat');
 assert.ok(departurePageSource.includes('سجل #<?= (int) $s[\'id\'] ?>'), 'departure sponsor options must expose a stable record identifier when names repeat');
@@ -33,11 +33,12 @@ assert.ok(departurePageSource.includes('INSERT INTO mde_sponsor_departures'), 'e
 assert.ok(departurePageSource.includes('id="departureBatchRows"'), 'departure page must render editable per-sponsor batch rows');
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
 assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("add(f.date,'departure_date','date')"), 'each batch row must submit its own sponsor and departure date');
+assert.ok(importSource.includes('departure-new-sponsor-fields') && importSource.includes("newFields.classList.add('d-none')"), 'new-sponsor name/type controls must be hidden for existing or ambiguous sponsor matches');
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
 assert.ok(entryRegisterSource.includes("fileNumber.value=existing.selectedOptions[0].dataset.file||''"), 'manual sponsor selection must restore or clear its master file number');
-assert.ok(entryPageSource.includes('ORDER BY monthly.created_at DESC, monthly.id DESC'), 'timestamp ordering must use ID only as a deterministic tie-breaker');
+assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC'), 'the last-sponsor indicator must use insertion ID ordering, not timestamps');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
 assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
 assert.ok(entryPageSource.includes("$link['status'] === 'ended'"), 'historical monthly entries must reuse the sponsorship episode whose dates cover the entry');
@@ -376,6 +377,19 @@ const numericVariants = parser.entry('الكفيل: ناصر كباشي احمد
 assert.equal(numericVariants.sponsorship, '80000');
 assert.equal(numericVariants.services, '5000');
 
+
+const femaleSponsorMessage = "الكفيلة/ شيماء عثمان عبدالقادر محمد\nالام ندي يوسف محمد\nاليتيم علي هاشم محمد سنادة\nاليتيم رزاز هاشم محمد سنادة\nالمبلغ: 26،000\nخدمات 4000\nالانضمام:4/11/2026\n\n❤️‍🔥\nعن طريق ايمان\nمشرفه ح هبه خلف الله";
+const femaleSponsorRecord = parser.entry(femaleSponsorMessage, 0, '');
+assert.equal(femaleSponsorRecord.sponsor, 'شيماء عثمان عبدالقادر محمد', 'الكفيلة/ must extract a female sponsor name');
+assert.equal(femaleSponsorRecord.date, '2026-11-04', 'الانضمام with a full dd/mm/yyyy date must be parsed');
+assert.equal(femaleSponsorRecord.mother, 'ندي يوسف محمد');
+assert.deepEqual(Array.from(femaleSponsorRecord.orphans), ['علي هاشم محمد سنادة', 'رزاز هاشم محمد سنادة']);
+assert.equal(femaleSponsorRecord.sponsorship, '26000');
+assert.equal(femaleSponsorRecord.services, '4000');
+assert.equal(femaleSponsorRecord.entered, 'ايمان');
+assert.equal(femaleSponsorRecord.supervisor, 'هبه خلف الله');
+assert.equal(femaleSponsorRecord.unrecognizedLines.length, 0, 'all labeled lines in the supplied message should be recognized');
+
 // Message-level values override every record only when present in the trailing
 // message-level footer; absent shared values never erase record-level values.
 const recordsWithOwnPeople = [
@@ -529,7 +543,8 @@ const departurePayload = parser.buildDepartureFormPayload({
   notes: 'ما داخل قروب', entered: 'مها', supervisor: 'هبه', type: 'individual'
 });
 assert.equal(departurePayload.fields.sponsor, 'انس فتح الرحمن احمد محمد');
-assert.equal(departurePayload.notes, 'السبب كما ورد: عدم تواجده في الواتس والاتصال | ما داخل قروب', 'source reason must be preserved inside the single notes field');
+assert.equal(departurePayload.notes, 'عدم تواجده في الواتس والاتصال | ما داخل قروب', 'source reason must be retained without a label prefix');
+assert.ok(!departurePayload.notes.includes('السبب كما ورد:'), 'departure notes must not add an explanatory prefix');
 
 const groupMentionDeparture = parser.departure('انس فتح الرحمن احمد محمد\nملف 24\nداخل قروب الشجرة رجال 🌳\nتاريخ المغادرة: 31/10/2026\nعدد الأيتام: 1\nآخر سداد: سبتمبر', 0, '2026-11-04');
 assert.equal(groupMentionDeparture.type, 'individual', 'a tree-group note, even with a decorative tree emoji, must not reclassify an individual departure');

@@ -179,3 +179,18 @@ The batch handler validates each row and writes one `mde_sponsor_departures` row
 The entry-page last-saved sponsor indicator is ordered by `mde_monthly_sponsorship_entries.created_at DESC, id DESC`, matching the documented database-backed latest-save behavior.
 
 Automated checks are structural/parser regression checks plus PHP/JavaScript syntax validation. They do not replace live MariaDB transaction testing or browser interaction testing; those must be completed on the local installation after pulling.
+
+
+## Page-specific WhatsApp corrections — 2026-11-05
+
+### New Sponsors page — `pages/entry.php`
+
+- The sponsor/date parser accepts the real-world `الكفيلة/` label separator and the shorter `الانضمام` date label. A complete `4/11/2026` value is parsed as 2026-11-04 (day/month/year).
+- The “last sponsor recorded” indicator now selects the monthly sponsorship entry with the greatest inserted `id`. Timestamp ordering was removed because it could disagree with insertion order and contradicted the intended latest-inserted-row behavior.
+
+### Departures page — `pages/departures.php`
+
+- WhatsApp departure reasons remain in the notes field as plain text; the importer no longer prepends `السبب كما ورد:`.
+- Batch rows show the new-sponsor name/type controls only when the parsed sponsor does not match an existing master record. Existing matches show only the sponsor selector; ambiguous matches show the selector and a disambiguation hint. The selector remains available so an operator can choose another existing record.
+
+These are source-only changes; no database migration or data rewrite is required. Automated regression checks cover the exact supplied new-sponsor message, insertion-ID ordering, plain departure notes, and conditional batch sponsor controls. Browser and MariaDB end-to-end behavior still require local verification.
