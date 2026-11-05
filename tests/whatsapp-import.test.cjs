@@ -29,6 +29,7 @@ assert.ok(!departurePageSource.includes('id="departureReason"'), 'departure form
 assert.ok(!importSource.includes('مسجل كمغادر سابقاً. لم يتم تحويله'), 'the importer must not reject a previously departed sponsor');
 assert.ok(reportPageSource.includes('duplicate_in_other_month'), 'on-screen departure reports must flag cross-month repeats');
 assert.ok(exportSource.includes('duplicate_in_other_month'), 'downloaded departure reports must flag cross-month repeats');
+assert.ok(exportSource.includes("$departureRow['notes'] = $departureNotes;"), 'the XLSX template must receive the duplicate marker through its existing notes field');
 
 assert.deepEqual(Array.from(parser.allocateEvenly('20000', 2)), ['10000', '10000'], 'an evenly divisible sponsorship total should be split equally');
 assert.deepEqual(Array.from(parser.allocateEvenly('4000', 2)), ['2000', '2000'], 'an evenly divisible service total should be split equally');
