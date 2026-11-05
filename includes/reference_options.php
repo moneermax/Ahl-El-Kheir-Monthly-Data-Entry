@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 // Names transcribed from the October reference CSV, plus confirmed additions.
 // The same person may legitimately appear in both lists.
-$mdeEnteredByOptions = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء', 'هناء خلف الله'];
-$mdeSupervisorOptions = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء', 'ح ميساء'];
+$mdeEnteredByOptions = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله'];
+$mdeSupervisorOptions = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء'];
 
 /** Render a Bootstrap dropdown backed by a hidden form value. */
 function mde_person_dropdown(string $id, string $name, array $options, string $placeholder = 'اختر الاسم', string $selected = ''): void
