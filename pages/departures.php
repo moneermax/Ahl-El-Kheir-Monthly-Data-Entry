@@ -10,7 +10,7 @@ $sponsors = $pdo->query(
      ORDER BY sponsor_name'
 )->fetchAll();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) && (string) $_POST['departure_batch'] === '1') {
     try {
         mde_verify_csrf();
         $rows = $_POST['departures'] ?? [];
