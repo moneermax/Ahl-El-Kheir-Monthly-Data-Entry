@@ -21,11 +21,15 @@ function clearPerson(select) { if(!select)return; select.value=''; const root=se
 function normalizeName(value) {
  return String(value||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\u0640/g,'').replace(/\s+/g,' ').trim().toLowerCase();
 }
+function matchingSponsorOptions(select,name) {
+ if(!select||!name)return [];
+ const wanted=normalizeName(name);
+ return [...select.options].filter(option=>option.value&&!option.disabled&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted);
+}
+window.MDEWhatsAppImportHelpers={matchingSponsorOptions};
 function departureSponsorMatches(name) {
  const select=$('#departureSponsor');
- if(!select||!name)return {active:[],inactive:[]};
- const wanted=normalizeName(name);
- const matches=[...select.options].filter(option=>option.value&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted);
+ const matches=matchingSponsorOptions(select,name);
  return {active:matches.filter(option=>option.dataset.active!=='0'),inactive:matches.filter(option=>option.dataset.active==='0')};
 }
 function choose(select,name) {
@@ -41,7 +45,7 @@ function choose(select,name) {
   select.dispatchEvent(new Event('change',{bubbles:true}));
   return true;
  }
- const matches=[...select.options].filter(option=>option.value&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted&&!option.disabled);
+ const matches=matchingSponsorOptions(select,name);
  if(matches.length!==1)return false;
  select.value=matches[0].value;
  select.dispatchEvent(new Event('change',{bubbles:true}));
@@ -50,14 +54,22 @@ function choose(select,name) {
 function applyEntry(record) {
  const payload=Parser.buildEntryFormPayload(record);
  const successfulFields={};
+ let ambiguousSponsor=false;
  const result=Parser.populateEntryForm(payload,{
   setField(field,value) {
    let success=false;
    if(field==='sponsor') {
     const existing=$('#existingSponsor');
-    if(choose(existing,value)){clear($('#sponsorName'));success=true;}
+    const matches=matchingSponsorOptions(existing,value);
+    if(matches.length===1&&choose(existing,value)){clear($('#sponsorName'));success=true;}
+    else if(matches.length>1){if(existing){existing.value='';existing.dispatchEvent(new Event('change',{bubbles:true}));}clear($('#sponsorName'));ambiguousSponsor=true;success=false;}
     else {if(existing){existing.value='';existing.dispatchEvent(new Event('change',{bubbles:true}));}success=set($('#sponsorName'),value);}
-   } else if(field==='file') success=set($('#entryForm').elements.file_number,value);
+   } else if(field==='file') {
+    const fileInput=$('#entryForm').elements.file_number;
+    if(value!=='')success=set(fileInput,value);
+    else if($('#existingSponsor')?.value)success=true;
+    else {clear(fileInput);success=true;}
+   }
    else if(field==='type') success=value?set($('#sponsorType'),value):true;
    else if(field==='date') {success=set($('#entryDate'),value);if(!value)clear($('#entryDate'));}
    else if(field==='entered') {success=value?choose($('#enteredBy'),value):false;if(!success)clearPerson($('#enteredBy'));}
@@ -100,22 +112,25 @@ function applyEntry(record) {
   },
   updateTotals(){window.mdeUpdateAmountTotals?.();}
  });
- return result;
+ return {...result,ambiguousSponsor};
 }
-function applyDeparture(record) {
+function applyDeparture(record,options={}) {
  const payload=Parser.buildDepartureFormPayload(record);
  const payloadFields=payload.fields;
  const existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor');
- const matched=choose(select,payloadFields.sponsor);
- if(matched){
+ const ambiguousSponsor=!!options.ambiguousSponsor;
+ const matched=ambiguousSponsor?false:choose(select,payloadFields.sponsor);
+ const useExistingMode=matched||ambiguousSponsor;
+ if(useExistingMode){
   existingMode.checked=true;
   existingMode.dispatchEvent(new Event('change',{bubbles:true}));
+  if(ambiguousSponsor)clear(select);
  } else {
   newMode.checked=true;
   newMode.dispatchEvent(new Event('change',{bubbles:true}));
  }
  const fields=[
-  ['رقم الملف',matched?'#existingFileNumber':'#newFileNumber',payloadFields.file],
+  ['رقم الملف',useExistingMode?'#existingFileNumber':'#newFileNumber',payloadFields.file],
   ['تاريخ المغادرة','#departureDate',payloadFields.date],
   ['آخر سداد','#lastPaidMonth',payloadFields.lastPaid],
   ['عدد الأيتام','#orphanCount',payloadFields.count],
@@ -123,7 +138,7 @@ function applyDeparture(record) {
   ['الخدمات','#servicesAmount',payloadFields.services],
   ['ملاحظات','#departureNotes',payload.notes]
  ];
- if(!matched){
+ if(!useExistingMode){
   fields.push(
    ['اسم الكفيل','#newSponsorName',payloadFields.sponsor],
    ['نوع الكفيل','#newSponsorType',payloadFields.type],
@@ -156,6 +171,7 @@ function applyDeparture(record) {
  set($('#departureNotes'),notes);
  return {
   matched,
+  ambiguousSponsor,
   populated,
   failed,
   unresolved,
@@ -211,17 +227,15 @@ apply.addEventListener('click',()=>{
  const record=records[Number(select.value)||0];
  if(!record)return;
  if(!hasRequiredFields(record)){status.textContent='تعذر تحميل السجل بأمان. راجع البيانات الناقصة في التنبيهات وأصلح الرسالة قبل إعادة التحليل.';return;}
+ let ambiguousDepartureSponsor=false;
  if(profile==='departure'){
   const matches=departureSponsorMatches(record.sponsor);
-  if(matches.active.length+matches.inactive.length>1){
-   status.textContent='يوجد أكثر من كفيل بالاسم المطابق «'+record.sponsor+'». لم يتم تحميل السجل لتجنب اختيار كفيل خاطئ أو إنشاء سجل مكرر.';
-   return;
-  }
+  ambiguousDepartureSponsor=matches.active.length+matches.inactive.length>1;
  }
  if(!window.confirm('سيتم تحميل البيانات المستخرجة في حقول النموذج. لن يتم حفظ أي بيانات. قد تُستبدل القيم الموجودة. هل تريد المتابعة؟'))return;
  let allocation,population=null;
  if(profile==='entry')allocation=applyEntry(record);
- else {population=applyDeparture(record);allocation={sponsorshipManual:false,servicesManual:false};}
+ else {population=applyDeparture(record,{ambiguousSponsor:ambiguousDepartureSponsor});allocation={sponsorshipManual:false,servicesManual:false};}
  pendingIndex=Number(select.value)||0;
  const manual=[];if(allocation.sponsorshipManual)manual.push('الكفالة');if(allocation.servicesManual)manual.push('الخدمات');
  if(profile==='departure'){
@@ -231,9 +245,13 @@ apply.addEventListener('click',()=>{
   if(population.unresolved.length)parts.push('راجع الأسماء: '+population.unresolved.join('، '));
   if(population.missingDate)parts.push('تاريخ المغادرة غير موجود في الرسالة ويجب إدخاله يدوياً');
   if(population.missingLastPaid)parts.push('آخر سداد غير محسوم ويجب مراجعته يدوياً');
+  if(population.ambiguousSponsor)parts.push('تم تحميل بقية البيانات؛ يوجد أكثر من سجل بهذا الاسم. اختر الكفيل الصحيح من القائمة قبل الحفظ، ولم يتم إنشاء كفيل جديد.');
   status.textContent=parts.join(' · ');
  } else {
-  status.textContent=manual.length?'تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي. ':'';
+  const parts=[];
+  if(allocation.ambiguousSponsor)parts.push('تم تحميل بقية البيانات؛ يوجد أكثر من سجل رئيسي بهذا الاسم. اختر السجل الصحيح من قائمة الكفلاء الموجودين قبل الحفظ، ولم يتم إنشاء كفيل جديد.');
+  if(manual.length)parts.push('تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي.');
+  status.textContent=parts.join(' · ');
  }
 });
 const targetForm=profile==='entry'?$('#entryForm'):document.querySelector('form.card');
