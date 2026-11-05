@@ -99,7 +99,18 @@ foreach ($sponsors as $sponsorGroup) {
 $departureStmt = $pdo->prepare("
  SELECT d.file_number_snapshot, sp.sponsor_name, d.departure_date,
         d.orphan_count_snapshot, d.sponsorship_amount_snapshot,
-        d.services_amount_snapshot, d.last_paid_month, d.notes
+        d.services_amount_snapshot, d.last_paid_month,
+        CASE
+          WHEN NULLIF(d.reason, '') IS NULL THEN COALESCE(d.notes, '')
+          WHEN NULLIF(d.notes, '') IS NULL THEN CONCAT('السبب: ', d.reason)
+          ELSE CONCAT('السبب: ', d.reason, ' | ', d.notes)
+        END AS notes,
+        EXISTS (
+          SELECT 1 FROM mde_sponsor_departures AS other
+          WHERE other.sponsor_id = d.sponsor_id
+            AND other.id <> d.id
+            AND DATE_FORMAT(other.departure_date, '%Y-%m') <> DATE_FORMAT(d.departure_date, '%Y-%m')
+        ) AS duplicate_in_other_month
  FROM mde_sponsor_departures d
  JOIN mde_sponsors sp ON sp.id = d.sponsor_id
  WHERE d.departure_date BETWEEN ? AND ?
@@ -199,7 +210,7 @@ function mde_report_amount(mixed $value): string {
      <td><?= $d['orphan_count_snapshot'] === null ? '' : (int) $d['orphan_count_snapshot'] ?></td>
      <td><?= mde_report_amount($d['sponsorship_amount_snapshot']) ?></td>
      <td><?= $d['services_amount_snapshot'] === null ? '' : mde_report_amount($d['services_amount_snapshot']) ?></td>
-     <td><?= mde_h($d['last_paid_month']) ?></td><td><?= mde_h($d['notes']) ?></td>
+     <td><?= mde_h($d['last_paid_month']) ?></td><td><?= mde_h(trim((string) $d['notes'] . (!empty($d['duplicate_in_other_month']) ? ' | مكرر في شهر آخر' : ''))) ?></td>
     </tr>
    <?php endforeach; ?>
    <?php if (!$departures): ?><tr><td colspan="9" class="text-center">لا توجد مغادرات لهذا الشهر.</td></tr><?php endif; ?>
