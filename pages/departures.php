@@ -26,10 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
         );
         $insertDeparture = $pdo->prepare(
             'INSERT INTO mde_sponsor_departures
-             (sponsor_id, file_number_snapshot, departure_date, last_paid_month,
+             (sponsor_id, sponsor_name_snapshot, file_number_snapshot, departure_date, last_paid_month,
               orphan_count_snapshot, sponsorship_amount_snapshot, services_amount_snapshot,
               entered_by, supervisor_name, reason, notes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)'
         );
         $endSponsorships = $pdo->prepare(
             "UPDATE mde_sponsorships SET status = 'ended', end_date = ?
@@ -99,6 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
                     throw new InvalidArgumentException("السجل رقم {$rowNo}: الكفيل المحدد غير موجود.");
                 }
                 $sponsorType = (string) ($sponsor['sponsor_type'] ?? 'individual');
+                $sponsorNameSnapshot = trim((string) ($row['sponsor_name_snapshot'] ?? ''));
+                if ($sponsorNameSnapshot === '') $sponsorNameSnapshot = (string) $sponsor['sponsor_name'];
                 if ($fileNumber === '') {
                     $fileNumber = (string) ($sponsor['file_number'] ?? '');
                 }
@@ -118,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
                 $insertSponsor->execute([$sponsorName, $newType, $fileNumber !== '' ? $fileNumber : null]);
                 $sponsorId = (int) $pdo->lastInsertId();
                 $sponsorType = $newType;
+                $sponsorNameSnapshot = $sponsorName;
             }
             if (isset($processedSponsorIds[$sponsorId])) {
                 throw new InvalidArgumentException("السجل رقم {$rowNo}: تم اختيار الكفيل نفسه أكثر من مرة داخل الدفعة.");
@@ -130,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
                 throw new InvalidArgumentException("السجل رقم {$rowNo}: مبلغ الخدمات مطلوب للكفيل الفردي.");
             }
             $insertDeparture->execute([
-                $sponsorId, $fileNumber !== '' ? $fileNumber : null, $departureDate, $lastPaidDate,
+                $sponsorId, $sponsorNameSnapshot, $fileNumber !== '' ? $fileNumber : null, $departureDate, $lastPaidDate,
                 $count, $amount, $services,
                 trim((string) ($row['entered_by'] ?? '')) ?: null,
                 trim((string) ($row['supervisor_name'] ?? '')) ?: null,
@@ -218,8 +221,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
                 throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
             }
             $sponsorType = (string) ($sponsor['sponsor_type'] ?? 'individual');
+            $sponsorNameSnapshot = trim((string) ($_POST['sponsor_name_snapshot'] ?? ''));
+            if ($sponsorNameSnapshot === '') $sponsorNameSnapshot = (string) $sponsor['sponsor_name'];
 
-            // The departure form stores a snapshot only; it never edits sponsor identity data.
+            // This editable value is a departure snapshot; it never renames the master sponsor.
             if ($fileNumber === '') {
                 $fileNumber = (string) ($sponsor['file_number'] ?? '');
             }
@@ -250,6 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
             ]);
             $sponsorId = (int) $pdo->lastInsertId();
             $sponsorType = $newSponsorType;
+            $sponsorNameSnapshot = $sponsorName;
         }
 
         if ($count === null && $sponsorType !== 'tree') {
@@ -261,13 +267,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
 
         $stmt = $pdo->prepare(
             'INSERT INTO mde_sponsor_departures
-             (sponsor_id, file_number_snapshot, departure_date, last_paid_month,
+             (sponsor_id, sponsor_name_snapshot, file_number_snapshot, departure_date, last_paid_month,
               orphan_count_snapshot, sponsorship_amount_snapshot, services_amount_snapshot,
               entered_by, supervisor_name, reason, notes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $sponsorId,
+            $sponsorNameSnapshot,
             $fileNumber !== '' ? $fileNumber : null,
             $departureDate,
             $lastPaidDate,
@@ -375,20 +382,18 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                     <td class="seq-cell fw-bold text-center">1</td>
                     <td class="sponsor-span-cell">
                         <div id="existingSponsorFields" class="<?= $selectedMode === 'new' ? 'd-none' : '' ?>">
-                            <label class="form-label required small" for="departureSponsor">الكفيل المسجل</label>
-                            <select class="form-select form-select-sm" name="sponsor_id" id="departureSponsor" <?= $selectedMode === 'existing' ? 'required' : 'disabled' ?>>
-                                <option value="">اختر الكفيل</option>
+                            <label class="form-label required small" for="departureSponsorName">اسم الكفيل (قابل للتعديل)</label>
+                            <input type="text" class="form-control form-control-sm" name="sponsor_name_snapshot" id="departureSponsorName" maxlength="255" value="<?= mde_h($old['sponsor_name_snapshot'] ?? '') ?>" <?= $selectedMode === 'existing' ? 'required' : 'disabled' ?>>
+                            <input type="hidden" name="sponsor_id" id="departureSponsorId" value="<?= mde_h($old['sponsor_id'] ?? '') ?>" <?= $selectedMode === 'new' ? 'disabled' : '' ?>>
+                            <small id="departureSponsorHint" class="text-muted d-block mt-1">يمكن تعديل الاسم ورقم الملف لهذا السجل فقط؛ لن يتغير اسم الكفيل في القائمة الرئيسية.</small>
+                            <select class="d-none" id="departureSponsor" tabindex="-1" aria-hidden="true">
+                                <option value="">مصدر مطابقة داخلي</option>
                                 <?php foreach ($sponsors as $s): ?>
-                                    <option value="<?= (int) $s['id'] ?>"
-                                        data-file="<?= mde_h($s['file_number'] ?? '') ?>"
-                                        data-active="<?= (int) $s['is_active'] ?>"
-                                        <?= (string) ($old['sponsor_id'] ?? '') === (string) $s['id'] ? 'selected' : '' ?>
-                                        >
+                                    <option value="<?= (int) $s['id'] ?>" data-file="<?= mde_h($s['file_number'] ?? '') ?>" data-active="<?= (int) $s['is_active'] ?>">
                                         <?= mde_h($s['sponsor_name']) ?> — <?= !empty($s['file_number']) ? 'ملف ' . mde_h($s['file_number']) . ' · ' : '' ?>سجل #<?= (int) $s['id'] ?><?= !(int) $s['is_active'] ? ' — مغادر سابقاً' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="form-text">يمكن اختيار الكفيل حتى لو كان مسجلاً كمغادر في شهر سابق؛ كل مغادرة تحفظ كسجل شهري مستقل.</div>
                         </div>
                         <div id="newSponsorFields" class="<?= $selectedMode === 'new' ? '' : 'd-none' ?>">
                             <label class="form-label required small" for="newSponsorName">اسم الكفيل الجديد</label>
@@ -462,6 +467,8 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
     const existingFields = document.getElementById('existingSponsorFields');
     const newFields = document.getElementById('newSponsorFields');
     const sponsorSelect = document.getElementById('departureSponsor');
+    const sponsorName = document.getElementById('departureSponsorName');
+    const sponsorId = document.getElementById('departureSponsorId');
     const existingFile = document.getElementById('existingFileNumber');
     const newFile = document.getElementById('newFileNumber');
     const newName = document.getElementById('newSponsorName');
@@ -471,7 +478,9 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         existingFields.classList.toggle('d-none', isNew);
         newFields.classList.toggle('d-none', !isNew);
         sponsorSelect.disabled = isNew;
-        sponsorSelect.required = !isNew;
+        sponsorName.disabled = isNew;
+        sponsorName.required = !isNew;
+        sponsorId.disabled = isNew;
         newName.disabled = !isNew;
         newName.required = isNew;
         document.getElementById('newSponsorType').disabled = !isNew;
@@ -484,12 +493,6 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
 
     existingMode.addEventListener('change', syncMode);
     newMode.addEventListener('change', syncMode);
-    sponsorSelect.addEventListener('change', () => {
-        const option = sponsorSelect.selectedOptions[0];
-        if (option && option.value) {
-            existingFile.value = option.dataset.file || '';
-        }
-    });
     syncMode();
 })();
 </script>
