@@ -16,6 +16,16 @@ const duplicateSponsorOptions = { options: [
 assert.equal(importHelpers.matchingSponsorOptions(duplicateSponsorOptions, 'سلمي حسن الرشيد').length, 2, 'same-name sponsor masters must be detected as ambiguous, not treated as a new sponsor');
 assert.equal(importHelpers.matchingSponsorOptions({ options: [duplicateSponsorOptions.options[1]] }, 'سلمي حسن الرشيد').length, 1, 'file/record suffixes in option labels must not interfere with exact sponsor matching');
 
+const sponsorResolutionSource = { options: [
+ { value: '21', textContent: 'ناصر كباشي احمد — ملف 24 · سجل #21', disabled: false, dataset: { file: '24' } },
+ { value: '22', textContent: 'سلمي حسن الرشيد — ملف 25 · سجل #22', disabled: false, dataset: { file: '25' } },
+ { value: '23', textContent: 'سلمي حسن الرشيد — ملف 26 · سجل #23', disabled: false, dataset: { file: '26' } }
+] };
+assert.equal(importHelpers.resolveDepartureSponsor(sponsorResolutionSource, 'ناصر كباشي احمد', '999').id, '21', 'unique name match remains valid if the message file differs');
+assert.equal(importHelpers.resolveDepartureSponsor(sponsorResolutionSource, 'اسم مكتوب بصورة مختلفة', '24').id, '21', 'unique file match can resolve a variant name');
+assert.equal(importHelpers.resolveDepartureSponsor(sponsorResolutionSource, 'سلمي حسن الرشيد', '26').id, '23', 'file number disambiguates same-name master records');
+assert.equal(importHelpers.resolveDepartureSponsor(sponsorResolutionSource, 'سلمي حسن الرشيد', '99').ambiguous, true, 'ambiguous same-name records are never guessed');
+
 const entryPageSource = fs.readFileSync('pages/entry.php', 'utf8');
 const departurePageSource = fs.readFileSync('pages/departures.php', 'utf8');
 const importSource = fs.readFileSync('assets/js/whatsapp-import.js', 'utf8');
@@ -31,11 +41,14 @@ assert.ok(departurePageSource.includes('foreach ($rows as $index => $row)'), 'ev
 assert.ok(departurePageSource.includes('$pdo->beginTransaction();') && departurePageSource.includes('$pdo->rollBack();'), 'departure batches must be atomic');
 assert.ok(departurePageSource.includes('INSERT INTO mde_sponsor_departures'), 'each batch row must create an independent departure record');
 assert.ok(departurePageSource.includes('id="departureBatchRows"'), 'departure page must render editable per-sponsor batch rows');
+assert.ok(departurePageSource.includes('name="sponsor_name_snapshot"') && departurePageSource.includes('id="departureSponsorName"'), 'departure name is editable and saved as a per-departure snapshot');
+assert.ok(departurePageSource.includes('sponsor_name_snapshot, file_number_snapshot'), 'departure save persists the edited name snapshot');
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
-assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("add(f.date,'departure_date','date')"), 'each batch row must submit its own sponsor and departure date');
-assert.ok(importSource.includes("mode.value='existing'") && importSource.includes('لم يتم العثور على كفيل مطابق'), 'departure batch rows must require selection of an existing sponsor and never display new-sponsor fields');
-assert.ok(importSource.includes('sponsorLabel.textContent=f.sponsor'), 'the parsed sponsor name must remain visible when multiple master records match');
-assert.ok(importSource.includes('fileMatches'), 'a parsed file number must disambiguate same-name sponsor master records');
+assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("name(index,'sponsor_name_snapshot')"), 'batch rows submit master ID and editable name snapshot');
+assert.ok(importSource.includes("add(f.date,'departure_date','date')"), 'each batch row submits its departure date');
+assert.ok(importSource.includes('function resolveDepartureSponsor('), 'departure matching resolves name and file number without a visible sponsor menu');
+assert.ok(importSource.includes('الاسم موجود لأكثر من كفيل'), 'ambiguous same-name records require a unique file number');
+assert.ok(!importSource.includes('رقم الملف في الرسالة لا يطابق رقم الملف المسجل؛ راجع الاختيار'), 'a unique name match is not rejected for a differing file number');
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
@@ -53,6 +66,8 @@ assert.equal((departureColGroup[1].match(/<col style=/g) || []).length, 10, 'dep
 assert.ok(!departurePageSource.includes("if (!(int) $sponsor['is_active'])"), 'inactive sponsors must remain eligible for monthly departure entry');
 assert.ok(!departurePageSource.includes('id="departureReason"'), 'departure form must not invent a separate leave-reason field');
 assert.ok(!importSource.includes('مسجل كمغادر سابقاً. لم يتم تحويله'), 'the importer must not reject a previously departed sponsor');
+assert.ok(reportPageSource.includes("COALESCE(NULLIF(d.sponsor_name_snapshot, ''), sp.sponsor_name) AS sponsor_name"), 'reports display the saved departure name snapshot with legacy fallback');
+assert.ok(exportSource.includes("COALESCE(NULLIF(d.sponsor_name_snapshot, ''), sp.sponsor_name) AS sponsor_name"), 'exports display the saved departure name snapshot with legacy fallback');
 assert.ok(!reportPageSource.includes('duplicate_in_other_month') && !reportPageSource.includes('مكرر في شهر آخر'), 'cross-month departures are valid monthly records and must not be labeled as duplicates in the report');
 assert.ok(!exportSource.includes('duplicate_in_other_month') && !exportSource.includes('مكرر في شهر آخر'), 'downloaded reports must preserve valid cross-month departure rows without duplicate warnings');
 assert.ok(exportSource.includes('$departures = $departureStmt->fetchAll();') && !exportSource.includes('مكرر في شهر آخر'), 'XLSX/CSV/PDF exports must preserve monthly departure rows without injecting cross-month duplicate text');
