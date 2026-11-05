@@ -18,13 +18,22 @@ function clear(el) {
  el.dispatchEvent(new Event('change',{bubbles:true}));
 }
 function clearPerson(select) { if(!select)return; select.value=''; const root=select.closest('[data-person-dropdown]'); if(root){const placeholder=root.querySelector('[data-person-dropdown-option][data-value=""]'); if(placeholder){root.querySelector('[data-person-dropdown-toggle]').textContent=placeholder.textContent.trim();root.querySelectorAll('[data-person-dropdown-option]').forEach(option=>{const active=option===placeholder;option.classList.toggle('active',active);option.setAttribute('aria-checked',active?'true':'false');});}} select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true})); }
+function normalizeName(value) {
+ return String(value||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\u0640/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+}
+function departureSponsorMatches(name) {
+ const select=$('#departureSponsor');
+ if(!select||!name)return {active:[],inactive:[]};
+ const wanted=normalizeName(name);
+ const matches=[...select.options].filter(option=>option.value&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted);
+ return {active:matches.filter(option=>!option.disabled),inactive:matches.filter(option=>option.disabled)};
+}
 function choose(select,name) {
  if (!select || !name) return false;
- const normalize = value => String(value||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\u0640/g,'').replace(/\s+/g,' ').trim().toLowerCase();
- const wanted=normalize(name);
+ const wanted=normalizeName(name);
  if (select.matches('[data-person-dropdown-value]')) {
   const root=select.closest('[data-person-dropdown]');
-  const matches=[...root.querySelectorAll('[data-person-dropdown-option]')].filter(option=>option.dataset.value&&normalize(option.dataset.value)===wanted);
+  const matches=[...root.querySelectorAll('[data-person-dropdown-option]')].filter(option=>option.dataset.value&&normalizeName(option.dataset.value)===wanted);
   if(matches.length!==1)return false;
   select.value=matches[0].dataset.value;
   root.querySelector('[data-person-dropdown-toggle]').textContent=matches[0].textContent.trim();
@@ -32,7 +41,7 @@ function choose(select,name) {
   select.dispatchEvent(new Event('change',{bubbles:true}));
   return true;
  }
- const matches=[...select.options].filter(option=>option.value&&normalize(option.textContent.replace(/—.*$/,'').trim())===wanted&&!option.disabled);
+ const matches=[...select.options].filter(option=>option.value&&normalizeName(option.textContent.replace(/—.*$/,'').trim())===wanted&&!option.disabled);
  if(matches.length!==1)return false;
  select.value=matches[0].value;
  select.dispatchEvent(new Event('change',{bubbles:true}));
@@ -152,6 +161,17 @@ apply.addEventListener('click',()=>{
  const record=records[Number(select.value)||0];
  if(!record)return;
  if(!hasRequiredFields(record)){status.textContent='تعذر تحميل السجل بأمان. راجع البيانات الناقصة في التنبيهات وأصلح الرسالة قبل إعادة التحليل.';return;}
+ if(profile==='departure'){
+  const matches=departureSponsorMatches(record.sponsor);
+  if(matches.active.length+matches.inactive.length>1){
+   status.textContent='يوجد أكثر من كفيل بالاسم المطابق «'+record.sponsor+'». لم يتم تحميل السجل لتجنب اختيار كفيل خاطئ أو إنشاء سجل مكرر.';
+   return;
+  }
+  if(matches.inactive.length===1){
+   status.textContent='الكفيل «'+record.sponsor+'» موجود بالفعل لكنه مسجل كمغادر سابقاً. لم يتم تحويله إلى كفيل جديد؛ راجع سجل المغادرة بدلاً من إنشاء نسخة مكررة.';
+   return;
+  }
+ }
  if(!window.confirm('سيتم تحميل البيانات المستخرجة في حقول النموذج. لن يتم حفظ أي بيانات. قد تُستبدل القيم الموجودة. هل تريد المتابعة؟'))return;
  const allocation=profile==='entry'?applyEntry(record):(applyDeparture(record),{sponsorshipManual:false,servicesManual:false});
  pendingIndex=Number(select.value)||0;
