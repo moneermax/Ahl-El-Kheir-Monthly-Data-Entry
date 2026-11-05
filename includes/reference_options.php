@@ -6,9 +6,18 @@ declare(strict_types=1);
 $mdeEnteredByOptions = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله'];
 $mdeSupervisorOptions = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء'];
 
-/** Render a Bootstrap dropdown backed by a hidden form value. */
-function mde_person_dropdown(string $id, string $name, array $options, string $placeholder = 'اختر الاسم', string $selected = ''): void
+/** Render a personnel picker. Use a native select in the horizontally scrollable entry register. */
+function mde_person_dropdown(string $id, string $name, array $options, string $placeholder = 'اختر الاسم', string $selected = '', bool $nativeSelect = false): void
 {
+    if ($nativeSelect) {
+        echo '<select class="form-select form-select-sm" id="' . mde_h($id) . '" name="' . mde_h($name) . '" data-person-dropdown-value>';
+        echo '<option value="">' . mde_h($placeholder) . '</option>';
+        foreach ($options as $person) {
+            echo '<option value="' . mde_h($person) . '"' . ($selected === $person ? ' selected' : '') . '>' . mde_h($person) . '</option>';
+        }
+        echo '</select>';
+        return;
+    }
     $selectedLabel = $selected !== '' && in_array($selected, $options, true) ? $selected : $placeholder;
     echo '<div class="dropdown mde-person-dropdown" data-person-dropdown>';
     echo '<input type="hidden" id="' . mde_h($id) . '" name="' . mde_h($name) . '" value="' . mde_h($selected) . '" data-person-dropdown-value>';

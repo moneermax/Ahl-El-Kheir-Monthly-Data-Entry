@@ -104,13 +104,7 @@ $departureStmt = $pdo->prepare("
           WHEN NULLIF(d.reason, '') IS NULL THEN COALESCE(d.notes, '')
           WHEN NULLIF(d.notes, '') IS NULL THEN CONCAT('السبب: ', d.reason)
           ELSE CONCAT('السبب: ', d.reason, ' | ', d.notes)
-        END AS notes,
-        EXISTS (
-          SELECT 1 FROM mde_sponsor_departures AS other
-          WHERE other.sponsor_id = d.sponsor_id
-            AND other.id <> d.id
-            AND DATE_FORMAT(other.departure_date, '%Y-%m') <> DATE_FORMAT(d.departure_date, '%Y-%m')
-        ) AS duplicate_in_other_month
+        END AS notes
  FROM mde_sponsor_departures d
  JOIN mde_sponsors sp ON sp.id = d.sponsor_id
  WHERE d.departure_date BETWEEN ? AND ?
@@ -210,7 +204,7 @@ function mde_report_amount(mixed $value): string {
      <td><?= $d['orphan_count_snapshot'] === null ? '' : (int) $d['orphan_count_snapshot'] ?></td>
      <td><?= mde_report_amount($d['sponsorship_amount_snapshot']) ?></td>
      <td><?= $d['services_amount_snapshot'] === null ? '' : mde_report_amount($d['services_amount_snapshot']) ?></td>
-     <td><?= mde_h($d['last_paid_month']) ?></td><td><?php $departureNotes = trim((string) $d['notes']); if (!empty($d['duplicate_in_other_month'])) $departureNotes .= ($departureNotes !== '' ? ' | ' : '') . 'مكرر في شهر آخر'; ?><?= mde_h($departureNotes) ?></td>
+     <td><?= mde_h($d['last_paid_month']) ?></td><td><?= mde_h($d['notes']) ?></td>
     </tr>
    <?php endforeach; ?>
    <?php if (!$departures): ?><tr><td colspan="9" class="text-center">لا توجد مغادرات لهذا الشهر.</td></tr><?php endif; ?>

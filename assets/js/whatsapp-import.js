@@ -37,6 +37,13 @@ function choose(select,name) {
  const wanted=normalizeName(name);
  if (select.matches('[data-person-dropdown-value]')) {
   const root=select.closest('[data-person-dropdown]');
+  if(!root){
+   const matches=[...select.options].filter(option=>option.value&&normalizeName(option.value)===wanted);
+   if(matches.length!==1)return false;
+   select.value=matches[0].value;
+   select.dispatchEvent(new Event('change',{bubbles:true}));
+   return true;
+  }
   const matches=[...root.querySelectorAll('[data-person-dropdown-option]')].filter(option=>option.dataset.value&&normalizeName(option.dataset.value)===wanted);
   if(matches.length!==1)return false;
   select.value=matches[0].dataset.value;
@@ -205,12 +212,17 @@ function renderDepartureBatch(batchRecords) {
   const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');td.append(mode);
   const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';sponsorSelect.removeAttribute('disabled');
   const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
+  const fileMatches=f.file?matches.filter(option=>normalizeName(option.dataset.file)===normalizeName(f.file)):[];
+  const resolvedMatches=f.file?fileMatches:matches;
   mode.value='existing';
-  const hint=document.createElement('small');hint.className='text-danger';
-  if(matches.length===1){sponsorSelect.value=matches[0].value;hint.classList.add('d-none');}
-  else if(matches.length>1){sponsorSelect.value='';hint.textContent='اسم مكرر: اختر سجل الكفيل الصحيح يدوياً';}
-  else{ sponsorSelect.value='';hint.textContent='لم يتم العثور على كفيل مطابق؛ اختر السجل الصحيح من القائمة'; }
-  td.append(sponsorSelect,hint);
+  const sponsorLabel=document.createElement('div');sponsorLabel.className='fw-semibold mb-1';sponsorLabel.textContent=f.sponsor||'اسم الكفيل غير متوفر';
+  const hint=document.createElement('small');hint.className='text-danger d-block';
+  if(resolvedMatches.length===1){sponsorSelect.value=resolvedMatches[0].value;hint.classList.add('d-none');}
+  else if(matches.length>1){sponsorSelect.value='';hint.textContent=f.file?'لم يتطابق رقم الملف مع سجل واحد؛ اختر السجل الصحيح':'توجد عدة سجلات بهذا الاسم؛ اختر السجل الصحيح من القائمة';}
+  else if(matches.length===1&&f.file){sponsorSelect.value='';hint.textContent='رقم الملف في الرسالة لا يطابق رقم الملف المسجل؛ راجع الاختيار';}
+  else if(matches.length===1){sponsorSelect.value=matches[0].value;hint.classList.add('d-none');}
+  else{sponsorSelect.value='';hint.textContent='لم يتم العثور على كفيل مطابق؛ اختر السجل الصحيح من القائمة';}
+  td.append(sponsorLabel,sponsorSelect,hint);
   sponsorSelect.addEventListener('change',()=>{mode.value='existing';hint.classList.add('d-none');});
   const add=(value,field,kind='text')=>{const c=cell();c.append(makeField('input',kind,name(index,field),value));};
   add(f.file,'file_number');

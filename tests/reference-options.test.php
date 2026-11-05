@@ -19,4 +19,10 @@ if (in_array('مياده ساره', $mdeSupervisorOptions, true) || in_array('م
     throw new RuntimeException('Combined spreadsheet cell values must not appear as individual supervisors.');
 }
 
+ob_start();
+mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة', '', true);
+$nativePicker = ob_get_clean();
+if (!str_contains($nativePicker, '<select') || !str_contains($nativePicker, 'data-person-dropdown-value') || str_contains($nativePicker, 'data-bs-toggle="dropdown"')) {
+    throw new RuntimeException('The entry-register personnel picker must use a native select to escape table overflow clipping.');
+}
 echo "Personnel dropdown option tests passed.\\n";

@@ -319,8 +319,8 @@ $lastSavedSponsorName = $pdo->query(
  </td>
  <td class="sponsor-span-cell"><input type="date" class="form-control form-control-sm date-input" name="entry_date" id="entryDate" aria-label="تاريخ الانضمام" required value="<?= date('Y-m-d') ?>"></td>
  <td class="sponsor-span-cell">
-  <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة'); ?>
-  <div class="mt-1"><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'المشرف'); ?></div>
+  <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة', '', true); ?>
+  <div class="mt-1"><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'المشرف', '', true); ?></div>
  </td>
  <td class="sponsor-span-cell"><textarea class="form-control form-control-sm notes-input" name="notes" id="entryNotes" rows="3" aria-label="ملاحظات"></textarea></td>
  </tr></tbody></table>

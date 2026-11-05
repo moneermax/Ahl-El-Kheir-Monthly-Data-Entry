@@ -34,6 +34,8 @@ assert.ok(departurePageSource.includes('id="departureBatchRows"'), 'departure pa
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
 assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("add(f.date,'departure_date','date')"), 'each batch row must submit its own sponsor and departure date');
 assert.ok(importSource.includes("mode.value='existing'") && importSource.includes('لم يتم العثور على كفيل مطابق'), 'departure batch rows must require selection of an existing sponsor and never display new-sponsor fields');
+assert.ok(importSource.includes('sponsorLabel.textContent=f.sponsor'), 'the parsed sponsor name must remain visible when multiple master records match');
+assert.ok(importSource.includes('fileMatches'), 'a parsed file number must disambiguate same-name sponsor master records');
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
@@ -51,8 +53,8 @@ assert.equal((departureColGroup[1].match(/<col style=/g) || []).length, 10, 'dep
 assert.ok(!departurePageSource.includes("if (!(int) $sponsor['is_active'])"), 'inactive sponsors must remain eligible for monthly departure entry');
 assert.ok(!departurePageSource.includes('id="departureReason"'), 'departure form must not invent a separate leave-reason field');
 assert.ok(!importSource.includes('مسجل كمغادر سابقاً. لم يتم تحويله'), 'the importer must not reject a previously departed sponsor');
-assert.ok(reportPageSource.includes('duplicate_in_other_month'), 'on-screen departure reports must flag cross-month repeats');
-assert.ok(exportSource.includes('duplicate_in_other_month'), 'downloaded departure reports must flag cross-month repeats');
+assert.ok(!reportPageSource.includes('duplicate_in_other_month') && !reportPageSource.includes('مكرر في شهر آخر'), 'cross-month departures are valid monthly records and must not be labeled as duplicates in the report');
+assert.ok(!exportSource.includes('duplicate_in_other_month') && !exportSource.includes('مكرر في شهر آخر'), 'downloaded reports must preserve valid cross-month departure rows without duplicate warnings');
 assert.ok(exportSource.includes("$departureRow['notes'] = $departureNotes;"), 'the XLSX template must receive the duplicate marker through its existing notes field');
 
 assert.deepEqual(Array.from(parser.allocateEvenly('20000', 2)), ['10000', '10000'], 'an evenly divisible sponsorship total should be split equally');

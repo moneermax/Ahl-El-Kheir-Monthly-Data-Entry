@@ -194,3 +194,11 @@ Automated checks are structural/parser regression checks plus PHP/JavaScript syn
 - Batch rows contain only an existing-sponsor selector. Exact matches are preselected; ambiguous or unmatched names require manual selection from existing sponsor records. The departure batch never offers to create a new sponsor master record.
 
 These are source-only changes; no database migration or data rewrite is required. Automated regression checks cover the exact supplied new-sponsor message, insertion-ID ordering, plain departure notes, and conditional batch sponsor controls. Browser and MariaDB end-to-end behavior still require local verification.
+
+
+## Monthly departure repeats and entry personnel picker — 2026-11-05
+
+- Repeated departures for the same sponsor in different reporting months are valid independent report rows. Screen and exported reports no longer append a misleading `مكرر في شهر آخر` note.
+- Departure batch review always displays the sponsor name extracted from the WhatsApp message. If the master list has same-name records, a supplied file number is used to resolve the matching master record when it uniquely identifies one; otherwise the row retains the visible name and requires manual selection. This is master-record disambiguation, not a block on a sponsor recurring in another month.
+- New Sponsors page personnel fields (`بواسطة` and `المشرف`) use native select controls. This avoids Bootstrap dropdown clipping by the entry register's horizontal-scroll wrapper. WhatsApp auto-fill supports both native selects and the existing custom picker used on other pages.
+- No database migration is required. Regression coverage checks the native entry picker, visible departure sponsor label/file-number matching, and the absence of cross-month duplicate warnings in screen and exported reports.
