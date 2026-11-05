@@ -87,6 +87,7 @@ The workbook and messages contain two source discrepancies that are deliberately
 - Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
 - If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained. The full `هبه خلف الله` value from the reported message is included in both applicable dropdown lists.
 - Departure source reason text is folded into the general notes field; the departure page has no separate leave-reason control.
+- If a sponsor name matches multiple master records, the importer loads the remaining message data but leaves the sponsor selection blank and requires manual selection. Existing options show file number and record ID. It must never silently turn an ambiguous existing sponsor into a new master record.
 - The existing multi-record queue, explicit user confirmation, save button, expected-total validation, and remove-after-successful-save flow remain in the DOM integration module.
 - Previously departed sponsors remain selectable for a new month's departure record; inactive status is informational, not a parser/import rejection.
 - A tested departure payload builder combines any extracted reason with general notes, matching the source workbook's single-notes-field structure.
