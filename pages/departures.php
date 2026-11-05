@@ -203,14 +203,15 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         <table class="entry-register departure-register" id="departureRegister">
             <colgroup>
                 <col style="width:3%">
-                <col style="width:20%">
+                <col style="width:18%">
                 <col style="width:8%">
                 <col style="width:10%">
                 <col style="width:8%">
                 <col style="width:6%">
                 <col style="width:9%">
                 <col style="width:8%">
-                <col style="width:28%">
+                <col style="width:13%">
+                <col style="width:17%">
             </colgroup>
             <thead>
                 <tr>
