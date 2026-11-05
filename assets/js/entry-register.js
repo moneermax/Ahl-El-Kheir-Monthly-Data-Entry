@@ -7,7 +7,7 @@
  const sponsorCells=[...$('sponsorCellsTemplate').content.querySelector('tr').children];
  const preCells=sponsorCells.slice(0,4),postCells=sponsorCells.slice(4);   // before the mother cell / after the amounts
  const q=sel=>sponsorCells.map(c=>c.querySelector(sel)).find(Boolean);
- const existing=q('#existingSponsor'),sponsorName=q('#sponsorName'),sponsorType=q('#sponsorType');
+ const existing=q('#existingSponsor'),sponsorName=q('#sponsorName'),sponsorType=q('#sponsorType'),fileNumber=q('#fileNumber');
  const motherCells=new Map();
  const expectedSponsorship=$('expectedSponsorship'),expectedServices=$('expectedServices');
  const actualSponsorship=$('actualSponsorship'),actualServices=$('actualServices'),amountCheck=$('amountCheck'),entryForm=$('entryForm');
@@ -89,7 +89,7 @@
  function syncSponsorMode(){
   const isExisting=!!existing.value;sponsorName.required=!isExisting;sponsorName.disabled=isExisting;
   sponsorName.placeholder=isExisting?'من الكفيل المحدد':'اسم الكفيل الجديد';
-  if(isExisting){sponsorName.value='';sponsorType.value=existing.selectedOptions[0].dataset.type||'individual';}
+  if(isExisting){sponsorName.value='';sponsorType.value=existing.selectedOptions[0].dataset.type||'individual';if(existing.selectedOptions[0].dataset.file)fileNumber.value=existing.selectedOptions[0].dataset.file;}
   else sponsorType.value='individual';
  }
 
