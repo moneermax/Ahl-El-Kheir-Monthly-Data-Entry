@@ -244,13 +244,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $lastSavedSponsorName = $pdo->query(
-    'SELECT s.sponsor_name
-     FROM mde_monthly_sponsorship_entries AS monthly
-     INNER JOIN mde_sponsorships AS sponsorship
-        ON sponsorship.id = monthly.sponsorship_id
-     INNER JOIN mde_sponsors AS s
-        ON s.id = sponsorship.sponsor_id
-     ORDER BY monthly.id DESC
+    'SELECT sponsor_name
+     FROM mde_sponsors
+     ORDER BY id DESC
      LIMIT 1'
 )->fetchColumn();
 ?>
@@ -264,7 +260,7 @@ $lastSavedSponsorName = $pdo->query(
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
 <?php if (is_string($lastSavedSponsorName) && trim($lastSavedSponsorName) !== ''): ?>
 <div class="alert alert-danger border-danger border-2 py-2 px-3 mb-2 fw-bold text-center" role="status" aria-live="polite">
- <span>آخر كفيل تم إدخاله وحفظه بنجاح:</span>
+ <span>آخر كفيل جديد تم تسجيله:</span>
  <span class="fs-5"><?= mde_h($lastSavedSponsorName) ?></span>
 </div>
 <?php endif; ?>
