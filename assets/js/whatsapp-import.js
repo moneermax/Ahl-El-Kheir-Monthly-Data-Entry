@@ -205,21 +205,14 @@ function renderDepartureBatch(batchRecords) {
   const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');td.append(mode);
   const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';sponsorSelect.removeAttribute('disabled');
   const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
-  const newFields=document.createElement('div');newFields.className='departure-new-sponsor-fields mt-1';
-  const newName=makeField('input','text',name(index,'new_sponsor_name'),f.sponsor,'اسم كفيل جديد');newName.maxLength=255;
-  const type=makeField('select','',name(index,'new_sponsor_type'),f.type);
-  [['individual','فردي'],['tree','🌳 شجرة (داخلي)']].forEach(([v,label])=>{const o=document.createElement('option');o.value=v;o.textContent=label;type.append(o);});
-  type.value=f.type;newFields.append(newName,type);
-  const hint=document.createElement('small');hint.className='text-danger d-none';hint.textContent='اسم مكرر: اختر السجل الصحيح يدوياً';
-  if(matches.length===1){sponsorSelect.value=matches[0].value;mode.value='existing';newName.disabled=true;type.disabled=true;newFields.classList.add('d-none');}
-  else if(matches.length>1){sponsorSelect.value='';mode.value='existing';newName.disabled=true;type.disabled=true;newFields.classList.add('d-none');hint.classList.remove('d-none');}
-  else{mode.value='new';newName.disabled=false;type.disabled=false;}
-  td.append(sponsorSelect,newFields,hint);
-  sponsorSelect.addEventListener('change',()=>{
-   if(sponsorSelect.value){mode.value='existing';newName.disabled=true;type.disabled=true;newFields.classList.add('d-none');}
-   else if(matches.length>1){mode.value='existing';newName.disabled=true;type.disabled=true;newFields.classList.add('d-none');hint.classList.remove('d-none');}
-   else{mode.value='new';newName.disabled=false;type.disabled=false;newFields.classList.remove('d-none');hint.classList.add('d-none');}
-  });
+  mode.value='existing';
+  const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
+  const hint=document.createElement('small');hint.className='text-danger';
+  if(matches.length===1){sponsorSelect.value=matches[0].value;hint.classList.add('d-none');}
+  else if(matches.length>1){sponsorSelect.value='';hint.textContent='اسم مكرر: اختر سجل الكفيل الصحيح يدوياً';}
+  else{ sponsorSelect.value='';hint.textContent='لم يتم العثور على كفيل مطابق؛ اختر السجل الصحيح من القائمة'; }
+  td.append(sponsorSelect,hint);
+  sponsorSelect.addEventListener('change',()=>{mode.value='existing';hint.classList.add('d-none');});
   const add=(value,field,kind='text')=>{const c=cell();c.append(makeField('input',kind,name(index,field),value));};
   add(f.file,'file_number');
   add(f.date,'departure_date','date');

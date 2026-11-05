@@ -33,7 +33,7 @@ assert.ok(departurePageSource.includes('INSERT INTO mde_sponsor_departures'), 'e
 assert.ok(departurePageSource.includes('id="departureBatchRows"'), 'departure page must render editable per-sponsor batch rows');
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
 assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("add(f.date,'departure_date','date')"), 'each batch row must submit its own sponsor and departure date');
-assert.ok(importSource.includes('departure-new-sponsor-fields') && importSource.includes("newFields.classList.add('d-none')"), 'new-sponsor name/type controls must be hidden for existing or ambiguous sponsor matches');
+assert.ok(importSource.includes("mode.value='existing'") && importSource.includes('لم يتم العثور على كفيل مطابق'), 'departure batch rows must require selection of an existing sponsor and never display new-sponsor fields');
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');

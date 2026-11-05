@@ -191,6 +191,6 @@ Automated checks are structural/parser regression checks plus PHP/JavaScript syn
 ### Departures page — `pages/departures.php`
 
 - WhatsApp departure reasons remain in the notes field as plain text; the importer no longer prepends `السبب كما ورد:`.
-- Batch rows show the new-sponsor name/type controls only when the parsed sponsor does not match an existing master record. Existing matches show only the sponsor selector; ambiguous matches show the selector and a disambiguation hint. The selector remains available so an operator can choose another existing record.
+- Batch rows contain only an existing-sponsor selector. Exact matches are preselected; ambiguous or unmatched names require manual selection from existing sponsor records. The departure batch never offers to create a new sponsor master record.
 
 These are source-only changes; no database migration or data rewrite is required. Automated regression checks cover the exact supplied new-sponsor message, insertion-ID ordering, plain departure notes, and conditional batch sponsor controls. Browser and MariaDB end-to-end behavior still require local verification.
