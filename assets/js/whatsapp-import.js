@@ -143,7 +143,7 @@ analyze.addEventListener('click',()=>{
  pendingIndex=null;
  try{sessionStorage.removeItem(storageKey);sessionStorage.removeItem(pendingKey);}catch(error){}
  const contextDate=profile==='entry'?$('#entryDate')?.value:$('#departureDate')?.value;
- records=Parser.applyMessageLevelFields(Parser.split(raw).map((part,index)=>profile==='entry'?Parser.entry(part,index,contextDate):Parser.departure(part,index,contextDate)),raw);
+ records=profile==='entry'?Parser.applyMessageLevelFields(Parser.split(raw).map((part,index)=>Parser.entry(part,index,contextDate)),raw):Parser.splitDepartures(raw,contextDate);
  render();
  status.textContent=records.length>1?'تم العثور على '+records.length+' سجلات منفصلة. اختر سجلاً لتحميله في النموذج.':'';
 });
