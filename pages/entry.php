@@ -82,7 +82,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insertMotherStmt = $pdo->prepare('INSERT INTO mde_mothers (mother_name) VALUES (?)');
         $findOrphanStmt = $pdo->prepare('SELECT id FROM mde_orphans WHERE mother_id = ? AND orphan_name = ? ORDER BY id LIMIT 2 FOR UPDATE');
         $insertOrphanStmt = $pdo->prepare('INSERT INTO mde_orphans (mother_id, orphan_name) VALUES (?, ?)');
-        $findLinksStmt = $pdo->prepare('SELECT id, status, start_date, end_date FROM mde_sponsorships WHERE sponsor_id = ? AND orphan_id = ? ORDER BY id FOR UPDATE');
+        $findLinksStmt = $pdo->prepare("SELECT rel.id, rel.status, rel.start_date, rel.end_date,
+            (SELECT MIN(d.departure_date) FROM mde_sponsor_departures AS d
+             WHERE d.sponsor_id = rel.sponsor_id AND d.departure_date >= rel.start_date) AS recorded_end_date
+            FROM mde_sponsorships AS rel
+            WHERE rel.sponsor_id = ? AND rel.orphan_id = ? ORDER BY rel.id FOR UPDATE");
         $insertSponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
         $findMonthlyStmt = $pdo->prepare('SELECT me.id FROM mde_monthly_sponsorship_entries AS me INNER JOIN mde_sponsorships AS rel ON rel.id = me.sponsorship_id WHERE rel.sponsor_id = ? AND rel.orphan_id = ? AND me.report_month = ? LIMIT 1 FOR UPDATE');
         $monthlyStmt = $pdo->prepare('INSERT INTO mde_monthly_sponsorship_entries (sponsorship_id, report_month, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
@@ -146,10 +150,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($link['start_date'] > $entryDate) {
                         return false;
                     }
-                    if ($link['status'] === 'ended') {
-                        return $link['end_date'] !== null && $link['end_date'] >= $entryDate;
+                    $effectiveEndDate = $link['end_date'];
+                    if ($link['recorded_end_date'] !== null
+                        && ($effectiveEndDate === null || $link['recorded_end_date'] < $effectiveEndDate)) {
+                        $effectiveEndDate = $link['recorded_end_date'];
                     }
-                    return $link['end_date'] === null || $link['end_date'] >= $entryDate;
+                    if ($link['status'] === 'ended' && $effectiveEndDate === null) {
+                        return false;
+                    }
+                    return $effectiveEndDate === null || $effectiveEndDate >= $entryDate;
                 }));
                 if (count($eligibleLinks) > 1) {
                     throw new InvalidArgumentException('توجد أكثر من فترة كفالة تغطي تاريخ الإدخال لهذا الكفيل واليتيم. أوقفنا الحفظ حتى تتم مراجعة الفترات التاريخية.');
@@ -159,13 +168,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException('توجد كفالة معلّقة تغطي تاريخ الإدخال لهذا الكفيل واليتيم. راجع حالتها قبل إدخال الشهر.');
                 }
 
-                $futureActiveLinks = array_filter($links, static fn(array $link): bool =>
-                    $link['status'] === 'active' && $link['start_date'] > $entryDate
-                );
+                $futureLinks = array_filter($links, static fn(array $link): bool => $link['start_date'] > $entryDate);
                 if ($eligibleLinks) {
                     $sponsorshipId = (int) $eligibleLinks[0]['id'];
                 } else {
-                    if ($futureActiveLinks) {
+                    if ($futureLinks) {
                         throw new InvalidArgumentException('تاريخ الإدخال أسبق من بداية الكفالة الحالية، ولا يوجد سجل تاريخي يغطي هذا التاريخ. راجع تاريخ الانضمام والمغادرة قبل الحفظ.');
                     }
                     // Create a distinct episode only when no recorded relationship covers this date.
