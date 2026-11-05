@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch'])) {
              WHERE sponsor.id = ?"
         );
         $savedCount = 0;
+        $processedSponsorIds = [];
         foreach ($rows as $index => $row) {
             $rowNo = (int) $index + 1;
             if (!is_array($row)) {
@@ -118,6 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch'])) {
                 $sponsorId = (int) $pdo->lastInsertId();
                 $sponsorType = $newType;
             }
+            if (isset($processedSponsorIds[$sponsorId])) {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: تم اختيار الكفيل نفسه أكثر من مرة داخل الدفعة.");
+            }
+            $processedSponsorIds[$sponsorId] = true;
             if ($count === null && $sponsorType !== 'tree') {
                 throw new InvalidArgumentException("السجل رقم {$rowNo}: عدد الأيتام مطلوب للكفيل الفردي.");
             }

@@ -32,7 +32,7 @@ assert.ok(departurePageSource.includes('$pdo->beginTransaction();') && departure
 assert.ok(departurePageSource.includes('INSERT INTO mde_sponsor_departures'), 'each batch row must create an independent departure record');
 assert.ok(departurePageSource.includes('id="departureBatchRows"'), 'departure page must render editable per-sponsor batch rows');
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
-assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("name(index,'departure_date')"), 'each batch row must submit its own sponsor and departure date');
+assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("add(f.date,'departure_date','date')"), 'each batch row must submit its own sponsor and departure date');
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
