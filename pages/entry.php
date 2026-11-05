@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 $error = '';
 require_once __DIR__ . '/../includes/reference_options.php';
-$existingSponsors = $pdo->query('SELECT id, sponsor_name, sponsor_type FROM mde_sponsors ORDER BY sponsor_name')->fetchAll();
+$existingSponsors = $pdo->query('SELECT id, sponsor_name, sponsor_type, file_number FROM mde_sponsors ORDER BY sponsor_name, id')->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         mde_verify_csrf();
@@ -310,7 +310,7 @@ $lastSavedSponsorName = $pdo->query(
  <table><tbody><tr>
  <td class="sponsor-span-cell seq-cell"><span class="fw-bold" title="يُحدَّد الرقم التسلسلي في التقرير الشهري">—</span></td>
  <td class="sponsor-span-cell">
-  <select class="form-select form-select-sm mb-1" name="existing_sponsor_id" id="existingSponsor" aria-label="إضافة إلى كفيل موجود (اختياري)" title="إضافة إلى كفيل موجود (اختياري)"><option value="">— كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>"><?= mde_h($existing['sponsor_name']) ?></option><?php endforeach; ?></select>
+  <select class="form-select form-select-sm mb-1" name="existing_sponsor_id" id="existingSponsor" aria-label="إضافة إلى كفيل موجود (اختياري)" title="إضافة إلى كفيل موجود (اختياري)"><option value="">— كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>" data-file="<?= mde_h($existing['file_number'] ?? '') ?>"><?= mde_h($existing['sponsor_name']) ?> — <?= !empty($existing['file_number']) ? 'ملف ' . mde_h($existing['file_number']) . ' · ' : '' ?>سجل #<?= (int)$existing['id'] ?></option><?php endforeach; ?></select>
   <input class="form-control form-control-sm" name="sponsor_name" id="sponsorName" maxlength="255" placeholder="اسم الكفيل الجديد" aria-label="اسم الكفيل">
  </td>
  <td class="sponsor-span-cell">
