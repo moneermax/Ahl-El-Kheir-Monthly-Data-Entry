@@ -462,11 +462,11 @@ assert.deepEqual(Array.from(groupedRecords, r => r.sponsor), [
 ]);
 assert.deepEqual(Array.from(groupedRecords, r => r.file), ['25', '25', '24', '🌳']);
 assert.deepEqual(Array.from(groupedRecords, r => r.sponsorship), ['100000', '27000', '10000', '2000']);
-assert.deepEqual(Array.from(groupedRecords, r => r.services), ['20000', '2000', '2000', '0']);
+assert.deepEqual(Array.from(groupedRecords, r => r.services), ['20000', '2000', '2000', '']);
 assert.deepEqual(Array.from(groupedRecords, r => r.lastPaid), ['2026-09', '2026-10', '2026-08', '2026-10']);
 assert.equal(groupedRecords[0].notes.includes('ما داخل قروب'), true);
 assert.equal(groupedRecords[3].type, 'tree');
-assert.equal(groupedRecords[3].count, '0');
+assert.equal(groupedRecords[3].count, '', 'tree orphan count remains blank when the source omits it');
 assert.ok(groupedRecords.every(r => r.date === '2026-10-31'));
 
 // A single cancellation message must ignore its title/file heading and find
@@ -575,5 +575,72 @@ assert.ok(octoberDepartures[5].notes.includes('مسددة إلى شهر ديسم
 assert.ok(octoberDepartures.every(r => !r.sponsor.includes('قائمة إلغاء')));
 assert.ok(octoberDepartures.every(r => !r.date), 'the source does not provide a day/date; do not invent one');
 assert.ok(octoberDepartures.every(r => r.warnings.some(w => w.includes('تاريخ المغادرة'))), 'missing departure date must remain visible for manual completion');
+
+
+// Real previous-month WhatsApp message: repeated/missing sequence numbers,
+// unlabelled slash amount pairs, month-only last-payment values, one shared
+// departure date at the end, and a tree sponsor with no service/count fields.
+const mixedStyleDeparture = [
+  'ملف 25',
+  '1• انس فتح الرحمن احمد محمد',
+  '100.000/20.000',
+  'عدد الايتام 10',
+  'ماداخل قروب',
+  'السبب عدم تواجده في الواتس والاتصال',
+  'غير متاح',
+  'اخر سداد سبتمبر',
+  '2•التجاني محمد الشايب',
+  'سبتمبر /اكتوبر',
+  'عدد الايتام 1',
+  '27.000/2000',
+  'داخل قروب الشجرة رجال ح ياخد فرصه لحين السداد',
+  'السبب عدم الرد في الواتس والاتصال',
+  '3• آمن عمر عبد الحليم',
+  'اخر سداد اكتوبر',
+  'عدد الايتام :2',
+  '30000/4000',
+  'طلب الالغاء ليس لديه علي المقدرة علي الالتزام',
+  'ملف 24',
+  '3• ابو عمر محمد يونس',
+  'عددالايتام : 4',
+  '50000/8000',
+  'ماداخل قروب',
+  'نسبة لتواجده في الخلا ح يرجع ويسدد',
+  'اخر سداد سبتمبر',
+  '5• ايهاب عمر علي',
+  'عدد الايتام :1',
+  'سبتمبر/اكتوبر',
+  '28000/2000',
+  'ما داخل قروب',
+  'السبب عايز مهله لحين توفر المال وسيسدد',
+  'ملف الشجرة',
+  '6• الطيب عثمان جمعه',
+  '2000',
+  'اكتوبر',
+  '31/10/2026'
+].join('\n');
+const mixedStyleRecords = parser.splitDepartures(mixedStyleDeparture, '2026-11-05');
+assert.equal(mixedStyleRecords.length, 6, 'repeated/missing sequence numbers and numeric slash values must still produce six records');
+assert.deepEqual(Array.from(mixedStyleRecords, r => r.sponsor), [
+  'انس فتح الرحمن احمد محمد',
+  'التجاني محمد الشايب',
+  'آمن عمر عبد الحليم',
+  'ابو عمر محمد يونس',
+  'ايهاب عمر علي',
+  'الطيب عثمان جمعه'
+]);
+assert.deepEqual(Array.from(mixedStyleRecords, r => r.file), ['25', '25', '25', '24', '24', '🌳']);
+assert.deepEqual(Array.from(mixedStyleRecords, r => r.count), ['10', '1', '2', '4', '1', '']);
+assert.deepEqual(Array.from(mixedStyleRecords, r => r.sponsorship), ['100000', '27000', '30000', '50000', '28000', '2000']);
+assert.deepEqual(Array.from(mixedStyleRecords, r => r.services), ['20000', '2000', '4000', '8000', '2000', '']);
+assert.deepEqual(Array.from(mixedStyleRecords, r => r.lastPaid), ['2026-09', '2026-10', '2026-10', '2026-09', '2026-10', '2026-10']);
+assert.ok(mixedStyleRecords.every(r => r.date === '2026-10-31'), 'one final date applies to every record in this message');
+assert.equal(mixedStyleRecords[1].type, 'individual', 'mentioning a tree group in a note does not make the sponsor a tree');
+assert.equal(mixedStyleRecords[5].type, 'tree');
+assert.equal(mixedStyleRecords[5].count, '', 'tree orphan count is not fabricated as zero');
+assert.equal(mixedStyleRecords[5].sponsorship, '2000', 'a single tree amount is sponsorship');
+assert.equal(mixedStyleRecords[5].services, '', 'an omitted tree service fee remains blank');
+assert.match(mixedStyleRecords[1].notes, /سبتمبر \\/اكتوبر/, 'the source month range is retained in notes');
+assert.ok(mixedStyleRecords.every(r => r.warnings.length === 0), 'recognized source formats should not produce false unrecognized-line warnings');
 
 console.log('WhatsApp parser tests passed.');
