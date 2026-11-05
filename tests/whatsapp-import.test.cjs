@@ -32,7 +32,7 @@ const importSource = fs.readFileSync('assets/js/whatsapp-import.js', 'utf8');
 const entryRegisterSource = fs.readFileSync('assets/js/entry-register.js', 'utf8');
 const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
 const exportSource = fs.readFileSync('export.php', 'utf8');
-assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC') || entryPageSource.includes('FROM mde_sponsors ORDER BY id DESC LIMIT 1'), 'last sponsor indicator must use a deterministic latest-record rule');
+assert.ok(entryPageSource.includes('FROM mde_sponsors ORDER BY id DESC LIMIT 1'), 'last sponsor indicator must show the most recently created sponsor master record');
 assert.ok(entryPageSource.includes('data-file='), 'existing sponsor choices must expose their file number for safe manual disambiguation');
 assert.ok(entryPageSource.includes('سجل #<?= (int)$existing[\'id\'] ?>'), 'entry sponsor options must expose a stable record identifier when names repeat');
 assert.ok(departurePageSource.includes('سجل #<?= (int) $s[\'id\'] ?>'), 'departure sponsor options must expose a stable record identifier when names repeat');
@@ -49,11 +49,13 @@ assert.ok(importSource.includes("add(f.date,'departure_date','date')"), 'each ba
 assert.ok(importSource.includes('function resolveDepartureSponsor('), 'departure matching resolves name and file number without a visible sponsor menu');
 assert.ok(importSource.includes('الاسم موجود لأكثر من كفيل'), 'ambiguous same-name records require a unique file number');
 assert.ok(!importSource.includes('رقم الملف في الرسالة لا يطابق رقم الملف المسجل؛ راجع الاختيار'), 'a unique name match is not rejected for a differing file number');
+assert.ok(!importSource.includes('سيُحفظ الاسم ورقم الملف في سجل المغادرة فقط.'), 'the test-only departure snapshot hint must not be shown');
+assert.ok(importSource.includes("hint.textContent=result.message||'';hint.hidden=!result.message"), 'departure resolution hints appear only when there is an actual matching issue');
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
 assert.ok(entryRegisterSource.includes("fileNumber.value=existing.selectedOptions[0].dataset.file||''"), 'manual sponsor selection must restore or clear its master file number');
-assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC') || entryPageSource.includes('FROM mde_sponsors ORDER BY id DESC LIMIT 1'), 'the last-sponsor indicator must use a deterministic insertion-order rule');
+assert.ok(entryPageSource.includes('FROM mde_sponsors ORDER BY id DESC LIMIT 1'), 'the last-sponsor indicator must follow the newest sponsor master ID, not a monthly row');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
 assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
 assert.ok(entryPageSource.includes("$link['status'] === 'ended'"), 'historical monthly entries must reuse the sponsorship episode whose dates cover the entry');
