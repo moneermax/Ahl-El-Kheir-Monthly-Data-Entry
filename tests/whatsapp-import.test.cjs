@@ -646,4 +646,34 @@ const mixedStyleWithoutFormDate = parser.splitDepartures(mixedStyleDeparture, ''
 assert.ok(mixedStyleWithoutFormDate.every(r => r.date === '2026-10-31'), 'the message date supplies the departure year when the form date is blank');
 assert.deepEqual(Array.from(mixedStyleWithoutFormDate, r => r.lastPaid), ['2026-09', '2026-10', '2026-10', '2026-09', '2026-10', '2026-10'], 'the shared departure date also supplies the year for month-only last-payment values');
 
+
+// October workbook-derived tree cases: fixed sponsorship-only rows, a tree row
+// with an explicit service fee, and an explicit zero orphan count.
+const octoberTreeCases = parser.splitDepartures([
+  'ملف الشجرة',
+  'سلافه عباس سيد',
+  '5000',
+  'اخر سداد اغسطس',
+  'مرافئ علي محمد',
+  '5000/1000',
+  'اخر سداد اغسطس',
+  'بتول النعيم الصديق احمد',
+  'عدد الايتام 0',
+  '5000',
+  'اخر سداد اغسطس',
+  'واقد الطيب عثمان',
+  '5000',
+  'اخر سداد اكتوبر',
+  '31/10/2026'
+].join('\n'), '');
+assert.equal(octoberTreeCases.length, 4);
+assert.deepEqual(Array.from(octoberTreeCases, r => r.sponsor), [
+  'سلافه عباس سيد', 'مرافئ علي محمد', 'بتول النعيم الصديق احمد', 'واقد الطيب عثمان'
+]);
+assert.deepEqual(Array.from(octoberTreeCases, r => r.count), ['', '', '0', '']);
+assert.deepEqual(Array.from(octoberTreeCases, r => r.sponsorship), ['5000', '5000', '5000', '5000']);
+assert.deepEqual(Array.from(octoberTreeCases, r => r.services), ['', '1000', '', '']);
+assert.deepEqual(Array.from(octoberTreeCases, r => r.lastPaid), ['2026-08', '2026-08', '2026-08', '2026-10']);
+assert.ok(octoberTreeCases.every(r => r.type === 'tree' && r.date === '2026-10-31' && r.warnings.length === 0));
+
 console.log('WhatsApp parser tests passed.');
