@@ -202,3 +202,12 @@ These are source-only changes; no database migration or data rewrite is required
 - Departure batch review always displays the sponsor name extracted from the WhatsApp message. If the master list has same-name records, a supplied file number is used to resolve the matching master record when it uniquely identifies one; otherwise the row retains the visible name and requires manual selection. This is master-record disambiguation, not a block on a sponsor recurring in another month.
 - New Sponsors page personnel fields (`بواسطة` and `المشرف`) use native select controls. This avoids Bootstrap dropdown clipping by the entry register's horizontal-scroll wrapper. WhatsApp auto-fill supports both native selects and the existing custom picker used on other pages.
 - No database migration is required. Regression coverage checks the native entry picker, visible departure sponsor label/file-number matching, and the absence of cross-month duplicate warnings in screen and exported reports.
+
+
+## Departure name snapshots and personnel alias cleanup — 2026-11-05
+
+- Departure entry now uses an editable sponsor-name field, not a visible sponsor-selection menu. The master sponsor ID is resolved by a unique exact name or unique file number; duplicate names require a file number that identifies one record.
+- Name and file number are stored as per-departure snapshots. Correcting one monthly record does not rename the master sponsor. Reports and exports use the saved snapshot with a legacy fallback.
+- Migration 008 adds and backfills the name snapshot column. Apply once after migration 007; no request-time DDL.
+- Personnel option lists collapse a leading standalone `ح` role prefix for duplicate detection, so `ح ميساء` is not listed separately from `ميساء`; distinct full names remain distinct.
+- Regression coverage includes unique-name matching despite a file mismatch, unique file-number fallback, duplicate-name disambiguation, editable snapshot persistence, report/export fallback, and role-prefix deduplication. CI does not replace live browser/MariaDB verification.
