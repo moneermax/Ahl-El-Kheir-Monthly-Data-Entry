@@ -211,3 +211,11 @@ These are source-only changes; no database migration or data rewrite is required
 - Migration 008 adds and backfills the name snapshot column. Apply once after migration 007; no request-time DDL.
 - Personnel option lists collapse a leading standalone `ح` role prefix for duplicate detection, so `ح ميساء` is not listed separately from `ميساء`; distinct full names remain distinct.
 - Regression coverage includes unique-name matching despite a file mismatch, unique file-number fallback, duplicate-name disambiguation, editable snapshot persistence, report/export fallback, and role-prefix deduplication. CI does not replace live browser/MariaDB verification.
+
+
+## Last-added sponsor indicator and departure hint cleanup — 2026-11-05
+
+- The New Sponsors page indicator now reads the sponsor master table ordered by descending sponsor ID. It therefore shows the most recently created sponsor record, rather than the sponsor attached to the latest monthly sponsorship row (which could be an existing sponsor re-entered for another month).
+- The indicator label now explicitly says it is the last new sponsor registered.
+- Removed the test-only fallback sentence from departure name/file resolution. The inline hint is hidden when sponsor matching has no issue and appears only when manual correction or disambiguation is needed.
+- No database migration or data rewrite is required. Regression tests cover the master-record ordering and absence of the test-only hint.
