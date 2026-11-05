@@ -20,7 +20,7 @@ assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'),
 assert.ok(entryPageSource.includes("$link['status'] === 'ended'"), 'historical monthly entries must reuse the sponsorship episode whose dates cover the entry');
 assert.ok(entryPageSource.includes('$futureActiveLinks'), 'an earlier entry must not be attached to a later sponsorship episode');
 assert.ok(departurePageSource.includes('start_date <= ?'), 'a past departure must not end a later sponsorship episode');
-const departureColGroup = departurePageSource.match(/<colgroup>([\\s\\S]*?)<\\/colgroup>/);
+const departureColGroup = departurePageSource.match(/<colgroup>([\s\S]*?)<\/colgroup>/);
 assert.ok(departureColGroup, 'departure register must retain a column group');
 assert.equal((departureColGroup[1].match(/<col style=/g) || []).length, 10, 'departure register must retain one width per table column');
 assert.ok(!departurePageSource.includes("if (!(int) $sponsor['is_active'])"), 'inactive sponsors must remain eligible for monthly departure entry');
