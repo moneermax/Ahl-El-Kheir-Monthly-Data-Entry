@@ -210,7 +210,7 @@ function mde_report_amount(mixed $value): string {
      <td><?= $d['orphan_count_snapshot'] === null ? '' : (int) $d['orphan_count_snapshot'] ?></td>
      <td><?= mde_report_amount($d['sponsorship_amount_snapshot']) ?></td>
      <td><?= $d['services_amount_snapshot'] === null ? '' : mde_report_amount($d['services_amount_snapshot']) ?></td>
-     <td><?= mde_h($d['last_paid_month']) ?></td><td><?= mde_h(trim((string) $d['notes'] . (!empty($d['duplicate_in_other_month']) ? ' | مكرر في شهر آخر' : ''))) ?></td>
+     <td><?= mde_h($d['last_paid_month']) ?></td><td><?php $departureNotes = trim((string) $d['notes']); if (!empty($d['duplicate_in_other_month'])) $departureNotes .= ($departureNotes !== '' ? ' | ' : '') . 'مكرر في شهر آخر'; ?><?= mde_h($departureNotes) ?></td>
     </tr>
    <?php endforeach; ?>
    <?php if (!$departures): ?><tr><td colspan="9" class="text-center">لا توجد مغادرات لهذا الشهر.</td></tr><?php endif; ?>
