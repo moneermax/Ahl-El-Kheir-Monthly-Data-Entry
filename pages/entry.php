@@ -187,8 +187,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Reconcile sponsorship episodes against departure effective dates, not entry order.
         $endDatedEpisodes = $pdo->prepare(
             "UPDATE mde_sponsorships AS rel
-             SET rel.status = 'ended',
-                 rel.end_date = (
+             SET status = 'ended',
+                 end_date = (
                     SELECT MIN(d.departure_date)
                     FROM mde_sponsor_departures AS d
                     WHERE d.sponsor_id = rel.sponsor_id
@@ -205,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $endDatedEpisodes->execute([$sponsorId]);
         $syncSponsorStatus = $pdo->prepare(
             "UPDATE mde_sponsors AS sponsor
-             SET sponsor.is_active = CASE WHEN EXISTS (
+             SET is_active = CASE WHEN EXISTS (
                 SELECT 1 FROM mde_sponsorships AS rel
                 WHERE rel.sponsor_id = sponsor.id AND rel.status = 'active'
              ) THEN 1 ELSE 0 END
