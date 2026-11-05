@@ -14,10 +14,12 @@ const duplicateSponsorOptions = { options: [
   { value: '12', textContent: 'سلمي حسن الرشيد — ملف 25 · سجل #12', disabled: false }
 ] };
 assert.equal(importHelpers.matchingSponsorOptions(duplicateSponsorOptions, 'سلمي حسن الرشيد').length, 2, 'same-name sponsor masters must be detected as ambiguous, not treated as a new sponsor');
+assert.equal(importHelpers.matchingSponsorOptions(duplicateSponsorOptions, 'سلمي حسن الرشيد — ملف 25').length, 0, 'the sponsor matcher must match the name only, not accidentally consume file/record suffixes as part of the name');
 
 const entryPageSource = fs.readFileSync('pages/entry.php', 'utf8');
 const departurePageSource = fs.readFileSync('pages/departures.php', 'utf8');
 const importSource = fs.readFileSync('assets/js/whatsapp-import.js', 'utf8');
+const entryRegisterSource = fs.readFileSync('assets/js/entry-register.js', 'utf8');
 const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
 const exportSource = fs.readFileSync('export.php', 'utf8');
 assert.ok(entryPageSource.includes('ORDER BY monthly.id DESC'), 'last saved sponsor must follow the latest inserted monthly row');
@@ -25,6 +27,8 @@ assert.ok(entryPageSource.includes('data-file='), 'existing sponsor choices must
 assert.ok(entryPageSource.includes('سجل #<?= (int)$existing[\'id\'] ?>'), 'entry sponsor options must expose a stable record identifier when names repeat');
 assert.ok(departurePageSource.includes('سجل #<?= (int) $s[\'id\'] ?>'), 'departure sponsor options must expose a stable record identifier when names repeat');
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
+assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
+assert.ok(entryRegisterSource.includes("fileNumber.value=existing.selectedOptions[0].dataset.file||''"), 'manual sponsor selection must restore or clear its master file number');
 assert.ok(!entryPageSource.includes('ORDER BY monthly.created_at DESC'), 'timestamp ties must not outrank insertion order');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
 assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
