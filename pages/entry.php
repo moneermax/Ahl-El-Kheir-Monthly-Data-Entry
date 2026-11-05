@@ -64,8 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
             }
             $sponsorId = $selectedSponsorId;
-            $pdo->prepare('UPDATE mde_sponsors SET is_active = 1, sponsor_type = ?, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$sponsorType, $fileNumber, $sponsorId]);
+            $pdo->prepare('UPDATE mde_sponsors SET sponsor_type = ?, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$sponsorType, $fileNumber, $sponsorId]);
         } else {
+            $duplicateSponsor = $pdo->prepare('SELECT id FROM mde_sponsors WHERE LOWER(TRIM(sponsor_name)) = LOWER(TRIM(?)) ORDER BY id LIMIT 1 FOR UPDATE');
+            $duplicateSponsor->execute([$sponsorName]);
+            if ($duplicateSponsor->fetch()) {
+                throw new InvalidArgumentException('هذا الكفيل مسجل بالفعل. اختره من قائمة الكفلاء المسجلين بدلاً من إنشاء سجل رئيسي مكرر.');
+            }
             $stmt = $pdo->prepare('INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number) VALUES (?, ?, ?)');
             $stmt->execute([$sponsorName, $sponsorType, $fileNumber ?: null]);
             $sponsorId = (int) $pdo->lastInsertId();
@@ -179,6 +184,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Reconcile sponsorship episodes against departure effective dates, not entry order.
+        $endDatedEpisodes = $pdo->prepare(
+            "UPDATE mde_sponsorships AS rel
+             SET rel.status = 'ended',
+                 rel.end_date = (
+                    SELECT MIN(d.departure_date)
+                    FROM mde_sponsor_departures AS d
+                    WHERE d.sponsor_id = rel.sponsor_id
+                      AND d.departure_date >= rel.start_date
+                 )
+             WHERE rel.sponsor_id = ?
+               AND rel.status = 'active'
+               AND EXISTS (
+                    SELECT 1 FROM mde_sponsor_departures AS d
+                    WHERE d.sponsor_id = rel.sponsor_id
+                      AND d.departure_date >= rel.start_date
+               )"
+        );
+        $endDatedEpisodes->execute([$sponsorId]);
+        $syncSponsorStatus = $pdo->prepare(
+            "UPDATE mde_sponsors AS sponsor
+             SET sponsor.is_active = CASE WHEN EXISTS (
+                SELECT 1 FROM mde_sponsorships AS rel
+                WHERE rel.sponsor_id = sponsor.id AND rel.status = 'active'
+             ) THEN 1 ELSE 0 END
+             WHERE sponsor.id = ?"
+        );
+        $syncSponsorStatus->execute([$sponsorId]);
+
         $pdo->commit();
         mde_redirect('entry', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
@@ -195,7 +229,7 @@ $lastSavedSponsorName = $pdo->query(
         ON sponsorship.id = monthly.sponsorship_id
      INNER JOIN mde_sponsors AS s
         ON s.id = sponsorship.sponsor_id
-     ORDER BY monthly.created_at DESC, monthly.id DESC
+     ORDER BY monthly.id DESC
      LIMIT 1'
 )->fetchColumn();
 ?>
