@@ -19,7 +19,7 @@ const L = {
  notes:['ملاحظات عن الكفيل','ملاحظات الكفيل','ملاحظات','ملاحظة'],
  extra:['أي مبلغ إضافي','اي مبلغ اضافي'], contact:['التواصل عن طريق'],
  lastPaid:['آخر شهر سداد','اخر شهر سداد','آخر سداد','اخر سداد','آخر شهر'],
- count:['عدد الأيتام','عدد الايتام','عدد اليتامى','عدد يتيم'],
+ count:['عدد الأيتام','عدد الايتام','عددالايتام','عدد اليتامى','عدد يتيم'],
  reason:['سبب المغادرة','سبب الانسحاب','السبب'], phone:['رقم الهاتف','الهاتف','جوال','موبايل'], address:['العنوان','السكن']
 };
 const SPECIAL=[['مقدم كفالة سنة','مقدم كفالة سنه'],['كرتونه رمضان','كرتونة رمضان'],['فرحة عيدين','فرحه عيدين'],['متبقي المبلغ']];
@@ -37,11 +37,11 @@ function looksName(line){const s=clean(stripEmoji(line));return !/[\d٠-٩۰-۹�
 function orphanValues(t,label){const out=[];let continuing=false;for(const raw of String(t??'').split(/\r?\n/)){const line=raw.trim();if(!line)continue;const found=values(line,[label]);if(found.length){out.push(...found.flatMap(v=>v.split(/\s*(?:،|,)\s*/).map(clean).filter(Boolean)));continuing=true;continue;}if(continuing&&!isField(line)&&looksName(line)){out.push(clean(stripEmoji(line)));continue;}continuing=false;}return out;}
 function families(t){const ml='اسم\\s+الأم|اسم\\s+الام|الأم|الام|اسم\\s+الوالدة|اسم\\s+الوالده|الوالدة|الوالده|والدة|والده';const ol='اسم\\s+اليتيم(?:ة)?|اليتيم(?:ة)?|اسم\\s+الطفل(?:ة)?|الطفل(?:ة)?|الأطفال|اطفال|الأيتام|الايتام|اليتامى|أيتام|ايتام';const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+ml+')(?:\\s*[:=：-]\\s*|\\s+)','giu');const ms=[...String(t??'').matchAll(re)];if(!ms.length)return[{mother:'',orphans:orphanValues(t,ol)}];const before=orphanValues(String(t).slice(0,ms[0].index),ol);const after=orphanValues(String(t).slice(ms[ms.length-1].index),ol);const orphanFirst=before.length>0&&after.length===0;return ms.map((m,i)=>{const own=String(t).slice(m.index,i+1<ms.length?ms[i+1].index:String(t).length);const source=orphanFirst?String(t).slice(i===0?0:ms[i-1].index,m.index):String(t).slice(i===0?0:m.index,i+1<ms.length?ms[i+1].index:String(t).length);return{mother:value(own,L.mother),orphans:orphanValues(source,ol)};});}
 function sponsor(t){const labelled=value(t,L.sponsor);if(labelled)return stripEmoji(labelled);for(const raw of String(t??'').split(/\r?\n/)){const line=clean(stripEmoji(raw));if(!line)continue;const n=norm(line);if(/^(السلام عليكم|السلام عليكم ورحمة الله وبركاته|مرحبا|تحية طيبة|صباح الخير|مساء الخير)$/u.test(n))continue;if(isField(line)||/^(الايتام|الأيتام|الام|الأم|اليتيم|الطفل)\b/u.test(n))return'';return looksName(line)?line:'';}return'';}
-function unrecognizedLines(t){return String(t??'').split(/\r?\n/).map(clean).filter(line=>{if(!line||!stripEmoji(line))return false;const n=norm(line);if(looksName(line))return false;if(/^(السلام عليكم|السلام عليكم ورحمة الله وبركاته|مرحبا|تحية طيبة|صباح الخير|مساء الخير)$/u.test(n))return false;if(ALL.some(label=>n.includes(norm(label))))return false;if(/^\d[\d,،٬. ]*\s*خدمات/u.test(n))return false;if(typeof departureNoteLine==='function'&&departureNoteLine(line))return false;return true;});}
+function unrecognizedLines(t){return String(t??'').split(/\r?\n/).map(clean).filter(line=>{if(!line||!stripEmoji(line))return false;const n=norm(line);if(looksName(line))return false;if(/^(السلام عليكم|السلام عليكم ورحمة الله وبركاته|مرحبا|تحية طيبة|صباح الخير|مساء الخير)$/u.test(n))return false;if(ALL.some(label=>n.includes(norm(label))))return false;if(/^\d[\d,،٬. ]*\s*خدمات/u.test(n)||/^\d[\d٠-٩۰-۹.,،٬ ]*\s*\/\s*[\d٠-٩۰-۹.,،٬ ]+$/u.test(line))return false;if(typeof departureNoteLine==='function'&&departureNoteLine(line))return false;if(typeof departureResidualNotes==='function'&&departureResidualNotes(t).split(' | ').includes(line))return false;return true;});}
 function contextYear(c){const m=String(c??'').match(/^(\d{4})-\d{2}-\d{2}$/);return m?Number(m[1]):0;}
 function parseDate(v,c){if(!v)return'';const s=norm(v).replace(/[.]/g,'/').replace(/\s+/g,'');let d,m,y,x=s.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?$/);if(x){d=+x[1];m=+x[2];y=x[3]?+x[3]:contextYear(c);}else if((x=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))){y=+x[1];m=+x[2];d=+x[3];}else if((x=s.match(/^(\d{1,2})(يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر)(\d{4})?$/u))){d=+x[1];m={يناير:1,فبراير:2,مارس:3,ابريل:4,مايو:5,يونيو:6,يوليو:7,اغسطس:8,سبتمبر:9,اكتوبر:10,نوفمبر:11,ديسمبر:12}[x[2]];y=x[3]?+x[3]:contextYear(c);}else return'';if(!y||m<1||m>12||d<1||d>31)return'';const dt=new Date(Date.UTC(y,m-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d?String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'):'';}
 function month(v){if(!v)return'';const s=norm(v).replace(/\s+/g,'');let m=s.match(/^(\d{1,2})[/-](\d{4})$/);if(m)return+m[1]>=1&&+m[1]<=12?m[2]+'-'+String(+m[1]).padStart(2,'0'):'';m=s.match(/^(\d{4})-(\d{1,2})$/);if(m)return+m[2]>=1&&+m[2]<=12?m[1]+'-'+String(+m[2]).padStart(2,'0'):'';const months={يناير:'01',فبراير:'02',مارس:'03',ابريل:'04',مايو:'05',يونيو:'06',يوليو:'07',اغسطس:'08',سبتمبر:'09',اكتوبر:'10',نوفمبر:'11',ديسمبر:'12'};const found=Object.entries(months).filter(([name])=>s.includes(name));if(found.length===1){const y=s.match(/(20\d{2})/);return y?y[1]+'-'+found[0][1]:'';}return'';}
-function monthNameDate(t,c){const s=norm(t).replace(/\s+/g,'');const m=s.match(/(?:بتاريخ)?(\d{1,2})(يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر)(\d{4})?/u);return m?parseDate(m[1]+m[2]+(m[3]||''),c):'';}
+function monthNameDate(t,c){const months='يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر';for(const raw of String(t??'').split(/\r?\n/)){const line=norm(raw).replace(/\s+/g,'');const m=line.match(new RegExp('^(?:بتاريخ)?(\\d{1,2})('+months+')(20\\d{2})?$','u'));if(m)return parseDate(m[1]+m[2]+(m[3]||''),c);}return'';}
 function supervisors(t){return values(t,['مشرفه\\s+ح','مشرفة\\s+ح','المشرف','مشرفه','مشرفة','مشرف']).map(v=>clean(v.replace(/^ح\s+/u,''))).filter(Boolean);}
 function supervisor(t){const a=supervisors(t);return a.length?a[a.length-1]:'';}
 function split(t){const re=/(?:^|[؛;\n|])\s*(?:الكفيل(?:ة)?|الكافل(?:ة)?|اسم\s+الكفيل(?:ة)?|اسم\s+الكافل(?:ة)?)(?:\s*[:=：-]\s*|\s+)/giu;const ms=[...String(t??'').matchAll(re)];if(ms.length<2)return[String(t??'').trim()];return ms.map((m,i)=>String(t).slice(m.index,i+1<ms.length?ms[i+1].index:String(t).length).replace(/^[؛;\n|\s]+|[؛;\n|\s]+$/g,'').trim()).filter(Boolean);}
@@ -59,7 +59,7 @@ function departureFileHeading(line){
  const m=n.match(/^(?:رقم\s+)?ملف(?:\s+رقم)?\s*[:：=-]?\s*(\d{1,4})$/u);
  return m?m[1]:null;
 }
-function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز(?:\s+.*)?|مسدده\s+(?:الى|الي)\s+شهر.*)$/u.test(norm(line));}
+function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز(?:\s+.*)?|مسدده\s+(?:الى|الي)\s+شهر.*|طلب\s+الالغاء.*)$/u.test(norm(line));}
 function departureNameLine(line){
  if(departureNoteLine(line))return'';
  const cleanLine=clean(stripEmoji(line).replace(/^\s*\d+\s*[/／•.)_-]\s*/u,''));
@@ -67,12 +67,27 @@ function departureNameLine(line){
  if(/^(?:ملف|عدد|قيمة|مبلغ|الكفاله|الكفالة|كفاله|كفالة|الخدمات|خدمات|اخر سداد|آخر سداد|بتاريخ|تاريخ|سبب|ملاحظات|عن طريق|بواسطه|مشرف)/u.test(norm(cleanLine)))return'';
  return cleanLine;
 }
+function sharedDepartureDate(raw,contextDate){
+ const lines=String(raw??'').replace(/\r/g,'').split('\n');
+ const found=[];
+ lines.forEach((line,index)=>{
+  const label=value(line,L.departureDate);
+  let date=label?parseDate(label,contextDate):'';
+  if(!date&&/^\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{4})?\s*$/u.test(line))date=parseDate(line.trim(),contextDate);
+  if(date)found.push({date,index});
+ });
+ const unique=[...new Set(found.map(x=>x.date))];
+ if(unique.length!==1)return'';
+ const lastMeaningful=lines.map((x,i)=>({line:x.trim(),i})).filter(x=>x.line).at(-1);
+ const appearsAtTail=found.some(x=>lastMeaningful&&x.index>=lastMeaningful.i-2);
+ return found.length>1||appearsAtTail?unique[0]:'';
+}
 function splitDepartures(raw,contextDate){
  const lines=String(raw??'').replace(/\r/g,'').split('\n');
  const records=[];let currentFile='',currentLines=[],currentTree=false;
  const numberedPattern=/^\s*\d{1,3}\s*[/／•.)_-]\s*(.*?)\s*$/u;
  const nextMeaningful=index=>{for(let j=index+1;j<lines.length;j++){const value=lines[j].trim();if(value)return value;}return'';};
- const flush=()=>{const body=currentLines.join('\n').trim();if(!body)return;const record=departure(body,records.length,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳'){record.type='tree';if(record.count==='')record.count='0';if(record.sponsorship===''){const amount=body.match(/(?:^|\n)\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*(?:جنيه)?\s*(?:$|\n)/u);if(amount){record.sponsorship=num(amount[1]);record.notes=String(record.notes||'').split(' | ').filter(note=>note!==amount[1].trim()).join(' | ');record.unrecognizedLines=(record.unrecognizedLines||[]).filter(line=>line!==amount[1].trim());record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('أسطر غير مصنفة'));}record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('عدد الأيتام غير واضح'));}if(record.services==='')record.services='0';}records.push(record);currentLines=[];};
+ const flush=()=>{const body=currentLines.join('\n').trim();if(!body)return;const record=departure(body,records.length,contextDate);if(!record.file)record.file=currentFile;if(currentTree||currentFile==='🌳'){record.type='tree';if(record.sponsorship===''){const amount=body.match(/(?:^|\n)\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*(?:جنيه)?\s*(?:$|\n)/u);if(amount){record.sponsorship=num(amount[1]);record.notes=String(record.notes||'').split(' | ').filter(note=>note!==amount[1].trim()).join(' | ');record.unrecognizedLines=(record.unrecognizedLines||[]).filter(line=>line!==amount[1].trim());record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('أسطر غير مصنفة'));}record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('عدد الأيتام غير واضح'));}}records.push(record);currentLines=[];};
  for(let i=0;i<lines.length;i++){
   const line=lines[i].trim();if(!line)continue;
   const heading=departureFileHeading(line);
@@ -86,14 +101,16 @@ function splitDepartures(raw,contextDate){
   }
   if(departureHeader(line))continue;
   const numbered=line.match(numberedPattern);
-  if(numbered){flush();currentLines=[numbered[1]];continue;}
+  if(numbered&&departureNameLine(numbered[1])){flush();currentLines=[numbered[1]];continue;}
   if((currentTree||/🌳/u.test(line))&&departureNameLine(line)){flush();currentLines=[line];continue;}
   if(!currentLines.length){const name=departureNameLine(line);if(name){currentLines=[line];continue;}continue;}
   currentLines.push(line);
  }
  flush();
  if(!records.length){const fallback=lines.filter(line=>!departureHeader(line)&&departureFileHeading(line)===null).join('\n');if(fallback.trim()){const record=departure(fallback,0,contextDate);if(!record.file)record.file=currentFile;records.push(record);}}
- return records;
+ const sharedDate=sharedDepartureDate(raw,contextDate);
+ if(sharedDate)records.forEach(record=>{if(!record.date){record.date=sharedDate;record.warnings=(record.warnings||[]).filter(w=>!w.startsWith('تاريخ المغادرة غير محسوم'));}});
+ return applyDepartureMonthContext(records,raw,contextDate);
 }
 
 function departureFileValue(t){
@@ -105,12 +122,31 @@ function departureFileValue(t){
  return'';
 }
 function monthWithContext(v,c){
+ if(!v)return'';
  const direct=month(v);if(direct)return direct;
  const s=norm(v).replace(/\s+/g,'');
  const names={يناير:1,فبراير:2,مارس:3,ابريل:4,مايو:5,يونيو:6,يوليو:7,اغسطس:8,سبتمبر:9,اكتوبر:10,نوفمبر:11,ديسمبر:12};
  const found=Object.entries(names).filter(([name])=>s.includes(name));
- if(found.length!==1)return'';
- const year=contextYear(c);return year?String(year)+'-'+String(found[0][1]).padStart(2,'0'):'';
+ if(!found.length)return'';
+ const year=contextYear(c);if(!year)return'';
+ const latest=Math.max(...found.map(([,number])=>number));
+ return String(year)+'-'+String(latest).padStart(2,'0');
+}
+function standaloneDepartureMonth(raw){
+ const names='يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر';
+ const lines=String(raw??'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ return lines.find(line=>new RegExp('^(?:'+names+')(?:\\s*[/／-]\\s*(?:'+names+'))?$','u').test(norm(line)))||'';
+}
+function applyDepartureMonthContext(records,raw,contextDate){
+ if(!/اخر\s+سداد|آخر\s+سداد/u.test(norm(raw)))return records;
+ return records.map(record=>{
+  if(record.lastPaid)return record;
+  const source=standaloneDepartureMonth(record.raw);
+  if(!source)return record;
+  const latest=monthWithContext(source,contextDate);if(!latest)return record;
+  const months=(norm(source).match(/يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر/gu)||[]);
+  return {...record,lastPaid:latest,notes:[record.notes,months.length>1?'آخر سداد كما ورد: '+source:''].filter(Boolean).join(' | '),warnings:(record.warnings||[]).filter(w=>!w.startsWith('آخر سداد غير محسوم'))};
+ });
 }
 function departureResidualNotes(t){
  const lines=String(t??'').split(/\r?\n/).map(clean).filter(Boolean);let sponsorRemoved=false;
@@ -119,16 +155,20 @@ function departureResidualNotes(t){
   if(/^\d{1,3}\s*[•.)/_-]/u.test(line))return false;
   if(!sponsorRemoved&&departureNameLine(line)){sponsorRemoved=true;return false;}
   const n=norm(line);
-  if(ALL.some(label=>n.startsWith(norm(label)))||/^\d[\d,،٬. ]*\s*خدمات/u.test(n))return false;
+  if(ALL.some(label=>n.startsWith(norm(label)))||/^\d[\d,،٬. ]*\s*خدمات/u.test(n)||/^\d[\d٠-٩۰-۹.,،٬ ]*\s*\/\s*[\d٠-٩۰-۹.,،٬ ]+$/u.test(line)||/^طلب\s+الالغاء/u.test(n))return false;
   if(/^(?:🌳|شجره)$/u.test(stripEmoji(line)))return false;
   return true;
  }).join(' | ');
 }
 function departure(t,i,c){
  const sponsorshipLabel=value(t,L.sponsorship),servicesLabel=value(t,L.services);
- const pair=String(t??'').match(/(?:المبلغ|قيمة\s+الكفاله|قيمة\s+الكفالة|مبلغ\s+الكفاله|مبلغ\s+الكفالة)\s*[:=：-]?\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*\/\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)(?!\s*\/)/u);
- const residual=departureResidualNotes(t),explicitNotes=value(t,L.notes);
- const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(value(t,L.lastPaid),c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason),notes:[explicitNotes,residual].filter(Boolean).join(' | '),type:/🌳|شجرة/i.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t)};
+ const labelledPair=String(t??'').match(/(?:المبلغ|قيمة\s+الكفاله|قيمة\s+الكفالة|مبلغ\s+الكفاله|مبلغ\s+الكفالة)\s*[:=：-]?\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*\/\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)(?!\s*\/)/u);
+ const standalonePair=String(t??'').match(/(?:^|\n)\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*\/\s*([\d٠-٩۰-۹][\d٠-٩۰-۹.,،٬ ]*)\s*(?=\n|$)/u);
+ const pair=labelledPair||standalonePair;
+ const residual=departureResidualNotes(t),explicitNotes=value(t,L.notes),lastPaidRaw=value(t,L.lastPaid);
+ const lastPaidMonths=(norm(lastPaidRaw).match(/يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر/gu)||[]);
+ const preservedLastPaid=lastPaidMonths.length>1&&!residual.includes(lastPaidRaw)?'آخر سداد كما ورد: '+lastPaidRaw:'';
+ const r={i,sponsor:sponsor(t),file:departureFileValue(t),date:parseDate(value(t,L.departureDate),c)||monthNameDate(t,c),lastPaid:monthWithContext(lastPaidRaw,c),count:num(value(t,L.count)),sponsorship:num(sponsorshipLabel||(pair?pair[1]:'')),services:num(servicesLabel||(pair?pair[2]:''))||leadingNum(t,'خدمات'),entered:values(t,L.entered).at(-1)||'',supervisor:supervisor(t),reason:value(t,L.reason)||((String(t).match(/(?:^|\n)\s*(طلب\s+الالغاء[^\n]+)/u)||[])[1]||''),notes:[explicitNotes,residual,preservedLastPaid].filter(Boolean).join(' | '),type:/🌳|ملف\s*الشجر[ةه]/iu.test(t)?'tree':'individual',phone:value(t,L.phone),address:value(t,L.address),sponsorNotes:value(t,['ملاحظات عن الكفيل','ملاحظات الكفيل']),raw:String(t??''),unrecognizedLines:unrecognizedLines(t)};;
  r.warnings=[];if(!r.sponsor)r.warnings.push('اسم الكفيل غير واضح');if(!r.date)r.warnings.push('تاريخ المغادرة غير محسوم');if(r.count==='')r.warnings.push('عدد الأيتام غير واضح');if(!r.lastPaid&&/اخر\s+سداد|آخر\s+سداد/u.test(norm(t)))r.warnings.push('آخر سداد غير محسوم؛ راجع الشهر يدوياً');if(r.unrecognizedLines.length)r.warnings.push('أسطر غير مصنفة وتحتاج مراجعة: '+r.unrecognizedLines.join(' / '));return r;
 }
 function hasMotherNames(r){return!!(r&&Array.isArray(r.families)&&r.families.length&&r.families.every(f=>String(f.mother||'').trim()!==''));}
