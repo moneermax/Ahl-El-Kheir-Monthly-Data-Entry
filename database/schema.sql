@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS mde_monthly_other_donations (
 CREATE TABLE IF NOT EXISTS mde_sponsor_departures (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sponsor_id BIGINT UNSIGNED NOT NULL,
+    sponsor_name_snapshot VARCHAR(255) NULL,
     file_number_snapshot VARCHAR(100) NULL,
     departure_date DATE NOT NULL,
     last_paid_month DATE NULL,
@@ -166,4 +167,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
