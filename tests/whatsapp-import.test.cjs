@@ -490,4 +490,17 @@ assert.equal(singleCancellation[0].entered, 'هناء عثمان');
 assert.equal(singleCancellation[0].notes.includes('ما داخل قروب'), true);
 assert.equal(singleCancellation[0].lastPaid, '2026-10');
 
+
+// Preserve the exact tree sponsor name from the pasted message even when the
+// workbook contains a different name for the corresponding tree amount.
+const pastedTreeName = parser.splitDepartures([
+  'ملف الشجرة',
+  'محمد عثمان جمعة 🌳',
+  '2000',
+  'آخر سداد: أكتوبر',
+  'بتاريخ: 31/10/2026'
+].join('\n'), '2026-10-31');
+assert.equal(pastedTreeName[0].sponsor, 'محمد عثمان جمعة');
+assert.equal(pastedTreeName[0].file, '🌳');
+
 console.log('WhatsApp parser tests passed.');
