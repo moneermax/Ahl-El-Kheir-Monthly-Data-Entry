@@ -147,6 +147,17 @@ Two differences between the supplied messages and the October workbook remain in
 - Regression tests cover the supplied six-sponsor message and verify all six names, file numbers, orphan counts, amounts, services, last-payment months, and preserved notes. The complete WhatsApp parser regression suite passed with 219 assertions in an isolated JavaScript runtime. PHP syntax and live browser/database verification remain outstanding.
 
 
+## Coordinated entry/departure history and WhatsApp form corrections — 2026-11-05
+
+- The new-sponsor page identifies the last saved sponsor by the highest inserted monthly-entry ID, avoiding same-second timestamp ambiguity.
+- Existing sponsor master records are not blindly reactivated by a historical monthly entry. Sponsorship episodes are reconciled against departure effective dates, so an entry dated before a later departure remains historical and does not reverse current sponsor status.
+- New sponsor names are checked server-side against existing master records, even if the operator did not select the matching dropdown option.
+- The exact previously reported entry message for سلمي حسن الرشيد remains in the parser regression suite. The actual operator/supervisor value هبه خلف الله is now present in both dropdowns used by the browser adapter.
+- Departure entry accepts a previously departed sponsor for another month's record. There is no separate leave-reason field; source reason text is retained in general notes. Legacy database reason values are folded into report notes.
+- Departure saves end only sponsorship episodes whose start date is on or before the departure date. A historical departure entered after a later reactivation cannot terminate that later episode.
+- Cross-month repeat departures are marked in the existing notes column in on-screen, CSV, PDF, and XLSX reports; the workbook layout and schema remain unchanged.
+- No database migration is required.
+
 ## Mixed-format departure WhatsApp messages and optional tree values — 2026-11-05
 
 - Expanded departure parsing for unlabelled numeric amount pairs (100.000/20.000, 27.000/2000, 28000/2000), compact orphan-count label عددالايتام, repeated/skipped record sequence numbers, month-only last-payment lines, and one shared final departure date.
