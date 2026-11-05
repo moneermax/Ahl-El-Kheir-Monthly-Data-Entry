@@ -136,3 +136,12 @@ The departure page now uses a dedicated parser segmentation path instead of the 
 The regression suite now includes grouped file-25/file-24 records, a tree row, and a standalone cancellation message using file value `2024`. The complete WhatsApp parser regression suite was executed against the current GitHub source in an isolated JavaScript runtime and passed. This does not replace browser testing of the departure page and actual form population. No database schema or data was changed, and no October records were re-imported.
 
 Two differences between the supplied messages and the October workbook remain intentionally unresolved: file `2024` in a message versus `24` in the workbook, and tree sponsor name `محمد عثمان جمعة` in a message versus `الطيب عثمان جمعه` in the workbook. The parser preserves the pasted values rather than silently substituting workbook values.
+
+
+## Departure table and October cancellation-list support — 2026-11-05
+
+- The departure entry form now uses a horizontal register table aligned with the new-sponsor entry register: sponsor, file, departure date, last payment, orphan count, sponsorship, services, operator/supervisor, and departure reason/notes.
+- The table scrolls horizontally on narrower screens instead of compressing fields into unreadable columns.
+- The departure parser supports slash-numbered records (`1/`), letter-group headings such as `ملف حرف ص ض ط ظ ق ف ك ل نساء`, file numbers embedded within each sponsor block, compact amount labels (`الكفالة62000`, `خدمات8000`), and common cancellation status notes.
+- A missing departure date no longer disables loading a parsed record into the review form. The date is cleared, shown as missing, and remains mandatory when saving. No exact day is inferred from a month-only heading such as `قائمة إلغاء اكتوبر`.
+- Regression tests cover the supplied six-sponsor message and verify all six names, file numbers, orphan counts, amounts, services, last-payment months, and preserved notes. The complete WhatsApp parser regression suite passed with 219 assertions in an isolated JavaScript runtime. PHP syntax and live browser/database verification remain outstanding.
