@@ -145,3 +145,14 @@ Two differences between the supplied messages and the October workbook remain in
 - The departure parser supports slash-numbered records (`1/`), letter-group headings such as `ملف حرف ص ض ط ظ ق ف ك ل نساء`, file numbers embedded within each sponsor block, compact amount labels (`الكفالة62000`, `خدمات8000`), and common cancellation status notes.
 - A missing departure date no longer disables loading a parsed record into the review form. The date is cleared, shown as missing, and remains mandatory when saving. No exact day is inferred from a month-only heading such as `قائمة إلغاء اكتوبر`.
 - Regression tests cover the supplied six-sponsor message and verify all six names, file numbers, orphan counts, amounts, services, last-payment months, and preserved notes. The complete WhatsApp parser regression suite passed with 219 assertions in an isolated JavaScript runtime. PHP syntax and live browser/database verification remain outstanding.
+
+
+## Mixed-format departure WhatsApp messages and optional tree values — 2026-11-05
+
+- Expanded departure parsing for unlabelled numeric amount pairs (100.000/20.000, 27.000/2000, 28000/2000), compact orphan-count label عددالايتام, repeated/skipped record sequence numbers, month-only last-payment lines, and one shared final departure date.
+- Number-like lines start records only when the text after the separator is a plausible Arabic sponsor name. This prevents dates and slash-separated amounts from becoming phantom records.
+- A month range such as سبتمبر/اكتوبر is interpreted as October for the database's single-month last-payment field when the message context establishes that these are last-payment values; the original range is preserved in notes. An unlabelled month is not inferred this way without an explicit last-payment cue elsewhere in the message.
+- Tree sponsors can have no individual orphan count and no service fee. The parser leaves both blank, classifies tree type only from a tree marker/section (not a mention of a tree WhatsApp group), and interprets a standalone tree amount as sponsorship.
+- Departure save validation now permits a blank orphan count only for a sponsor whose saved type is tree; individual sponsors still require a count. Blank service fees are saved as SQL NULL, not zero. Existing report, CSV, and XLSX outputs preserve omitted count/service cells as blank while totals treat NULL as zero.
+- Added migration 007_nullable_departure_services.sql; existing databases must apply it once after migration 006. Fresh schema includes version 7. No existing data was re-imported or rewritten.
+- Added a regression case for the supplied six-sponsor message. The complete JavaScript regression script passed in an isolated runtime using an assertion-compatible harness. PHP lint and live browser/MariaDB testing have not been performed in this environment.
