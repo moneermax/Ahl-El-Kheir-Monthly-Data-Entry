@@ -155,7 +155,7 @@ Two differences between the supplied messages and the October workbook remain in
 - The exact previously reported entry message for سلمي حسن الرشيد remains in the parser regression suite. The actual operator/supervisor value هبه خلف الله is now present in both dropdowns used by the browser adapter.
 - Departure entry accepts a previously departed sponsor for another month's record. There is no separate leave-reason field; source reason text is retained in general notes. Legacy database reason values are folded into report notes.
 - Departure saves end only sponsorship episodes whose start date is on or before the departure date. A historical departure entered after a later reactivation cannot terminate that later episode.
-- Cross-month repeat departures are marked in the existing notes column in on-screen, CSV, PDF, and XLSX reports; the workbook layout and schema remain unchanged.
+- Cross-month repeat departures are marked in the existing notes column in on-screen, CSV, PDF, and XLSX reports; the marker is added to the shared departure result rows before the XLSX template is called, so it is not lost in that export path. The workbook layout and schema remain unchanged.
 - No database migration is required.
 
 ## Mixed-format departure WhatsApp messages and optional tree values — 2026-11-05
