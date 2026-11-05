@@ -640,7 +640,7 @@ assert.equal(mixedStyleRecords[5].type, 'tree');
 assert.equal(mixedStyleRecords[5].count, '', 'tree orphan count is not fabricated as zero');
 assert.equal(mixedStyleRecords[5].sponsorship, '2000', 'a single tree amount is sponsorship');
 assert.equal(mixedStyleRecords[5].services, '', 'an omitted tree service fee remains blank');
-assert.match(mixedStyleRecords[1].notes, /سبتمبر \\/اكتوبر/, 'the source month range is retained in notes');
+assert.match(mixedStyleRecords[1].notes, /سبتمبر.*اكتوبر/, 'the source month range is retained in notes');
 assert.ok(mixedStyleRecords.every(r => r.warnings.length === 0), 'recognized source formats should not produce false unrecognized-line warnings');
 
 console.log('WhatsApp parser tests passed.');
