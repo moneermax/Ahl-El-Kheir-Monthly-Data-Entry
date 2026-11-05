@@ -127,3 +127,12 @@ Existing databases must apply migration 006 after migrations 004 and 005 to allo
 - Monthly reporting is split into separate navigation pages for new sponsors and sponsor departures. Each report retains its own month selector and report-specific Excel, CSV, PDF, and print actions; the legacy `?page=reports` URL opens the new-sponsor report.
 - Both report tables display sponsorship and services totals. CSV and PDF downloads contain only the selected register and include totals. XLSX downloads keep the original workbook template but hide the unselected worksheet and add totals to the new-sponsor worksheet as well as the existing departure worksheet.
 - No schema change or database migration is required.
+
+
+## Departure WhatsApp parsing — 2026-11-05
+
+The departure page now uses a dedicated parser segmentation path instead of the new-sponsor parser's explicit-`الكفيل:` segmentation. It handles numbered departure records, file-number context headings, standalone `إلغاء كفالة` messages, and separate `ملف الشجرة` sections. It extracts sponsor, file, departure date, orphan count, sponsorship/services, last-payment month, operator, and notes; yearless payment months use only the selected departure-date year. Tree rows without an orphan count are represented as zero to satisfy the existing numeric departure field, and a standalone tree amount is read as sponsorship with zero services when no services value is provided.
+
+The regression suite now includes grouped file-25/file-24 records, a tree row, and a standalone cancellation message using file value `2024`. The complete WhatsApp parser regression suite was executed against the current GitHub source in an isolated JavaScript runtime and passed. This does not replace browser testing of the departure page and actual form population. No database schema or data was changed, and no October records were re-imported.
+
+Two differences between the supplied messages and the October workbook remain intentionally unresolved: file `2024` in a message versus `24` in the workbook, and tree sponsor name `محمد عثمان جمعة` in a message versus `الطيب عثمان جمعه` in the workbook. The parser preserves the pasted values rather than silently substituting workbook values.
