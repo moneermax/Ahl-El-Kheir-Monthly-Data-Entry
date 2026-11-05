@@ -2,9 +2,29 @@
 declare(strict_types=1);
 
 // Names transcribed from the October reference CSV, plus confirmed additions.
+// A leading standalone ح is a role prefix, not part of a person's name.
+function mde_person_option_key(string $person): string
+{
+    $person = preg_replace('/^ح\s+/u', '', trim($person)) ?? trim($person);
+    $person = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}]/u', '', $person) ?? $person;
+    $person = strtr($person, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ى' => 'ي', 'ة' => 'ه']);
+    return strtolower(preg_replace('/\s+/u', ' ', trim($person)) ?? trim($person));
+}
+function mde_unique_person_options(array $options): array
+{
+    $unique = [];
+    $seen = [];
+    foreach ($options as $person) {
+        $key = mde_person_option_key((string) $person);
+        if ($key === '' || isset($seen[$key])) continue;
+        $seen[$key] = true;
+        $unique[] = trim((string) $person);
+    }
+    return $unique;
+}
 // The same person may legitimately appear in both lists.
-$mdeEnteredByOptions = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله'];
-$mdeSupervisorOptions = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء'];
+$mdeEnteredByOptions = mde_unique_person_options(['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله']);
+$mdeSupervisorOptions = mde_unique_person_options(['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء']);
 
 /** Render a personnel picker. Use a native select in the horizontally scrollable entry register. */
 function mde_person_dropdown(string $id, string $name, array $options, string $placeholder = 'اختر الاسم', string $selected = '', bool $nativeSelect = false): void
