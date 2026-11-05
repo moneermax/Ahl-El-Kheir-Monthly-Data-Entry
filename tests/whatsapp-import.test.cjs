@@ -37,7 +37,7 @@ assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.incl
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
 assert.ok(entryRegisterSource.includes("fileNumber.value=existing.selectedOptions[0].dataset.file||''"), 'manual sponsor selection must restore or clear its master file number');
-assert.ok(!entryPageSource.includes('ORDER BY monthly.created_at DESC'), 'timestamp ties must not outrank insertion order');
+assert.ok(entryPageSource.includes('ORDER BY monthly.created_at DESC, monthly.id DESC'), 'timestamp ordering must use ID only as a deterministic tie-breaker');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
 assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
 assert.ok(entryPageSource.includes("$link['status'] === 'ended'"), 'historical monthly entries must reuse the sponsorship episode whose dates cover the entry');
