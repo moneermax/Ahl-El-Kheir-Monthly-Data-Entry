@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../includes/reference_options.php';
 
-$expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء', 'هناء خلف الله'];
-$expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء', 'ح ميساء'];
+$expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله'];
+$expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء'];
 
 if ($mdeEnteredByOptions !== $expectedEnteredBy) {
     throw new RuntimeException('The entry operator list differs from the reviewed source list.');
