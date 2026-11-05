@@ -66,12 +66,13 @@ The parser stages are:
 Departure messages use a separate segmentation path; the entry parser is unchanged.
 
 - A heading such as `⛔كفلاء طلعو⛔` or `إلغاء كفالة` is treated as message context, never as a sponsor name.
-- Numbered lines such as `1• اسم الكفيل` start distinct departure records. A record ends at the next numbered sponsor line or a file-context heading.
+- Numbered lines such as `1• اسم الكفيل`, `1/ اسم الكفيل`, and `1／ اسم الكفيل` start distinct departure records. A record ends at the next numbered sponsor line or a file-context heading.
 - A standalone cancellation message starts at the first unlabelled Arabic sponsor-name line after its title and file heading.
-- `ملف 25` and `ملف 24` carry forward to subsequent numbered records until the next file heading. `ملف 2024` is preserved literally when supplied; it is not silently changed to `24`.
+- `ملف 25` and `ملف 24` carry forward to subsequent numbered records until the next file heading. A file number written inside a sponsor's block (including compact `ملف24`) belongs to that sponsor. A heading such as `ملف حرف ص ض ط ظ ق ف ك ل نساء` is treated as a group heading, not a sponsor or numeric file. `ملف 2024` is preserved literally when supplied; it is not silently changed to `24`.
 - `ملف الشجرة` establishes a tree section. Each named tree line starts a separate tree departure. A tree row with no orphan count is represented as count zero because the departure table requires a numeric count; its tree type and tree file marker are retained.
 - Tree rows with a standalone amount line (for example `2000`) use that value as sponsorship and zero services when no service amount is supplied.
 - Arabic month names for last payment are interpreted using the year from the selected departure date only when exactly one month is present. Ambiguous ranges such as `سبتمبر/اكتوبر` are left unresolved for manual review.
+- Amount labels may be directly adjacent to their values, for example `الكفالة62000` and `خدمات8000`.
 - Unlabelled explanatory lines are retained in the departure notes instead of being discarded. The original raw message remains attached to every record.
 - File headings are read only when they occupy their own line; a mention of another file inside a note must not silently change the record's file context.
 
@@ -79,7 +80,7 @@ The workbook and messages contain two source discrepancies that are deliberately
 
 ## Review and failure behaviour
 
-- Missing sponsor, mother, orphan, or required date prevents loading an entry record.
+- Missing sponsor, mother, or orphan data prevents loading an entry record. A departure with a sponsor and orphan count may be loaded for review even if the source omits its departure date; the date remains blank and must be entered before the form can be saved.
 - Missing or ambiguous values remain blank; the parser does not invent replacements.
 - Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
 - If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained.
