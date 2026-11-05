@@ -114,7 +114,18 @@ $sponsors = array_values($sponsors);
 $departureStmt = $pdo->prepare("
  SELECT d.file_number_snapshot, sp.sponsor_name, d.departure_date,
         d.orphan_count_snapshot, d.sponsorship_amount_snapshot,
-        d.services_amount_snapshot, d.last_paid_month, d.notes
+        d.services_amount_snapshot, d.last_paid_month,
+        CASE
+          WHEN NULLIF(d.reason, '') IS NULL THEN COALESCE(d.notes, '')
+          WHEN NULLIF(d.notes, '') IS NULL THEN CONCAT('السبب: ', d.reason)
+          ELSE CONCAT('السبب: ', d.reason, ' | ', d.notes)
+        END AS notes,
+        EXISTS (
+          SELECT 1 FROM mde_sponsor_departures AS other
+          WHERE other.sponsor_id = d.sponsor_id
+            AND other.id <> d.id
+            AND DATE_FORMAT(other.departure_date, '%Y-%m') <> DATE_FORMAT(d.departure_date, '%Y-%m')
+        ) AS duplicate_in_other_month
  FROM mde_sponsor_departures d
  JOIN mde_sponsors sp ON sp.id = d.sponsor_id
  WHERE d.departure_date BETWEEN ? AND ?
@@ -152,7 +163,7 @@ foreach ($departures as $i => $row) {
         $i + 1, $row['file_number_snapshot'], $row['sponsor_name'],
         $dateText($row['departure_date']), $row['orphan_count_snapshot'] === null ? '' : (int) $row['orphan_count_snapshot'],
         (int) $row['sponsorship_amount_snapshot'], $row['services_amount_snapshot'] === null ? '' : (int) $row['services_amount_snapshot'],
-        $row['last_paid_month'], $row['notes'],
+        $row['last_paid_month'], trim((string) $row['notes'] . (!empty($row['duplicate_in_other_month']) ? ' | مكرر في شهر آخر' : '')),
     ];
 }
 
