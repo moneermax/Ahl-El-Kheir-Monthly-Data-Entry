@@ -63,25 +63,26 @@ The parser stages are:
 
 ## Departure-message parsing
 
-Departure messages use a separate segmentation path; the entry parser is unchanged.
+Departure messages use a separate segmentation path; the entry parser remains independent.
 
-- A heading such as `⛔كفلاء طلعو⛔` or `إلغاء كفالة` is treated as message context, never as a sponsor name.
-- Numbered lines such as `1• اسم الكفيل`, `1/ اسم الكفيل`, and `1／ اسم الكفيل` start distinct departure records. A record ends at the next numbered sponsor line or a file-context heading.
+- A heading such as `⛔كفلاء طلعو⛔` or `إلغاء كفالة` is message context, never a sponsor name.
+- Numbered lines such as `1• اسم الكفيل`, `1/ اسم الكفيل`, and `1／ اسم الكفيل` start records only when the text after the separator is a plausible Arabic sponsor name. Amount pairs such as `100.000/20.000` and dates such as `31/10/2026` cannot start records. Repeated or skipped sequence numbers do not merge or discard records.
 - A standalone cancellation message starts at the first unlabelled Arabic sponsor-name line after its title and file heading.
-- `ملف 25` and `ملف 24` carry forward to subsequent numbered records until the next file heading. A file number written inside a sponsor's block (including compact `ملف24`) belongs to that sponsor. A heading such as `ملف حرف ص ض ط ظ ق ف ك ل نساء` is treated as a group heading, not a sponsor or numeric file. `ملف 2024` is preserved literally when supplied; it is not silently changed to `24`.
-- `ملف الشجرة` establishes a tree section. Each named tree line starts a separate tree departure. A tree row with no orphan count is represented as count zero because the departure table requires a numeric count; its tree type and tree file marker are retained.
-- Tree rows with a standalone amount line (for example `2000`) use that value as sponsorship and zero services when no service amount is supplied.
-- Arabic month names for last payment are interpreted using the year from the selected departure date only when exactly one month is present. Ambiguous ranges such as `سبتمبر/اكتوبر` are left unresolved for manual review.
-- Amount labels may be directly adjacent to their values, for example `الكفالة62000` and `خدمات8000`.
-- Unlabelled explanatory lines are retained in the departure notes instead of being discarded. The original raw message remains attached to every record.
+- `ملف 25` and `ملف 24` carry forward until the next file heading. A file number written inside a sponsor's block (including compact `ملف24`) belongs to that sponsor. A heading such as `ملف حرف ص ض ط ظ ق ف ك ل نساء` is a group heading, not a sponsor or numeric file. `ملف 2024` is preserved literally when supplied; it is not silently changed to `24`.
+- `ملف الشجرة` establishes a tree section for the following tree record(s). A mention such as `داخل قروب الشجرة رجال` is explanatory text and does not reclassify an individual sponsor.
+- Tree sponsors may have no individual orphan count and may omit service fees. Both values remain blank when absent; the parser does not fabricate zero. A standalone tree amount (for example `2000`) is sponsorship. A separately supplied service fee is extracted independently. Migration 007 makes the departure service snapshot nullable so an omitted fee remains NULL in the database.
+- A single unlabelled departure date at the end of a message is shared across records when it is the only date candidate. Repeated identical record dates are also safe to share. Conflicting dates are never merged.
+- Arabic month names use the selected departure-date year. When a message contains explicit `اخر سداد` labels, otherwise-unlabelled month-only lines in other records are interpreted as last-payment values. A range such as `سبتمبر/اكتوبر` is stored as the latest month in the single-month database field (October here), while the original wording is retained in notes. Without that message-level cue, an unlabelled month remains ambiguous.
+- Amount labels may be directly adjacent to their values, for example `الكفالة62000` and `خدمات8000`. Unlabelled slash pairs such as `100.000/20.000`, `27.000/2000`, and `28000/2000` are interpreted as sponsorship/services.
+- Unlabelled explanatory lines are retained in departure notes. The original raw message remains attached to every record.
 - File headings are read only when they occupy their own line; a mention of another file inside a note must not silently change the record's file context.
 
-The workbook and messages contain two source discrepancies that are deliberately not auto-corrected: one message says file `2024` where the October workbook row shows file `24`, and one tree-message name says `محمد عثمان جمعة` where the workbook row shows `الطيب عثمان جمعه`. The parser preserves the text actually pasted. These require human reconciliation, not fuzzy name/file substitution.
+The workbook and messages contain two source discrepancies that are deliberately not auto-corrected: one message says file `2024` where the October workbook row shows file `24`, and one tree-message name says `محمد عثمان جمعة` where the October workbook row shows `الطيب عثمان جمعه`. The parser preserves the text actually pasted. These require human reconciliation, not fuzzy name/file substitution.
 
 ## Review and failure behaviour
 
-- Missing sponsor, mother, or orphan data prevents loading an entry record. A departure with a sponsor and orphan count may be loaded for review even if the source omits its departure date; the date remains blank and must be entered before the form can be saved.
-- Missing or ambiguous values remain blank; the parser does not invent replacements.
+- Missing sponsor, mother, or orphan data prevents loading an entry record. A departure with a sponsor may be loaded for review even if the source omits its departure date or (for a tree sponsor) orphan count; missing required values remain blank and must be completed before saving. Individual sponsors still require an orphan count.
+- Missing or ambiguous values remain blank; the parser does not invent replacements. A blank tree service fee is distinct from an explicit zero and is saved as NULL.
 - Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
 - If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained.
 - The existing multi-record queue, explicit user confirmation, save button, expected-total validation, and remove-after-successful-save flow remain in the DOM integration module.
