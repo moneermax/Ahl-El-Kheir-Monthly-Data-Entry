@@ -250,7 +250,7 @@ $lastSavedSponsorName = $pdo->query(
         ON sponsorship.id = monthly.sponsorship_id
      INNER JOIN mde_sponsors AS s
         ON s.id = sponsorship.sponsor_id
-     ORDER BY monthly.id DESC
+     ORDER BY monthly.created_at DESC, monthly.id DESC
      LIMIT 1'
 )->fetchColumn();
 ?>

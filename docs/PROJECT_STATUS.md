@@ -168,3 +168,14 @@ Two differences between the supplied messages and the October workbook remain in
 - Departure save validation permits a blank orphan count and blank service fee only for a sponsor whose saved type is tree; individual sponsors still require both values. An omitted tree service fee is saved as SQL NULL, not zero. Existing report, CSV, and XLSX outputs preserve omitted count/service cells as blank while totals treat NULL as zero.
 - Added migration 007_nullable_departure_services.sql; existing databases must apply it once after migration 006. Fresh schema includes version 7. No existing data was re-imported or rewritten.
 - Added regression cases for the supplied six-sponsor message and October workbook-derived tree rows, covering sponsorship-only, sponsorship-plus-services, omitted orphan count, and explicit zero orphan count. The complete JavaScript regression script passed in an isolated runtime using an assertion-compatible harness (243 assertions). PHP lint and live browser/MariaDB testing have not been performed in this environment.
+
+
+## Multi-sponsor departure batch workflow — 2026-11-05
+
+The departure WhatsApp importer now has a batch-review path: when a message contains multiple parsed sponsors, the operator can load all of them into separate editable rows and submit them together. Each row carries its own sponsor selection/new-sponsor details, file snapshot, departure date, last-paid month, orphan count, sponsorship/services snapshots, operator, supervisor, and notes. Rows can be removed before saving. The existing one-sponsor manual form and one-record importer remain available.
+
+The batch handler validates each row and writes one `mde_sponsor_departures` row per sponsor inside one InnoDB transaction. It also applies the existing sponsorship-ending and sponsor-active-status synchronization per sponsor. Any invalid row or database error rolls back the entire batch. Ambiguous existing sponsor names require explicit selection; they are not silently converted into new sponsor masters. No schema migration is required.
+
+The entry-page last-saved sponsor indicator is ordered by `mde_monthly_sponsorship_entries.created_at DESC, id DESC`, matching the documented database-backed latest-save behavior.
+
+Automated checks are structural/parser regression checks plus PHP/JavaScript syntax validation. They do not replace live MariaDB transaction testing or browser interaction testing; those must be completed on the local installation after pulling.

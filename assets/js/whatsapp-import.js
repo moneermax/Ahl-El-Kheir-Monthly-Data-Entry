@@ -180,9 +180,68 @@ function applyDeparture(record,options={}) {
   missingLastPaid:!record.lastPaid
  };
 }
+
+function renderDepartureBatch(batchRecords) {
+ const panel=$('#departureBatchPanel'),body=$('#departureBatchRows'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag');
+ const sourceSelect=$('#departureSponsor');
+ if(!panel||!body||!fieldset||!flag||!sourceSelect)return false;
+ body.replaceChildren();
+ const name=(index,field)=>'departures['+index+']['+field+']';
+ const makeField=(tag,type,fieldName,value,placeholder='')=>{
+  const el=document.createElement(tag);
+  if(tag==='input')el.type=type;
+  el.name=fieldName;el.className='form-control form-control-sm';
+  if(value!==undefined&&value!==null)el.value=String(value);
+  if(placeholder)el.placeholder=placeholder;
+  if(type==='number'){el.min='0';el.step='1';}
+  return el;
+ };
+ batchRecords.forEach((record,index)=>{
+  const payload=Parser.buildDepartureFormPayload(record),f=payload.fields;
+  const tr=document.createElement('tr');
+  const cell=()=>{const td=document.createElement('td');tr.append(td);return td;};
+  let td=cell();td.className='text-center fw-bold';td.textContent=String(index+1);
+  td=cell();td.style.minWidth='220px';
+  const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');td.append(mode);
+  const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';
+  const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
+  const newName=makeField('input','text',name(index,'new_sponsor_name'),matches.length?'':f.sponsor,'اسم كفيل جديد');newName.maxLength=255;
+  const type=makeField('select','',name(index,'new_sponsor_type'),f.type);
+  [['individual','فردي'],['tree','🌳 شجرة (داخلي)']].forEach(([v,label])=>{const o=document.createElement('option');o.value=v;o.textContent=label;type.append(o);});
+  type.value=f.type;
+  if(matches.length===1){sponsorSelect.value=matches[0].value;mode.value='existing';newName.disabled=true;type.disabled=true;td.append(sponsorSelect);}
+  else if(matches.length>1){sponsorSelect.value='';mode.value='existing';newName.disabled=true;type.disabled=true;const hint=document.createElement('small');hint.className='text-danger';hint.textContent='اسم مكرر: اختر السجل الصحيح يدوياً';td.append(sponsorSelect,hint);}
+  else{mode.value='new';sponsorSelect.disabled=true;newName.disabled=false;type.disabled=false;}
+  td.append(newName,type);
+  sponsorSelect.addEventListener('change',()=>{if(sponsorSelect.value){mode.value='existing';newName.disabled=true;type.disabled=true;}});
+  const add=(value,field,kind='text')=>{const c=cell();c.append(makeField('input',kind,name(index,field),value));};
+  add(f.file,'file_number');
+  add(f.date,'departure_date','date');
+  add(f.lastPaid,'last_paid_month','month');
+  add(f.count,'orphan_count','number');
+  add(f.sponsorship,'sponsorship_amount','number');
+  add(f.services,'services_amount','number');
+  add(f.entered,'entered_by');
+  add(f.supervisor,'supervisor_name');
+  td=cell();td.style.minWidth='190px';const notes=makeField('textarea','',name(index,'notes'),payload.notes);notes.rows=2;td.append(notes);
+  td=cell();const remove=document.createElement('button');remove.type='button';remove.className='btn btn-outline-danger btn-sm';remove.textContent='حذف';remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>{row.cells[0].textContent=String(i+1);});});td.append(remove);
+  body.append(tr);
+ });
+ if(!body.rows.length)return false;
+ fieldset.disabled=true;fieldset.classList.add('d-none');panel.classList.remove('d-none');flag.value='1';
+ const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='حفظ جميع سجلات المغادرة';
+ return true;
+}
+function leaveDepartureBatch(){
+ const panel=$('#departureBatchPanel'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag');
+ if(!panel||!fieldset||!flag)return;
+ panel.classList.add('d-none');fieldset.disabled=false;fieldset.classList.remove('d-none');flag.value='0';
+ const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='تسجيل المغادرة';
+}
+
 const panel=$('[data-whatsapp-import]');
 if(!panel)return;
-const profile=panel.dataset.profile,input=$('#whatsappMessage',panel),analyze=$('#whatsappAnalyze',panel),select=$('#whatsappRecord',panel),apply=$('#whatsappApply',panel),status=$('#whatsappStatus',panel),details=$('#whatsappDetails',panel);
+const profile=panel.dataset.profile,input=$('#whatsappMessage',panel),analyze=$('#whatsappAnalyze',panel),select=$('#whatsappRecord',panel),apply=$('#whatsappApply',panel),applyAll=$('#whatsappApplyAll',panel),status=$('#whatsappStatus',panel),details=$('#whatsappDetails',panel);
 let records=[],pendingIndex=null;
 const storageKey='mdeWhatsappQueue:'+profile,pendingKey='mdeWhatsappPending:'+profile;
 function hasRequiredFields(record) {
@@ -221,9 +280,20 @@ analyze.addEventListener('click',()=>{
  const contextDate=profile==='entry'?$('#entryDate')?.value:$('#departureDate')?.value;
  records=profile==='entry'?Parser.applyMessageLevelFields(Parser.split(raw).map((part,index)=>Parser.entry(part,index,contextDate)),raw):Parser.splitDepartures(raw,contextDate);
  render();
+ if(applyAll)applyAll.disabled=records.length<2;
  status.textContent=records.length>1?'تم العثور على '+records.length+' سجلات منفصلة. اختر سجلاً لتحميله في النموذج.':'';
 });
 select.addEventListener('change',render);
+
+if(applyAll)applyAll.addEventListener('click',()=>{
+ if(profile!=='departure'||records.length<2)return;
+ if(records.some(record=>!record.sponsor)){status.textContent='تعذر تحميل الدفعة: يوجد سجل بلا اسم كفيل واضح. أصلح الرسالة قبل المتابعة.';return;}
+ if(!window.confirm('سيتم تحميل '+records.length+' سجلات مغادرة في صفوف مستقلة قابلة للتعديل. لن يتم حفظها قبل ضغط زر الحفظ. هل تريد المتابعة؟'))return;
+ if(renderDepartureBatch(records))status.textContent='تم تحميل '+records.length+' سجلات في جدول المراجعة. راجع كل صف ثم احفظ الدفعة مرة واحدة.';
+});
+const cancelBatch=$('#departureBatchCancel');
+if(cancelBatch)cancelBatch.addEventListener('click',leaveDepartureBatch);
+
 apply.addEventListener('click',()=>{
  const record=records[Number(select.value)||0];
  if(!record)return;

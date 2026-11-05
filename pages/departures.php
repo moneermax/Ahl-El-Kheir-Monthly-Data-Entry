@@ -10,7 +10,143 @@ $sponsors = $pdo->query(
      ORDER BY sponsor_name'
 )->fetchAll();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch'])) {
+    try {
+        mde_verify_csrf();
+        $rows = $_POST['departures'] ?? [];
+        if (!is_array($rows) || count($rows) < 1 || count($rows) > 100) {
+            throw new InvalidArgumentException('أضف سجلاً واحداً على الأقل، وبحد أقصى 100 سجل في الدفعة.');
+        }
+        $pdo->beginTransaction();
+        $checkSponsor = $pdo->prepare('SELECT id, sponsor_name, file_number, sponsor_type FROM mde_sponsors WHERE id = ? FOR UPDATE');
+        $duplicateSponsor = $pdo->prepare('SELECT id FROM mde_sponsors WHERE LOWER(TRIM(sponsor_name)) = LOWER(?) LIMIT 1 FOR UPDATE');
+        $insertSponsor = $pdo->prepare(
+            'INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number, phone, address, notes, is_active)
+             VALUES (?, ?, ?, NULL, NULL, NULL, 0)'
+        );
+        $insertDeparture = $pdo->prepare(
+            'INSERT INTO mde_sponsor_departures
+             (sponsor_id, file_number_snapshot, departure_date, last_paid_month,
+              orphan_count_snapshot, sponsorship_amount_snapshot, services_amount_snapshot,
+              entered_by, supervisor_name, reason, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)'
+        );
+        $endSponsorships = $pdo->prepare(
+            "UPDATE mde_sponsorships SET status = 'ended', end_date = ?
+             WHERE sponsor_id = ? AND status = 'active' AND start_date <= ?"
+        );
+        $syncSponsor = $pdo->prepare(
+            "UPDATE mde_sponsors AS sponsor
+             SET is_active = CASE WHEN EXISTS (
+                SELECT 1 FROM mde_sponsorships AS rel
+                WHERE rel.sponsor_id = sponsor.id AND rel.status = 'active'
+             ) THEN 1 ELSE 0 END
+             WHERE sponsor.id = ?"
+        );
+        $savedCount = 0;
+        foreach ($rows as $index => $row) {
+            $rowNo = (int) $index + 1;
+            if (!is_array($row)) {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: بيانات غير صالحة.");
+            }
+            $mode = (string) ($row['sponsor_mode'] ?? 'existing');
+            if (!in_array($mode, ['existing', 'new'], true)) {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: اختر طريقة تسجيل الكفيل.");
+            }
+            $departureDate = trim((string) ($row['departure_date'] ?? ''));
+            $parsedDate = DateTimeImmutable::createFromFormat('!Y-m-d', $departureDate);
+            if (!$parsedDate || $parsedDate->format('Y-m-d') !== $departureDate) {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: أدخل تاريخ مغادرة صحيحاً.");
+            }
+            $lastPaid = trim((string) ($row['last_paid_month'] ?? ''));
+            $lastPaidDate = null;
+            if ($lastPaid !== '') {
+                if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $lastPaid)) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: شهر آخر سداد غير صحيح.");
+                }
+                $lastPaidDate = mde_month_start($lastPaid . '-01');
+            }
+            $countRaw = trim((string) ($row['orphan_count'] ?? ''));
+            $count = null;
+            if ($countRaw !== '') {
+                $count = filter_var($countRaw, FILTER_VALIDATE_INT);
+                if ($count === false || $count < 0 || $count > 65535) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: عدد الأيتام يجب أن يكون عدداً صحيحاً بين 0 و65535.");
+                }
+            }
+            $amount = filter_var($row['sponsorship_amount'] ?? null, FILTER_VALIDATE_INT);
+            if ($amount === false || $amount === null || $amount < 0) {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: مبلغ الكفالة مطلوب ويجب أن يكون غير سالب.");
+            }
+            $servicesRaw = trim((string) ($row['services_amount'] ?? ''));
+            $services = null;
+            if ($servicesRaw !== '') {
+                $services = filter_var($servicesRaw, FILTER_VALIDATE_INT);
+                if ($services === false || $services < 0) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: مبلغ الخدمات غير صحيح.");
+                }
+            }
+            $fileNumber = trim((string) ($row['file_number'] ?? ''));
+            if ($mode === 'existing') {
+                $sponsorId = filter_var($row['sponsor_id'] ?? null, FILTER_VALIDATE_INT);
+                if (!$sponsorId || $sponsorId < 1) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: اختر الكفيل الصحيح من قائمة الكفلاء المسجلين؛ لم يتم إنشاء كفيل جديد تلقائياً.");
+                }
+                $checkSponsor->execute([$sponsorId]);
+                $sponsor = $checkSponsor->fetch();
+                if (!$sponsor) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: الكفيل المحدد غير موجود.");
+                }
+                $sponsorType = (string) ($sponsor['sponsor_type'] ?? 'individual');
+                if ($fileNumber === '') {
+                    $fileNumber = (string) ($sponsor['file_number'] ?? '');
+                }
+            } else {
+                $sponsorName = trim((string) ($row['new_sponsor_name'] ?? ''));
+                if ($sponsorName === '') {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: اسم الكفيل الجديد مطلوب.");
+                }
+                $newType = (string) ($row['new_sponsor_type'] ?? 'individual');
+                if (!in_array($newType, ['individual', 'tree'], true)) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: نوع الكفيل غير صحيح.");
+                }
+                $duplicateSponsor->execute([$sponsorName]);
+                if ($duplicateSponsor->fetch()) {
+                    throw new InvalidArgumentException("السجل رقم {$rowNo}: الكفيل «{$sponsorName}» موجود بالفعل. اختر سجله بدلاً من إنشاء نسخة مكررة.");
+                }
+                $insertSponsor->execute([$sponsorName, $newType, $fileNumber !== '' ? $fileNumber : null]);
+                $sponsorId = (int) $pdo->lastInsertId();
+                $sponsorType = $newType;
+            }
+            if ($count === null && $sponsorType !== 'tree') {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: عدد الأيتام مطلوب للكفيل الفردي.");
+            }
+            if ($services === null && $sponsorType !== 'tree') {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: مبلغ الخدمات مطلوب للكفيل الفردي.");
+            }
+            $insertDeparture->execute([
+                $sponsorId, $fileNumber !== '' ? $fileNumber : null, $departureDate, $lastPaidDate,
+                $count, $amount, $services,
+                trim((string) ($row['entered_by'] ?? '')) ?: null,
+                trim((string) ($row['supervisor_name'] ?? '')) ?: null,
+                trim((string) ($row['notes'] ?? '')) ?: null,
+            ]);
+            $endSponsorships->execute([$departureDate, $sponsorId, $departureDate]);
+            $syncSponsor->execute([$sponsorId]);
+            $savedCount++;
+        }
+        $pdo->commit();
+        mde_flash('success', "تم حفظ {$savedCount} سجلات مغادرة مستقلة في عملية واحدة.");
+        mde_redirect('departures');
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $error = $exception instanceof PDOException
+            ? 'تعذر حفظ الدفعة بسبب خطأ في قاعدة البيانات. تم التراجع عن جميع السجلات.'
+            : $exception->getMessage() . ' لم يتم حفظ أي سجل من الدفعة.';
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         mde_verify_csrf();
 
@@ -186,6 +322,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
 <?php $whatsappImportProfile = 'departure'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
 <form method="post" class="card p-2 p-md-3" id="departureForm">
     <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
+    <input type="hidden" name="departure_batch" id="departureBatchFlag" value="0">
 
     <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
         <span class="form-label required mb-0">بيانات الكفيل</span>
@@ -199,6 +336,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         </div>
     </div>
 
+    <fieldset id="singleDepartureFields" class="border-0 p-0 m-0">
     <div class="entry-register-wrap">
         <table class="entry-register departure-register" id="departureRegister">
             <colgroup>
@@ -293,6 +431,18 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
             </tbody>
         </table>
     </div>
+    </fieldset>
+
+    <section id="departureBatchPanel" class="d-none mt-3">
+        <div class="alert alert-info py-2">مراجعة متعددة: كل صف يمثل كفيلاً وسجل مغادرة مستقلاً. يمكنك تعديل القيم أو حذف الصفوف قبل الحفظ.</div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle">
+                <thead><tr><th>#</th><th>الكفيل</th><th>الملف</th><th>المغادرة</th><th>آخر سداد</th><th>الأيتام</th><th>الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th><th>ملاحظات</th><th></th></tr></thead>
+                <tbody id="departureBatchRows"></tbody>
+            </table>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="departureBatchCancel">العودة إلى الإدخال الفردي</button>
+    </section>
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
         <p class="form-text mb-0">لن تُحفظ البيانات إلا بعد استكمال تاريخ المغادرة والتحقق من القيم. تتم عملية إنهاء الكفالات النشطة للكفيل كاملة أو لا يُحفظ منها شيء.</p>

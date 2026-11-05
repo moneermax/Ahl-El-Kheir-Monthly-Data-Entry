@@ -14,6 +14,7 @@ if (!in_array($whatsappImportProfile, ['entry', 'departure'], true)) {
         <button type="button" class="btn btn-outline-success" id="whatsappAnalyze">تحليل الرسالة</button>
         <select class="form-select flex-grow-1" style="max-width:360px" id="whatsappRecord" disabled aria-label="السجل المستخرج"><option value="">لا توجد سجلات بعد</option></select>
         <button type="button" class="btn btn-success" id="whatsappApply" disabled>تحميل السجل في النموذج</button>
+        <?php if ($whatsappImportProfile === 'departure'): ?><button type="button" class="btn btn-danger" id="whatsappApplyAll" disabled>تحميل جميع سجلات المغادرة</button><?php endif; ?>
     </div>
     <div class="small mt-2" id="whatsappDetails" aria-live="polite"></div>
     <div class="small text-primary mt-1" id="whatsappStatus" aria-live="polite"></div>
