@@ -282,6 +282,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
     const newFields = document.getElementById('newSponsorFields');
     const sponsorSelect = document.getElementById('departureSponsor');
     const existingFile = document.getElementById('existingFileNumber');
+    const newFile = document.getElementById('newFileNumber');
     const newName = document.getElementById('newSponsorName');
 
     const syncMode = () => {
@@ -297,6 +298,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
             field.disabled = !isNew;
         });
         existingFile.disabled = isNew;
+        newFile.disabled = !isNew;
     };
 
     existingMode.addEventListener('change', syncMode);
