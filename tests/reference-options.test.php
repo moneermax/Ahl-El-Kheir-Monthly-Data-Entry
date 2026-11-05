@@ -8,7 +8,7 @@ if (!function_exists('mde_h')) {
 require __DIR__ . '/../includes/reference_options.php';
 
 $expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله'];
-$expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء'];
+$expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء'];
 
 if ($mdeEnteredByOptions !== $expectedEnteredBy) {
     throw new RuntimeException('The entry operator list differs from the reviewed source list.');
@@ -18,6 +18,12 @@ if ($mdeSupervisorOptions !== $expectedSupervisors) {
 }
 if (count($mdeEnteredByOptions) !== count(array_unique($mdeEnteredByOptions)) || count($mdeSupervisorOptions) !== count(array_unique($mdeSupervisorOptions))) {
     throw new RuntimeException('Personnel dropdown options must not contain duplicates.');
+}
+if (mde_person_option_key('ح ميساء') !== mde_person_option_key('ميساء') || in_array('ح ميساء', $mdeSupervisorOptions, true)) {
+    throw new RuntimeException('A standalone role prefix must not create a duplicate person option.');
+}
+if (mde_person_option_key('هبه') === mde_person_option_key('هبه خلف الله')) {
+    throw new RuntimeException('Distinct full names must remain distinct personnel options.');
 }
 if (in_array('مياده ساره', $mdeSupervisorOptions, true) || in_array('مها ميساء', $mdeSupervisorOptions, true)) {
     throw new RuntimeException('Combined spreadsheet cell values must not appear as individual supervisors.');
