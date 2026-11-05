@@ -129,8 +129,9 @@ function applyDeparture(record,options={}) {
   newMode.checked=true;
   newMode.dispatchEvent(new Event('change',{bubbles:true}));
  }
+ const fileValue=payloadFields.file||(matched?(select.selectedOptions[0]?.dataset.file||''):'');
  const fields=[
-  ['رقم الملف',useExistingMode?'#existingFileNumber':'#newFileNumber',payloadFields.file],
+  ['رقم الملف',useExistingMode?'#existingFileNumber':'#newFileNumber',fileValue],
   ['تاريخ المغادرة','#departureDate',payloadFields.date],
   ['آخر سداد','#lastPaidMonth',payloadFields.lastPaid],
   ['عدد الأيتام','#orphanCount',payloadFields.count],
