@@ -54,6 +54,11 @@ assert.equal(entryRecord.entered, 'هناء خلف الله');
 assert.equal(entryRecord.supervisor, 'ميساء', 'the ح after مشرفه is a role descriptor, not part of the supervisor name');
 
 
+const treeGroupMentionEntry = parser.entry('الكفيل: ناصر كباشي احمد\nالأم: عائشة محمد\nاليتيم: سارة محمد\nداخل قروب الشجرة رجال\nالتاريخ: 03/11/2026', 0);
+assert.equal(treeGroupMentionEntry.type, '', 'mentioning a tree WhatsApp group in a note must not reclassify an individual sponsor');
+const explicitTreeEntry = parser.entry('الكفيلة: دعاء حسين شمس الدين حسين؛ اليتيم: رنا عبدالله محمد؛ الأم: عائشة عبدالله علي؛ كفالة 5000؛ خدمات 1000؛ 🌳؛ تاريخ الانضمام: 1/11/2026', 0);
+assert.equal(explicitTreeEntry.type, 'tree', 'an explicit tree marker must still classify a tree sponsor');
+
 const inlineFieldsMessage = 'الكفيل ناصر كباشي احمد ملف 2026 اسم الوالدة عائشة محمد اسم اليتيم سارة محمد';
 const inlineFields = parser.entry(parser.split(inlineFieldsMessage)[0], 0);
 assert.equal(inlineFields.sponsor, 'ناصر كباشي احمد', 'sponsor name must stop before the file label');
