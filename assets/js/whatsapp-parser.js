@@ -100,6 +100,7 @@ function departureFileValue(t){
  const text=String(t??'');
  const returned=text.match(/رجعت\s+لملفها\s*[:=：-]?\s*(\d{1,4})/u);
  if(returned)return returned[1];
+ const labelled=value(text,L.file);if(labelled)return clean(labelled);
  for(const line of text.split(/\r?\n/)){const match=norm(line).match(/^(?:رقم\s+)?ملف(?:\s+رقم)?\s*[:：=-]?\s*(\d{1,4})$/u);if(match)return match[1];}
  return'';
 }
