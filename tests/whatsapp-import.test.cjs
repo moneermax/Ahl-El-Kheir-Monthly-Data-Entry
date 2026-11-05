@@ -508,6 +508,10 @@ const departurePayload = parser.buildDepartureFormPayload({
 assert.equal(departurePayload.fields.sponsor, 'انس فتح الرحمن احمد محمد');
 assert.equal(departurePayload.notes, 'السبب كما ورد: عدم تواجده في الواتس والاتصال | ما داخل قروب', 'source reason must be preserved inside the single notes field');
 
+const groupMentionDeparture = parser.departure('انس فتح الرحمن احمد محمد\nملف 24\nداخل قروب الشجرة رجال 🌳\nتاريخ المغادرة: 31/10/2026\nعدد الأيتام: 1\nآخر سداد: سبتمبر', 0, '2026-11-04');
+assert.equal(groupMentionDeparture.type, 'individual', 'a tree-group note, even with a decorative tree emoji, must not reclassify an individual departure');
+assert.ok(!groupMentionDeparture.unrecognizedLines.includes('داخل قروب الشجرة رجال 🌳'), 'the tree-group note must be retained as explanatory text, not treated as an orphan sponsor name');
+
 const singleCancellation = parser.splitDepartures([
   'إلغاء كفالة',
   'ملف 2024',
