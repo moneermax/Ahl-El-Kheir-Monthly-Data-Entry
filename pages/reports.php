@@ -196,7 +196,7 @@ function mde_report_amount(mixed $value): string {
     <tr>
      <td><?= $i + 1 ?></td><td><?= mde_h($d['file_number_snapshot']) ?></td>
      <td><?= mde_h($d['sponsor_name']) ?></td><td><?= mde_h(mde_report_date($d['departure_date'])) ?></td>
-     <td><?= (int) $d['orphan_count_snapshot'] ?></td>
+     <td><?= $d['orphan_count_snapshot'] === null ? '' : (int) $d['orphan_count_snapshot'] ?></td>
      <td><?= mde_report_amount($d['sponsorship_amount_snapshot']) ?></td>
      <td><?= mde_report_amount($d['services_amount_snapshot']) ?></td>
      <td><?= mde_h($d['last_paid_month']) ?></td><td><?= mde_h($d['notes']) ?></td>
