@@ -203,7 +203,7 @@ function renderDepartureBatch(batchRecords) {
   let td=cell();td.className='text-center fw-bold';td.textContent=String(index+1);
   td=cell();td.style.minWidth='220px';
   const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');td.append(mode);
-  const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';
+  const sponsorSelect=sourceSelect.cloneNode(true);sponsorSelect.removeAttribute('id');sponsorSelect.name=name(index,'sponsor_id');sponsorSelect.className='form-select form-select-sm mb-1';sponsorSelect.removeAttribute('disabled');
   const matches=matchingSponsorOptions(sourceSelect,f.sponsor);
   const newName=makeField('input','text',name(index,'new_sponsor_name'),matches.length?'':f.sponsor,'اسم كفيل جديد');newName.maxLength=255;
   const type=makeField('select','',name(index,'new_sponsor_type'),f.type);
