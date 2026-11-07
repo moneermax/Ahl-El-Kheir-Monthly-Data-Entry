@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS mde_sponsorships (
     KEY idx_mde_sponsorships_orphan (orphan_id),
     KEY idx_mde_sponsorships_status_dates (status, start_date, end_date),
     KEY idx_mde_sponsorships_reference (reference_no),
+    UNIQUE KEY uq_mde_sponsorship_identity (id, sponsor_id, orphan_id),
     CONSTRAINT fk_mde_sponsorships_sponsor FOREIGN KEY (sponsor_id)
       REFERENCES mde_sponsors(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_mde_sponsorships_orphan FOREIGN KEY (orphan_id)
@@ -81,6 +82,8 @@ CREATE TABLE IF NOT EXISTS mde_sponsorships (
 CREATE TABLE IF NOT EXISTS mde_monthly_sponsorship_entries (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sponsorship_id BIGINT UNSIGNED NOT NULL,
+    sponsor_id BIGINT UNSIGNED NOT NULL,
+    orphan_id BIGINT UNSIGNED NOT NULL,
     report_month DATE NOT NULL COMMENT 'Always the first day of the reporting month',
     entry_date DATE NOT NULL,
     sponsorship_amount BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -92,10 +95,13 @@ CREATE TABLE IF NOT EXISTS mde_monthly_sponsorship_entries (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_mde_monthly_sponsorship_month (report_month),
-    UNIQUE KEY uq_mde_monthly_sponsorship_report_month (sponsorship_id, report_month),
+    KEY idx_mde_monthly_sponsorship_sponsor (sponsorship_id),
+    UNIQUE KEY uq_mde_monthly_sponsor_orphan_month (sponsor_id, orphan_id, report_month),
     KEY idx_mde_monthly_sponsorship_entry_date (entry_date),
-    CONSTRAINT fk_mde_monthly_sponsorship FOREIGN KEY (sponsorship_id)
-      REFERENCES mde_sponsorships(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_mde_monthly_sponsorship_identity
+      FOREIGN KEY (sponsorship_id, sponsor_id, orphan_id)
+      REFERENCES mde_sponsorships(id, sponsor_id, orphan_id)
+      ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT chk_mde_report_month_first_day CHECK (DAYOFMONTH(report_month) = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
