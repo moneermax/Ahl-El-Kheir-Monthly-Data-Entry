@@ -82,7 +82,8 @@ The workbook and messages contain two source discrepancies that are deliberately
 
 ## Review and failure behaviour
 
-- Missing sponsor, mother, or orphan data prevents loading an entry record. A departure with a sponsor may be loaded for review even if the source omits its departure date or (for a tree sponsor) orphan count; missing required values remain blank and must be completed before saving. Individual sponsors still require an orphan count.
+- Missing sponsor, mother, or orphan data prevents loading an entry record. If those names are present but the joining date is absent, the entry can still be loaded for review; the date is cleared, called out for manual entry, and remains mandatory before saving. A departure with a sponsor may be loaded for review even if the source omits its departure date or (for a tree sponsor) orphan count; missing required values remain blank and must be completed before saving. Individual sponsors still require an orphan count.
+- Numbered orphan continuation lines accept Arabic-Indic or Western digits, optional punctuation (for example `٢. الاسم` or `٣ الاسم`), and indentation. These prefixes are removed from the stored orphan name.
 - Missing or ambiguous values remain blank; the parser does not invent replacements. A blank tree service fee is distinct from an explicit zero and is saved as NULL.
 - Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
 - If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained. The full `هبه خلف الله` value from the reported message is included in both applicable dropdown lists.
