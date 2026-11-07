@@ -294,3 +294,12 @@ Automated syntax checks and live database/browser tests are still required after
 ### Numeric date review warning
 
 When both the day and month components are 12 or less, the parser still loads the date using the configured day/month/year convention, but adds a non-blocking review warning because the source could have intended month/day/year. The operator must verify that date against the original message before saving.
+
+
+## WhatsApp numeric date parsing correction — 2026-11-07
+
+- Numeric dates accept slash (/), backslash (\\), hyphen (-), and colon (:) separators, including spaces around separators; standalone date lines with these separators are recognized.
+- Date order is resolved using the month/year in the entry-date field as context. If one of the first two numbers matches the context month, that number is treated as the month and the other as the day. This handles both `6/11/2026` and `11/6/2026` as 6 November when the entry context is November 2026.
+- If neither number matches the context month, the parser retains day/month/year as its fallback.
+- The previous generic warning that always assumed day/month/year for ambiguous numeric dates was removed.
+- Regression checks passed for slash, colon, hyphen, backslash, ISO, and spaced dates, including both date orders and standalone-line extraction.
