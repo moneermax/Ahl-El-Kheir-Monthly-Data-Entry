@@ -71,7 +71,7 @@
 
   const heading=document.createElement('div');
   heading.className='fw-bold mb-2';
-  heading.textContent='تنبيه: لهذا الكفيل إدخال سابق في شهر التقرير نفسه. هذا تحذير للمراجعة فقط؛ يمكنك الحفظ إذا كان الإدخال الجديد مقصوداً.';
+  heading.textContent='تنبيه: توجد إدخالات سابقة لهذا الكفيل في شهر التقرير نفسه. إذا كان تخصيص الأم/اليتيم ومبالغه مطابقاً، فسيتخطاه الحفظ ولن يكرر الإجمالي. إذا اختلفت مبالغ الكفالة أو الخدمات، فسيُوقف الحفظ للمراجعة ولن يستبدل أي مبلغ تلقائياً.';
   warning.append(heading);
 
   const tableWrap=document.createElement('div');
