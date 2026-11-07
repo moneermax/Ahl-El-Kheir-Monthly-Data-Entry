@@ -289,3 +289,8 @@ Automated syntax checks and live database/browser tests are still required after
 - Numeric dates use day/month/year consistently. Thus `6/11/2026` means 6 November 2026 and `11/6/2026` means 11 June 2026. When both first components are 12 or less, the parser cannot infer a sender's alternative month/day convention; operators must verify the date against the source.
 - Sponsorship-duration phrases such as `كفالة 6شهور` are preserved in notes and are not interpreted as monetary amounts. The accompanying `المتبقي` / `زيادة مؤقتة` wording is retained as part of the note.
 - Isolated parser regression checks passed for both supplied messages, slash/backslash labels, spaced standalone dates, both day/month examples, and duration-without-amount handling. Browser form-population and local PHP/database tests remain required after pulling.
+
+
+### Numeric date review warning
+
+When both the day and month components are 12 or less, the parser still loads the date using the configured day/month/year convention, but adds a non-blocking review warning because the source could have intended month/day/year. The operator must verify that date against the original message before saving.
