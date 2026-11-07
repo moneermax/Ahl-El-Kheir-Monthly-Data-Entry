@@ -226,3 +226,12 @@ These are source-only changes; no database migration or data rewrite is required
 - Arabic-Indic and Western numbered orphan names with optional punctuation and indentation are normalized before extraction; continuation names no longer remain in the unclassified warning list.
 - An entry record with a recognized sponsor, mother, and at least one orphan can be loaded for review when the source has no joining date. The date is cleared rather than guessed, and the operator is explicitly told to enter it manually before saving. The HTML required-date validation remains in place.
 - Added a regression case for the two-sponsor WhatsApp message format with multiple mothers and five orphans per sponsor.
+
+
+## New-sponsor reporting uses actual save date — 2026-11-07
+
+- The new-sponsor report month is based on `mde_monthly_sponsorship_entries.created_at`, not the sponsor's first relationship `start_date`, the sponsor master `created_at`, or the entered effective `entry_date`.
+- The displayed date is the calendar date the monthly sponsorship entry was inserted. Records are grouped by sponsor and save date so a sponsor entered on multiple days does not receive a misleading single date.
+- Other donations in the new-sponsor report are selected by their own `created_at` timestamp for the same calendar month.
+- The on-screen report and CSV, PDF, and Excel exports use the same save-date rule. The Excel template's date heading is changed to `تاريخ الإدخال` at export time without changing the template layout.
+- No database migration or data rewrite is required. Existing rows use their stored database insertion timestamps.
