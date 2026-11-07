@@ -260,3 +260,18 @@ The New Sponsors page displays a per-row delete action beside each prior entry i
 Deletion is transactional and records the full before-data snapshot in `mde_change_log`. Other donations are independent financial records linked to a sponsorship/month, not to a particular monthly sponsorship-entry row. They are therefore always preserved when deleting a monthly entry. No schema migration is required.
 
 Live browser and MariaDB deletion tests are still required after pulling. Verify that the selected monthly entry disappears, other monthly entries remain, all other donations remain unchanged, and the sponsorship relationship and all master records remain.
+
+
+## Duplicate-safe monthly financial saves — 2026-11-07
+
+The New Sponsors save handler now treats the allocation identity as sponsor + orphan + selected report month, regardless of which historical sponsorship episode currently represents that relationship.
+
+- If exactly one matching monthly allocation exists and its sponsorship/services amounts are identical, the save skips that monthly row. Re-importing the same message therefore does not add another sponsorship or services amount to monthly reports.
+- If a matching allocation exists but either financial amount differs, the entire submission is rolled back and the operator is directed to compare/correct the existing row through data management. The save never silently overwrites financial values.
+- If more than one matching monthly row already exists, the entire submission is stopped and the existing row IDs are shown for reconciliation.
+- New allocations are inserted normally. Sponsor-level row locking serializes concurrent submissions for the same sponsor. Identical other-donation lines are deduplicated by sponsorship, report month, date, type, and amount, using occurrence counts so repeated identical lines within a single source message are retained.
+- Migration 010 adds sponsor_id/orphan_id identity columns to monthly rows, a composite foreign key ensuring those IDs match the linked sponsorship, and a unique key on (sponsor_id, orphan_id, report_month). This protects the business key across separate historical sponsorship episodes as well as ordinary repeated saves.
+- Before applying migration 010 to an existing database, run database/maintenance/audit_monthly_duplicate_entries.sql. It must return zero rows. Existing repeated rows are not automatically deleted or merged because their financial meaning must be reviewed. The migration then backfills the identity columns and adds the database constraint.
+- Fresh installations receive the same constraint from database/schema.sql. Existing installations must apply migration 010 after migration 009.
+
+Verification caveat: GitHub source has been updated, but PHP lint, MariaDB migration execution, concurrent-save tests, browser tests, and report/export reconciliation have not yet been run against the user's local database. Do not treat financial totals as certified until the migration preflight is clean, migration 010 succeeds, and the test plan passes.
