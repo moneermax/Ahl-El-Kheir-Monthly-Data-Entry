@@ -91,7 +91,6 @@ CREATE TABLE IF NOT EXISTS mde_monthly_sponsorship_entries (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_mde_monthly_sponsorship (sponsorship_id, report_month),
     KEY idx_mde_monthly_sponsorship_month (report_month),
     KEY idx_mde_monthly_sponsorship_entry_date (entry_date),
     CONSTRAINT fk_mde_monthly_sponsorship FOREIGN KEY (sponsorship_id)
@@ -167,4 +166,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9);
