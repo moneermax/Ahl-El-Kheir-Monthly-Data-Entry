@@ -775,4 +775,49 @@ assert.deepEqual(Array.from(octoberTreeCases, r => r.services), ['', '1000', '',
 assert.deepEqual(Array.from(octoberTreeCases, r => r.lastPaid), ['2026-08', '2026-08', '2026-08', '2026-10']);
 assert.ok(octoberTreeCases.every(r => r.type === 'tree' && r.date === '2026-10-31' && r.warnings.length === 0));
 
+
+const twoSponsorNumberedMessage = `الكفيلة: محاسن عبدالرحمن علي
+الام: انتصار عبدالله سليمان
+اليتيم:١. سبا بلال
+        ٢.  سجا بلال
+         ٣. عبدالله بلال
+الام: بلالة يوسف فضل الله
+اليتيم :٤.صبري علي
+          ٥.ابراهيم علي
+المبلغ: 100000
+الخدمات: 5000
+=====
+الكفيل: محمد حامد بدوي
+الام :بثينة مهدي محمد
+اليتيم : ١ مهدي مسعود
+         ٢. وجن مسعود
+          ٣.عثمان مسعود
+الام: نجوي فضل السيد
+اليتيم : ٤.عصام هيثم عيسي
+اليتيم : ٥.ايمن اسماعيل
+المبلغ :100000
+الخدمات: 5000
+❤️‍🔥🧨
+ملحوظة كل يتيم 20000 الف
+كفلاء مغادرين حاينزلوا في ملف 26
+عن طريق ساره خلف الله
+مشرفه ح :ساره/ خ مها`;
+const twoSponsorRecords = parser.applyMessageLevelFields(
+  parser.split(twoSponsorNumberedMessage).map((part, index) => parser.entry(part, index, '2026-11-07')),
+  twoSponsorNumberedMessage
+);
+assert.equal(twoSponsorRecords.length, 2, 'two sponsor labels must produce two independent entry records');
+assert.deepEqual(Array.from(twoSponsorRecords, r => r.sponsor), ['محاسن عبدالرحمن علي', 'محمد حامد بدوي']);
+assert.deepEqual(Array.from(twoSponsorRecords[0].families, f => f.mother), ['انتصار عبدالله سليمان', 'بلالة يوسف فضل الله']);
+assert.deepEqual(Array.from(twoSponsorRecords[0].orphans), ['سبا بلال', 'سجا بلال', 'عبدالله بلال', 'صبري علي', 'ابراهيم علي'], 'Arabic-numbered and indented continuation names must be extracted');
+assert.deepEqual(Array.from(twoSponsorRecords[1].families, f => f.mother), ['بثينة مهدي محمد', 'نجوي فضل السيد']);
+assert.deepEqual(Array.from(twoSponsorRecords[1].orphans), ['مهدي مسعود', 'وجن مسعود', 'عثمان مسعود', 'عصام هيثم عيسي', 'ايمن اسماعيل'], 'Arabic and Western numbering styles must both be extracted');
+assert.deepEqual(Array.from(twoSponsorRecords, r => r.sponsorship), ['100000', '100000']);
+assert.deepEqual(Array.from(twoSponsorRecords, r => r.services), ['5000', '5000']);
+assert.ok(twoSponsorRecords.every(r => r.date === ''), 'the parser must not invent a joining date absent from the source message');
+assert.ok(twoSponsorRecords.every(r => !r.unrecognizedLines.some(line => /سجا بلال|عبدالله بلال|ابراهيم علي|وجن مسعود|عثمان مسعود/u.test(line))), 'numbered orphan continuation lines must not remain in the unclassified warning');
+
+assert.ok(importSource.includes("if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0;"), 'a sponsor record with complete family names can be loaded for review when the joining date is missing');
+assert.ok(importSource.includes('تاريخ الانضمام غير موجود في الرسالة؛ أدخله يدوياً قبل الحفظ.'), 'missing joining dates must be called out after loading and not silently inferred');
+
 console.log('WhatsApp parser tests passed.');
