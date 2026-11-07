@@ -188,7 +188,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
                 $rows1[]=[
                     $i===0 ? $sponsorIndex+1 : null,
                     $i===0 ? (string)($sponsor['sponsor_name'] ?? '') : null,
-                    $i===0 ? $excelDate(is_string($sponsor['entry_date'] ?? null)?$sponsor['joining_date']:null) : null,
+                    $i===0 ? $excelDate(is_string($sponsor['entry_date'] ?? null)?$sponsor['entry_date']:null) : null,
                     $row['mother_name'] ?? '',
                     $row['orphan_name'] ?? '',
                     (int)($row['sponsorship_amount'] ?? 0),
