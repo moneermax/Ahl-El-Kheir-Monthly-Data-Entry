@@ -36,9 +36,11 @@
   });
   thead.append(headRow);table.append(thead);
 
-  const submitted=new Set([...form.querySelectorAll('.orphan-row')].map(row=>
-   normalize(row.querySelector('.mother-name')?.value)+'|'+normalize(row.querySelector('.orphan-name')?.value)
-  ));
+  const submitted=new Set([...form.querySelectorAll('.orphan-row')].map(row=>{
+   const familyId=row.dataset.family;
+   const mother=form.querySelector('.mother-span-cell[data-family="'+familyId+'"] .mother-name');
+   return normalize(mother?.value)+'|'+normalize(row.querySelector('.orphan-name')?.value);
+  }));
   const tbody=document.createElement('tbody');
   entries.forEach(item=>{
    const tr=document.createElement('tr');
