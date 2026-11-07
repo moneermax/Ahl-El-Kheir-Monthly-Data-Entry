@@ -7,7 +7,7 @@
  const sponsorCells=[...$('sponsorCellsTemplate').content.querySelector('tr').children];
  const preCells=sponsorCells.slice(0,4),postCells=sponsorCells.slice(4);   // before the mother cell / after the amounts
  const q=sel=>sponsorCells.map(c=>c.querySelector(sel)).find(Boolean);
- const existing=q('#existingSponsor'),sponsorName=q('#sponsorName'),sponsorType=q('#sponsorType'),fileNumber=q('#fileNumber');
+ const sponsorName=q('#sponsorName'),sponsorType=q('#sponsorType'),fileNumber=q('#fileNumber');
  const motherCells=new Map();
  const expectedSponsorship=$('expectedSponsorship'),expectedServices=$('expectedServices');
  const actualSponsorship=$('actualSponsorship'),actualServices=$('actualServices'),amountCheck=$('amountCheck'),entryForm=$('entryForm');
@@ -86,14 +86,7 @@
   const row=newOrphanRow(id);families.append(row);
   refresh();return row;
  }
- function syncSponsorMode(){
-  const isExisting=!!existing.value;sponsorName.required=!isExisting;sponsorName.disabled=isExisting;
-  sponsorName.placeholder=isExisting?'من الكفيل المحدد':'اسم الكفيل الجديد';
-  if(isExisting){sponsorName.value='';sponsorType.value=existing.selectedOptions[0].dataset.type||'individual';fileNumber.value=existing.selectedOptions[0].dataset.file||'';}
-  else {sponsorType.value='individual';fileNumber.value='';}
- }
-
- addFamily();syncSponsorMode();
+ addFamily();
  $('addFamily').addEventListener('click',addFamily);
  $('addFamilyBottom').addEventListener('click',addFamily);
 
@@ -133,6 +126,5 @@
 
  families.addEventListener('input',updateAmountTotals);expectedSponsorship.addEventListener('input',updateAmountTotals);expectedServices.addEventListener('input',updateAmountTotals);
  entryForm.addEventListener('submit',event=>{if(!updateAmountTotals()){event.preventDefault();amountCheck.scrollIntoView({behavior:'smooth',block:'center'});}});
- existing.addEventListener('change',syncSponsorMode);
  window.mdeUpdateAmountTotals=updateAmountTotals;
 })();
