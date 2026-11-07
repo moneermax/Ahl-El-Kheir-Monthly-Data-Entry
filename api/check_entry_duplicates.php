@@ -25,7 +25,7 @@ try {
     }
 
     $month = mde_month_start($entryDate);
-    $select = 'SELECT sp.id AS sponsor_id, sp.sponsor_name, me.entry_date,
+    $select = 'SELECT me.id AS entry_id, sp.id AS sponsor_id, sp.sponsor_name, me.entry_date,
                       mo.mother_name, o.orphan_name,
                       me.sponsorship_amount, me.services_amount
                FROM mde_monthly_sponsorship_entries AS me
