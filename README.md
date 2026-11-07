@@ -74,7 +74,7 @@ The two original CSV files are retained under \`reference-csv/\` without importi
 - Historical monthly entries remain reportable after a sponsorship ends.
 - Amounts are integer SDG units; no floating-point arithmetic is used.
 
-For existing installations, apply migrations in order: `004_link_other_donations_to_sponsorship.sql`, `005_audit_deletions.sql`, `006_audit_departure_deletions.sql`, then `007_nullable_departure_services.sql`. Migration 004 adds a nullable sponsorship link; migrations 005 and 006 extend audit entity types for deletion snapshots, including sponsor departures; migration 007 makes the departure service-fee snapshot nullable so an omitted optional tree fee is not stored as zero. Historical sponsor-level donations and departure rows are not rewritten. Fresh installations receive the latest schema from `database/schema.sql`.
+For existing installations, apply migrations in order: `004_link_other_donations_to_sponsorship.sql`, `005_audit_deletions.sql`, `006_audit_departure_deletions.sql`, then `007_nullable_departure_services.sql`, `008_departure_sponsor_name_snapshot.sql`, and `009_allow_repeat_monthly_sponsorship_entries.sql`. Migration 004 adds a nullable sponsorship link; migrations 005 and 006 extend audit entity types for deletion snapshots, including sponsor departures; migration 007 makes the departure service-fee snapshot nullable so an omitted optional tree fee is not stored as zero; migration 008 preserves the reviewed sponsor name on departure records; migration 009 removes the monthly uniqueness restriction so intentional same-month repeat entries can be saved after an informational warning. Historical sponsor-level donations and departure rows are not rewritten. Fresh installations receive the latest schema from `database/schema.sql`.
 
 ## Privacy and separation
 
@@ -82,3 +82,6 @@ This repository is private. The CSV reference folder is denied direct HTTP acces
 
 
 **Departure snapshot update:** Existing installations must apply `database/migrations/008_departure_sponsor_name_snapshot.sql` once, after migration 007, before using the editable departure sponsor-name field. The migration backfills existing departure names and does not rename sponsor master records.
+
+
+- Same-month repeat detection on the new-sponsor entry page is a warning, not a save restriction. It lists prior entry dates, mother/orphan names, sponsorship, and service fees; exact mother/orphan matches are highlighted. Existing installations must apply migration 009 before saving exact same sponsor/orphan/month repeats.
