@@ -48,10 +48,10 @@ $newRows = $newStmt->fetchAll();
 $donationStmt = $pdo->prepare("
  SELECT sponsor_id, sponsorship_id, donation_type, amount
  FROM mde_monthly_other_donations
- WHERE report_month = ?
+ WHERE d.created_at >= ? AND d.created_at < ?
  ORDER BY donation_type, amount
 ");
-$donationStmt->execute([$monthStart]);
+$donationStmt->execute([$monthStart, $entryMonthEnd]);
 $donationsBySponsorship = [];
 $legacyDonationsBySponsor = [];
 foreach ($donationStmt->fetchAll() as $donation) {
