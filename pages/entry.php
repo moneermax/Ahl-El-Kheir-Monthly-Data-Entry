@@ -3,17 +3,16 @@ declare(strict_types=1);
 
 $error = '';
 require_once __DIR__ . '/../includes/reference_options.php';
-$existingSponsors = $pdo->query('SELECT id, sponsor_name, sponsor_type, file_number FROM mde_sponsors ORDER BY sponsor_name, id')->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         mde_verify_csrf();
         $sponsorName = trim((string) ($_POST['sponsor_name'] ?? ''));
         $fileNumber = trim((string) ($_POST['file_number'] ?? ''));
-        $sponsorType = (string) ($_POST['sponsor_type'] ?? 'individual');
-        if (!in_array($sponsorType, ['individual', 'tree'], true)) {
+        $sponsorTypeInput = trim((string) ($_POST['sponsor_type'] ?? ''));
+        if (!in_array($sponsorTypeInput, ['', 'individual', 'tree'], true)) {
             throw new InvalidArgumentException('اختر نوع الكفيل بصورة صحيحة.');
         }
-        $selectedSponsorId = filter_var($_POST['existing_sponsor_id'] ?? null, FILTER_VALIDATE_INT);
+        $sponsorType = $sponsorTypeInput !== '' ? $sponsorTypeInput : 'individual';
         $entryDate = (string) ($_POST['entry_date'] ?? '');
         $enteredBy = trim((string) ($_POST['entered_by'] ?? ''));
         $supervisor = trim((string) ($_POST['supervisor_name'] ?? ''));
@@ -50,31 +49,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new InvalidArgumentException('مجموع الخدمات الموزعة على الأيتام لا يطابق إجمالي الخدمات الوارد.');
         }
 
-        if ((!$selectedSponsorId && $sponsorName === '') || count($families) < 1) {
-            throw new InvalidArgumentException('اختر كفيلاً موجوداً أو أدخل اسم كفيل جديد، وأضف بيانات أسرة واحدة على الأقل.');
+        if ($sponsorName === '' || count($families) < 1) {
+            throw new InvalidArgumentException('أدخل اسم الكفيل وأضف بيانات أسرة واحدة على الأقل.');
         }
         $month = mde_month_start($entryDate);
         $pdo->beginTransaction();
 
-        if ($selectedSponsorId) {
-            $sponsorCheck = $pdo->prepare('SELECT id, sponsor_name FROM mde_sponsors WHERE id = ?');
-            $sponsorCheck->execute([$selectedSponsorId]);
-            $existingSponsor = $sponsorCheck->fetch();
-            if (!$existingSponsor) {
-                throw new InvalidArgumentException('الكفيل المحدد غير موجود.');
+        // The sponsor name stays editable. Resolve an existing master record by
+        // exact name; when that name is shared, require a file number that selects
+        // exactly one record instead of forcing a dropdown or guessing.
+        $findSponsorStmt = $pdo->prepare(
+            'SELECT id, sponsor_type, file_number
+             FROM mde_sponsors
+             WHERE LOWER(TRIM(sponsor_name)) = LOWER(TRIM(?))
+             ORDER BY id
+             FOR UPDATE'
+        );
+        $findSponsorStmt->execute([$sponsorName]);
+        $sponsorMatches = $findSponsorStmt->fetchAll();
+        $existingSponsor = null;
+
+        if (count($sponsorMatches) === 1) {
+            $existingSponsor = $sponsorMatches[0];
+        } elseif (count($sponsorMatches) > 1) {
+            $normalizeFileNumber = static function (string $value): string {
+                $value = strtr(trim($value), [
+                    '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+                    '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+                    '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+                    '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+                ]);
+                return preg_replace('/\s+/u', '', $value) ?? $value;
+            };
+            $wantedFileNumber = $normalizeFileNumber($fileNumber);
+            $fileMatches = $wantedFileNumber === '' ? [] : array_values(array_filter(
+                $sponsorMatches,
+                static fn (array $row): bool =>
+                    $normalizeFileNumber((string) ($row['file_number'] ?? '')) === $wantedFileNumber
+            ));
+            if (count($fileMatches) !== 1) {
+                throw new InvalidArgumentException(
+                    'هذا الاسم مسجل لأكثر من كفيل. أدخل رقم الملف المطابق للسجل الصحيح؛ لم يتم اختيار أي سجل تلقائياً ولم يتم إنشاء كفيل جديد.'
+                );
             }
-            $sponsorId = $selectedSponsorId;
-            $pdo->prepare('UPDATE mde_sponsors SET sponsor_type = ?, file_number = COALESCE(NULLIF(?, \'\'), file_number) WHERE id = ?')->execute([$sponsorType, $fileNumber, $sponsorId]);
+            $existingSponsor = $fileMatches[0];
+        }
+
+        if ($existingSponsor !== null) {
+            $sponsorId = (int) $existingSponsor['id'];
+            $updates = [];
+            $updateValues = [];
+            if ($sponsorTypeInput !== '') {
+                $updates[] = 'sponsor_type = ?';
+                $updateValues[] = $sponsorTypeInput;
+            }
+            if ($fileNumber !== '') {
+                $updates[] = 'file_number = ?';
+                $updateValues[] = $fileNumber;
+            }
+            if ($updates) {
+                $updateValues[] = $sponsorId;
+                $pdo->prepare('UPDATE mde_sponsors SET ' . implode(', ', $updates) . ' WHERE id = ?')
+                    ->execute($updateValues);
+            }
         } else {
-            $duplicateSponsor = $pdo->prepare('SELECT id FROM mde_sponsors WHERE LOWER(TRIM(sponsor_name)) = LOWER(TRIM(?)) ORDER BY id LIMIT 1 FOR UPDATE');
-            $duplicateSponsor->execute([$sponsorName]);
-            if ($duplicateSponsor->fetch()) {
-                throw new InvalidArgumentException('هذا الكفيل مسجل بالفعل. اختره من قائمة الكفلاء المسجلين بدلاً من إنشاء سجل رئيسي مكرر.');
-            }
             $stmt = $pdo->prepare('INSERT INTO mde_sponsors (sponsor_name, sponsor_type, file_number) VALUES (?, ?, ?)');
             $stmt->execute([$sponsorName, $sponsorType, $fileNumber ?: null]);
             $sponsorId = (int) $pdo->lastInsertId();
-            }
+        }
 
         // Serialize monthly imports for this sponsor so concurrent requests cannot
         // race while checking the sponsor/orphan/report-month business key.
@@ -351,12 +393,12 @@ $lastSavedSponsorName = $pdo->query(
  <table><tbody><tr>
  <td class="sponsor-span-cell seq-cell"><span class="fw-bold" title="يُحدَّد الرقم التسلسلي في التقرير الشهري">—</span></td>
  <td class="sponsor-span-cell">
-  <select class="form-select form-select-sm mb-1" name="existing_sponsor_id" id="existingSponsor" aria-label="إضافة إلى كفيل موجود (اختياري)" title="إضافة إلى كفيل موجود (اختياري)"><option value="">— كفيل جديد —</option><?php foreach ($existingSponsors as $existing): ?><option value="<?= (int)$existing['id'] ?>" data-type="<?= mde_h($existing['sponsor_type']) ?>" data-file="<?= mde_h($existing['file_number'] ?? '') ?>"><?= mde_h($existing['sponsor_name']) ?> — <?= !empty($existing['file_number']) ? 'ملف ' . mde_h($existing['file_number']) . ' · ' : '' ?>سجل #<?= (int)$existing['id'] ?></option><?php endforeach; ?></select>
-  <input class="form-control form-control-sm" name="sponsor_name" id="sponsorName" maxlength="255" placeholder="اسم الكفيل الجديد" aria-label="اسم الكفيل">
+  <input class="form-control form-control-sm" name="sponsor_name" id="sponsorName" maxlength="255" placeholder="اسم الكفيل" aria-label="اسم الكفيل" required>
+  <div class="form-text">اكتب اسم الكفيل مباشرة. إذا كان الاسم مسجلاً لأكثر من كفيل، أدخل رقم الملف لتمييز السجل الصحيح.</div>
  </td>
  <td class="sponsor-span-cell">
   <input class="form-control form-control-sm mb-1" name="file_number" id="fileNumber" maxlength="100" placeholder="رقم الملف" aria-label="رقم الملف (إن وجد)">
-  <select class="form-select form-select-sm" name="sponsor_type" id="sponsorType" aria-label="نوع الكفيل" required><option value="individual">فردي</option><option value="tree">🌳 شجرة</option></select>
+  <select class="form-select form-select-sm" name="sponsor_type" id="sponsorType" aria-label="نوع الكفيل"><option value="">تلقائي للكفيل المسجل</option><option value="individual">فردي</option><option value="tree">🌳 شجرة</option></select>
  </td>
  <td class="sponsor-span-cell"><input type="date" class="form-control form-control-sm date-input" name="entry_date" id="entryDate" aria-label="تاريخ الانضمام" required value="<?= date('Y-m-d') ?>"></td>
  <td class="sponsor-span-cell">
