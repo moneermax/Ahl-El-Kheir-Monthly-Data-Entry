@@ -1,5 +1,5 @@
 -- Read-only preflight for migration 010.
--- Any returned row must be reviewed before enforcing one row per relationship/month.
+-- Any returned row must be reviewed before enforcing one row per sponsor/orphan/report-month.
 SELECT
     sp.id AS sponsor_id,
     sp.sponsor_name,
