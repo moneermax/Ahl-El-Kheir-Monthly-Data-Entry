@@ -71,7 +71,6 @@ function choose(select,name) {
 function applyEntry(record) {
  const payload=Parser.buildEntryFormPayload(record);
  const successfulFields={};
- let ambiguousSponsor=false;
  const result=Parser.populateEntryForm(payload,{
   setField(field,value) {
    let success=false;
@@ -124,7 +123,7 @@ function applyEntry(record) {
   },
   updateTotals(){window.mdeUpdateAmountTotals?.();}
  });
- return {...result,ambiguousSponsor};
+ return result;
 }
 function applyDeparture(record,options={}) {
  const payload=Parser.buildDepartureFormPayload(record),payloadFields=payload.fields,existingMode=$('#modeExisting'),newMode=$('#modeNew'),select=$('#departureSponsor'),sponsorNameInput=$('#departureSponsorName'),sponsorIdInput=$('#departureSponsorId');
@@ -248,7 +247,6 @@ apply.addEventListener('click',()=>{
   status.textContent=parts.join(' · ');
  } else {
   const parts=[];
-  if(allocation.ambiguousSponsor)parts.push('تم تحميل بقية البيانات؛ يوجد أكثر من سجل رئيسي بهذا الاسم. اختر السجل الصحيح من قائمة الكفلاء الموجودين قبل الحفظ، ولم يتم إنشاء كفيل جديد.');
   if(manual.length)parts.push('تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي.');
   if(!record.date)parts.push('تاريخ الانضمام غير موجود في الرسالة؛ أدخله يدوياً قبل الحفظ.');
    status.textContent=parts.join(' · ');
