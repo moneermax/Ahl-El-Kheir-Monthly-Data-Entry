@@ -144,6 +144,21 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         if ($source->open($templatePath)!==true || !$source->extractTo($workDir)) throw new RuntimeException('تعذر استخراج قالب Excel.');
         $source->close();
 
+        // The original workbook keeps its column labels in shared strings.
+        // Update the new-sponsor date heading without altering the template layout.
+        foreach (['xl/sharedStrings.xml', 'xl/worksheets/sheet1.xml'] as $xmlRelativePath) {
+            $xmlPath = $workDir . '/' . $xmlRelativePath;
+            if (!is_file($xmlPath)) continue;
+            $xml = file_get_contents($xmlPath);
+            if ($xml === false) continue;
+            $xml = str_replace(
+                ['تاريخ الإنضمام', 'تاريخ الانضمام'],
+                'تاريخ الإدخال',
+                $xml
+            );
+            file_put_contents($xmlPath, $xml);
+        }
+
         $rows1=[];
         $merges1=[];
         $sumSponsorship1=0; $sumServices1=0;
