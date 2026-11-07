@@ -20,8 +20,8 @@ Continue work on my **separate Ahl El Kheir Monthly Data Entry** project. Read `
 6. Added tests for shared message-level fields.
 7. The entry page queries the database for the most recently inserted monthly sponsorship entry, joins it to `mde_sponsorships` and `mde_sponsors`, and displays the sponsor name in a prominent **red alert immediately before the `سجل الكفالة` heading**. Ordering is `mde_monthly_sponsorship_entries.created_at DESC, id DESC`; it must work across browser sessions and for new or existing sponsors. Do not use a PHP session as the source of truth.
 
-## Immediate task
-Verify that the red last-saved sponsor indicator queries the database and shows the latest sponsor after a successful save, including when an existing sponsor is entered again. The WhatsApp panel has had its `تجريبي` badge, explanatory paragraph, textarea label, and static no-save explanation removed. The entry page's merged-cell/Enter-key explanation was also removed; actionable warnings remain. The user specifically wants it red and highly visible to prevent accidental duplicate/re-entry. Do not move it above the WhatsApp panel or leave it hidden elsewhere.
+## Current immediate task
+The red last-saved sponsor indicator was verified in source. The new feature adds informational same-month duplicate warnings on the new-sponsor page. It lists prior monthly entries for the selected sponsor/month and never blocks saving. Exact sponsor/orphan/month repeats require migration 009, which removes the existing unique index while preserving all historical rows. Verify warning behavior after migration and confirm normal reports/exports display both rows.
 
 Then perform a full consistency review of per-orphan donations from entry HTML/JS through PHP persistence, schema, reports, and all exports. Check nested input reindexing after adding/removing mothers, orphans, and donation rows. Verify WhatsApp multi-sponsor shared values. Run available PHP lint and JavaScript tests. Do not claim browser/database tests were run unless they actually were.
 
