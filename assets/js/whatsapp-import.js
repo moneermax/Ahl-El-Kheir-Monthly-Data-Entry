@@ -178,7 +178,7 @@ const profile=panel.dataset.profile,input=$('#whatsappMessage',panel),analyze=$(
 let records=[],pendingIndex=null;
 const storageKey='mdeWhatsappQueue:'+profile,pendingKey='mdeWhatsappPending:'+profile;
 function hasRequiredFields(record) {
- if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0&&!!record.date;
+ if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0;
  return !!record.sponsor;
 }
 function render() {
@@ -188,7 +188,7 @@ function render() {
  const record=records[Number(select.value)||0];
  if(!record){apply.disabled=true;details.textContent='';return;}
  const missing=profile==='entry'
-  ?['اسم الكفيل','اسم أم واحدة على الأقل','اسم يتيم واحد على الأقل','تاريخ الانضمام'].filter((label,index)=>![record.sponsor,Parser.hasMotherNames(record),record.orphans.length,record.date][index])
+  ?['اسم الكفيل','اسم أم واحدة على الأقل','اسم يتيم واحد على الأقل','تاريخ الانضمام (أدخله يدوياً بعد التحميل)'].filter((label,index)=>![record.sponsor,Parser.hasMotherNames(record),record.orphans.length,record.date][index])
   :['اسم الكفيل','تاريخ المغادرة',...(record.type==='tree'?[]:['عدد الأيتام'])].filter((label,index)=>![record.sponsor,record.date,...(record.type==='tree'?[]:[record.count])][index]);
  const warnings=[...(record.warnings||[])];
  details.textContent=[missing.length?'بيانات مطلوبة للمراجعة: '+missing.join('، '):'',warnings.length?'تنبيهات: '+[...new Set(warnings)].join('، '):''].filter(Boolean).join(' · ');
@@ -255,7 +255,8 @@ apply.addEventListener('click',()=>{
   const parts=[];
   if(allocation.ambiguousSponsor)parts.push('تم تحميل بقية البيانات؛ يوجد أكثر من سجل رئيسي بهذا الاسم. اختر السجل الصحيح من قائمة الكفلاء الموجودين قبل الحفظ، ولم يتم إنشاء كفيل جديد.');
   if(manual.length)parts.push('تعذر تقسيم إجمالي '+manual.join(' و')+' بالتساوي؛ أدخل التوزيع يدوياً وتأكد من مطابقة الإجمالي.');
-  status.textContent=parts.join(' · ');
+  if(!record.date)parts.push('تاريخ الانضمام غير موجود في الرسالة؛ أدخله يدوياً قبل الحفظ.');
+   status.textContent=parts.join(' · ');
  }
 });
 const targetForm=profile==='entry'?$('#entryForm'):document.querySelector('form.card');
