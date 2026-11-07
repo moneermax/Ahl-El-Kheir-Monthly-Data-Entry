@@ -13,12 +13,11 @@ if (!$monthDate || $monthDate->format('Y-m') !== $monthInput) {
 }
 $monthStart = $monthDate->format('Y-m-01');
 $monthEnd = $monthDate->modify('last day of this month')->format('Y-m-d');
-$entryMonthEnd = $monthDate->modify('first day of next month')->format('Y-m-d');
 $monthLabel = $monthDate->format('m/Y');
 
 $newStmt = $pdo->prepare("
  SELECT sp.id AS sponsor_id, sp.sponsor_name, ss.id AS sponsorship_id,
-        DATE(me.created_at) AS entry_created_date, mo.id AS mother_id,
+        me.entry_date AS entry_date, mo.id AS mother_id,
         mo.mother_name, o.orphan_name,
         COALESCE(me.sponsorship_amount, 0) AS sponsorship_amount,
         COALESCE(me.services_amount, 0) AS services_amount,
@@ -30,19 +29,19 @@ $newStmt = $pdo->prepare("
  JOIN mde_sponsors sp ON sp.id = ss.sponsor_id
  JOIN mde_orphans o ON o.id = ss.orphan_id
  JOIN mde_mothers mo ON mo.id = o.mother_id
- WHERE me.created_at >= ? AND me.created_at < ?
- ORDER BY me.created_at, sp.sponsor_name, mo.id, o.orphan_name
+ WHERE me.report_month = ?
+ ORDER BY me.entry_date, sp.sponsor_name, mo.id, o.orphan_name
 ");
-$newStmt->execute([$monthStart, $entryMonthEnd]);
+$newStmt->execute([$monthStart]);
 $newRows = $newStmt->fetchAll();
 
 $donationStmt = $pdo->prepare("
  SELECT d.sponsor_id, d.sponsorship_id, d.donation_type, d.amount
  FROM mde_monthly_other_donations d
- WHERE d.created_at >= ? AND d.created_at < ?
+ WHERE d.report_month = ?
  ORDER BY d.id
 ");
-$donationStmt->execute([$monthStart, $entryMonthEnd]);
+$donationStmt->execute([$monthStart]);
 $donationsBySponsorship = [];
 $legacyDonationsBySponsor = [];
 foreach ($donationStmt->fetchAll() as $donation) {
@@ -59,12 +58,12 @@ foreach ($donationStmt->fetchAll() as $donation) {
 $sponsors = [];
 foreach ($newRows as $row) {
     $sponsorId = (int) $row['sponsor_id'];
-    $groupKey = $sponsorId . '|' . $row['entry_created_date'];
+    $groupKey = $sponsorId . '|' . $row['entry_date'];
     if (!isset($sponsors[$groupKey])) {
         $sponsors[$groupKey] = [
             'sponsor_id' => $sponsorId,
             'sponsor_name' => $row['sponsor_name'],
-            'entry_date' => $row['entry_created_date'],
+            'entry_date' => $row['entry_date'],
             'rows' => [],
         ];
     }
@@ -154,7 +153,7 @@ function mde_report_amount(mixed $value): string {
  <div class="table-responsive">
   <table class="table table-sm align-middle">
    <thead><tr>
-    <th>الرقم</th><th>إسم الكفيل</th><th>تاريخ الإدخال</th><th>إسم الأم</th><th>إسم اليتيم</th>
+    <th>الرقم</th><th>إسم الكفيل</th><th>تاريخ الانضمام</th><th>إسم الأم</th><th>إسم اليتيم</th>
     <th>قيمة الكفالة</th><th>الخدمات</th><th>تبرعات أخرى (نوع التبرع والقيمة)</th><th>بواسطة</th><th>المشرف</th><th>ملاحظات</th>
    </tr></thead>
    <tbody>
