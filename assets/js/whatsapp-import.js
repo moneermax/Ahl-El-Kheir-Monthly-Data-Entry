@@ -76,15 +76,10 @@ function applyEntry(record) {
   setField(field,value) {
    let success=false;
    if(field==='sponsor') {
-    const existing=$('#existingSponsor');
-    const matches=matchingSponsorOptions(existing,value);
-    if(matches.length===1&&choose(existing,value)){clear($('#sponsorName'));success=true;}
-    else if(matches.length>1){if(existing){existing.value='';existing.dispatchEvent(new Event('change',{bubbles:true}));}clear($('#sponsorName'));ambiguousSponsor=true;success=false;}
-    else {if(existing){existing.value='';existing.dispatchEvent(new Event('change',{bubbles:true}));}success=set($('#sponsorName'),value);}
+    success=set($('#sponsorName'),value);
    } else if(field==='file') {
     const fileInput=$('#entryForm').elements.file_number;
     if(value!=='')success=set(fileInput,value);
-    else if($('#existingSponsor')?.value)success=true;
     else {clear(fileInput);success=true;}
    }
    else if(field==='type') success=value?set($('#sponsorType'),value):true;
