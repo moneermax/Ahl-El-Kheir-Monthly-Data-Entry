@@ -94,9 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             WHERE rel.sponsor_id = ? AND rel.orphan_id = ? ORDER BY rel.id FOR UPDATE");
         $insertSponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
         $monthlyStmt = $pdo->prepare('INSERT INTO mde_monthly_sponsorship_entries (sponsorship_id, report_month, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        $existingMonthlyStmt = $pdo->prepare('SELECT id, entry_date, sponsorship_amount, services_amount FROM mde_monthly_sponsorship_entries WHERE sponsorship_id = ? AND report_month = ? ORDER BY id FOR UPDATE');
+        $lockSponsorshipStmt = $pdo->prepare('SELECT id FROM mde_sponsorships WHERE id = ? FOR UPDATE');
         $donationStmt = $pdo->prepare('INSERT INTO mde_monthly_other_donations (sponsor_id, sponsorship_id, report_month, donation_date, donation_type, amount, entered_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $existingDonationCountStmt = $pdo->prepare('SELECT COUNT(*) FROM mde_monthly_other_donations WHERE sponsor_id = ? AND sponsorship_id = ? AND report_month = ? AND donation_date = ? AND donation_type = ? AND amount = ?');
 
-        $savedOrphans = 0;
+        $insertedOrphans = 0;
+        $skippedOrphans = 0;
+        $donationOccurrences = [];
         $submittedPairs = [];
         foreach ($families as $family) {
             $motherName = trim((string) ($family['mother_name'] ?? ''));
@@ -179,7 +184,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $sponsorshipId = (int) $pdo->lastInsertId();
                 }
 
-                $monthlyStmt->execute([$sponsorshipId, $month, $entryDate, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null]);
+                // Serialize saves for this sponsor/orphan relationship, then enforce one
+                // monthly allocation for the selected reporting month.
+                $lockSponsorshipStmt->execute([$sponsorshipId]);
+                if (!$lockSponsorshipStmt->fetchColumn()) {
+                    throw new RuntimeException('تعذر قفل علاقة الكفالة قبل الحفظ. أعد المحاولة.');
+                }
+                $existingMonthlyStmt->execute([$sponsorshipId, $month]);
+                $existingMonthlyRows = $existingMonthlyStmt->fetchAll();
+                if (count($existingMonthlyRows) > 1) {
+                    $existingIds = implode(', ', array_map(static fn(array $row): string => (string) $row['id'], $existingMonthlyRows));
+                    throw new InvalidArgumentException('توجد بالفعل عدة إدخالات شهرية لهذه العلاقة في شهر التقرير نفسه (السجلات: ' . $existingIds . '). أوقفنا العملية كاملة حتى تتم مراجعة التكرارات الموجودة؛ لم تتم إضافة أي مبلغ.');
+                }
+                if ($existingMonthlyRows) {
+                    $existingMonthly = $existingMonthlyRows[0];
+                    if ((int) $existingMonthly['sponsorship_amount'] !== $amount
+                        || (int) $existingMonthly['services_amount'] !== $services) {
+                        throw new InvalidArgumentException('هذا اليتيم مسجل بالفعل في شهر التقرير نفسه، لكن مبالغ الكفالة أو الخدمات مختلفة عن السجل المحفوظ. لم نضف سجلاً ولم نستبدل المبالغ. راجع السجل من صفحة إدارة البيانات وصححه صراحةً بعد المقارنة.');
+                    }
+                    $skippedOrphans++;
+                } else {
+                    $monthlyStmt->execute([$sponsorshipId, $month, $entryDate, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null]);
+                    $insertedOrphans++;
+                }
 
                 $orphanDonations = $orphan['donations'] ?? [];
                 if (!is_array($orphanDonations)) {
@@ -198,9 +225,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($type === '' || $donationAmount === false || $donationAmount < 0) {
                         throw new InvalidArgumentException('راجع نوع وقيمة التبرع الآخر لكل يتيم.');
                     }
-                    $donationStmt->execute([$sponsorId, $sponsorshipId, $month, $entryDate, $type, $donationAmount, $enteredBy ?: null]);
+                    // Treat a re-imported identical donation line as the same source item.
+                    // Count occurrences so genuinely repeated lines in one source message are retained.
+                    $donationKey = hash('sha256', implode("\\0", [$sponsorshipId, $month, $entryDate, $type, (string) $donationAmount]));
+                    $donationOccurrences[$donationKey] = ($donationOccurrences[$donationKey] ?? 0) + 1;
+                    $existingDonationCountStmt->execute([$sponsorId, $sponsorshipId, $month, $entryDate, $type, $donationAmount]);
+                    $existingDonationCount = (int) $existingDonationCountStmt->fetchColumn();
+                    if ($donationOccurrences[$donationKey] > $existingDonationCount) {
+                        $donationStmt->execute([$sponsorId, $sponsorshipId, $month, $entryDate, $type, $donationAmount, $enteredBy ?: null]);
+                    }
                 }
-                $savedOrphans++;
             }
         }
 
@@ -234,9 +268,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $syncSponsorStatus->execute([$sponsorId]);
 
         $pdo->commit();
-        if ($duplicateRowsAtSave) {
-            $duplicateDetails = array_map(static fn(array $row): string => $row['orphan_name'] . ' (' . $row['sponsorship_amount'] . ' كفالة / ' . $row['services_amount'] . ' خدمات، ' . $row['entry_date'] . ')', $duplicateRowsAtSave);
-            mde_flash('warning', 'تنبيه: كان لهذا الكفيل إدخال سابق في الشهر نفسه قبل الحفظ. تم حفظ السجل الجديد. السجلات السابقة: ' . implode('؛ ', $duplicateDetails));
+        if ($insertedOrphans === 0 && $skippedOrphans > 0) {
+            mde_flash('info', 'لم تتم إضافة صفوف مالية جديدة: تم التعرف على ' . $skippedOrphans . ' تخصيصاً مطابقاً موجوداً بالفعل وتخطيه، لذلك لم تتغير إجماليات التقرير.');
+        } elseif ($skippedOrphans > 0) {
+            mde_flash('success', 'تمت إضافة ' . $insertedOrphans . ' تخصيصات جديدة وتخطي ' . $skippedOrphans . ' تخصيصات مطابقة موجودة مسبقاً. لم تُكرر المبالغ الموجودة.');
+        } else {
+            mde_flash('success', 'تم حفظ ' . $insertedOrphans . ' تخصيصات شهرية جديدة بنجاح.');
         }
         mde_redirect('entry', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
