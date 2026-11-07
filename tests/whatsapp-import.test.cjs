@@ -58,7 +58,12 @@ assert.ok(entryRegisterSource.includes("fileNumber.value=existing.selectedOption
 assert.match(entryPageSource, /FROM mde_sponsors\s+ORDER BY id DESC\s+LIMIT 1/, 'the last-sponsor indicator must follow the newest sponsor master ID, not a monthly row');
 assert.ok(!entryPageSource.includes('FROM mde_monthly_sponsorship_entries AS monthly'), 'the last-sponsor indicator must not infer the last new sponsor from a monthly row');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
-assert.ok(entryPageSource.includes('rel.orphan_id = ? AND me.report_month = ?'), 'same sponsor/orphan/month duplicates must be blocked across relationship episodes');
+assert.ok(!entryPageSource.includes('يوجد إدخال شهري مسجل بالفعل لهذا الكفيل واليتيم'), 'same sponsor/orphan/month repeats must not be rejected by the save handler');
+assert.ok(entryPageSource.includes('$duplicateRowsAtSave'), 'save-time duplicate detection remains informational');
+assert.ok(fs.existsSync('api/check_entry_duplicates.php'), 'entry page has a server-side duplicate lookup endpoint');
+assert.ok(fs.readFileSync('api/check_entry_duplicates.php', 'utf8').includes('me.report_month = ?'), 'duplicate lookup is scoped to the selected reporting month');
+assert.ok(fs.readFileSync('database/migrations/009_allow_repeat_monthly_sponsorship_entries.sql', 'utf8').includes('DROP INDEX uq_mde_monthly_sponsorship'), 'migration removes the exact-repeat database restriction');
+assert.ok(fs.readFileSync('assets/js/entry-duplicate-warning.js', 'utf8').includes('يمكنك الحفظ'), 'duplicate warning explicitly leaves saving available');
 assert.ok(entryPageSource.includes("$link['status'] === 'ended'"), 'historical monthly entries must reuse the sponsorship episode whose dates cover the entry');
 assert.ok(entryPageSource.includes('recorded_end_date'), 'relationship matching must respect the effective end date from departure history');
 assert.ok(entryPageSource.includes('$futureLinks'), 'an earlier entry must not be attached to a later sponsorship episode');
