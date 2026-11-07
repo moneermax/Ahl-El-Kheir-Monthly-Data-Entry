@@ -76,6 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sponsorId = (int) $pdo->lastInsertId();
             }
 
+        // Informational duplicate check at save time; it never rejects the submission.
+        $duplicateAtSaveStmt = $pdo->prepare('SELECT sp.sponsor_name, me.entry_date, mo.mother_name, o.orphan_name, me.sponsorship_amount, me.services_amount FROM mde_monthly_sponsorship_entries me INNER JOIN mde_sponsorships rel ON rel.id = me.sponsorship_id INNER JOIN mde_sponsors sp ON sp.id = rel.sponsor_id INNER JOIN mde_orphans o ON o.id = rel.orphan_id INNER JOIN mde_mothers mo ON mo.id = o.mother_id WHERE rel.sponsor_id = ? AND me.report_month = ? ORDER BY me.entry_date, me.id');
+        $duplicateAtSaveStmt->execute([$sponsorId, $month]);
+        $duplicateRowsAtSave = $duplicateAtSaveStmt->fetchAll();
+
         // Reuse person identities and active sponsor/orphan relationships.
         // Names are only used for exact lookup; ambiguous matches stop the whole transaction.
         $findMotherStmt = $pdo->prepare('SELECT id FROM mde_mothers WHERE mother_name = ? ORDER BY id LIMIT 2 FOR UPDATE');
@@ -88,7 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             FROM mde_sponsorships AS rel
             WHERE rel.sponsor_id = ? AND rel.orphan_id = ? ORDER BY rel.id FOR UPDATE");
         $insertSponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
-        $findMonthlyStmt = $pdo->prepare('SELECT me.id FROM mde_monthly_sponsorship_entries AS me INNER JOIN mde_sponsorships AS rel ON rel.id = me.sponsorship_id WHERE rel.sponsor_id = ? AND rel.orphan_id = ? AND me.report_month = ? LIMIT 1 FOR UPDATE');
         $monthlyStmt = $pdo->prepare('INSERT INTO mde_monthly_sponsorship_entries (sponsorship_id, report_month, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         $donationStmt = $pdo->prepare('INSERT INTO mde_monthly_other_donations (sponsor_id, sponsorship_id, report_month, donation_date, donation_type, amount, entered_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
 
@@ -137,11 +141,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $insertOrphanStmt->execute([$motherId, $orphanName]);
                     $orphanId = (int) $pdo->lastInsertId();
-                }
-
-                $findMonthlyStmt->execute([$sponsorId, $orphanId, $month]);
-                if ($findMonthlyStmt->fetch()) {
-                    throw new InvalidArgumentException('يوجد إدخال شهري مسجل بالفعل لهذا الكفيل واليتيم في الشهر المحدد. لم نكرر السجل.');
                 }
 
                 $findLinksStmt->execute([$sponsorId, $orphanId]);
@@ -235,6 +234,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $syncSponsorStatus->execute([$sponsorId]);
 
         $pdo->commit();
+        if ($duplicateRowsAtSave) {
+            $duplicateDetails = array_map(static fn(array $row): string => $row['orphan_name'] . ' (' . $row['sponsorship_amount'] . ' كفالة / ' . $row['services_amount'] . ' خدمات، ' . $row['entry_date'] . ')', $duplicateRowsAtSave);
+            mde_flash('warning', 'تنبيه: كان لهذا الكفيل إدخال سابق في الشهر نفسه قبل الحفظ. تم حفظ السجل الجديد. السجلات السابقة: ' . implode('؛ ', $duplicateDetails));
+        }
         mde_redirect('entry', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
@@ -258,6 +261,7 @@ $lastSavedSponsorName = $pdo->query(
 <?php $whatsappImportProfile = 'entry'; require __DIR__ . '/../includes/whatsapp_import.php'; ?>
 <form method="post" id="entryForm" class="card p-2 p-md-3">
 <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
+<div id="entryDuplicateWarning" class="alert alert-warning border-warning border-2 py-2 mb-2" role="status" aria-live="polite" hidden></div>
 <?php if (is_string($lastSavedSponsorName) && trim($lastSavedSponsorName) !== ''): ?>
 <div class="alert alert-danger border-danger border-2 py-2 px-3 mb-2 fw-bold text-center" role="status" aria-live="polite">
  <span>آخر كفيل جديد تم تسجيله:</span>
@@ -346,3 +350,4 @@ $lastSavedSponsorName = $pdo->query(
  </div>
 </template>
 <script src="assets/js/entry-register.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/entry-register.js') ?>" defer></script>
+<script src="assets/js/entry-duplicate-warning.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/entry-duplicate-warning.js') ?>" defer></script>
