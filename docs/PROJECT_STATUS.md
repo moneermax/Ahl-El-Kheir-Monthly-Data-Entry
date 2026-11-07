@@ -23,8 +23,7 @@ This is a standalone data-entry project. Never modify the separate Ahl El Kheir 
 ## Existing-record reuse and duplicate protection — 2026-11-04
 
 The entry save handler now reuses exact, unambiguous existing mother and orphan records instead of creating new person IDs for every monthly entry. It then:
-- Reuses the sponsor/orphan relationship when exactly one active relationship exists and no monthly row exists for the selected report month.
-- Stops the transaction if that active relationship already has a monthly row for the selected month.
+- Reuses the sponsor/orphan relationship when exactly one historical relationship covers the entry date. Multiple monthly rows for the same sponsor/orphan and reporting month are permitted when intentionally re-entered; the entry page warns with previous date, orphan, sponsorship amount, and service fee but never blocks saving.
 - Preserves ended relationships and creates a new sponsorship episode when no active or paused episode exists.
 - Stops when duplicate active relationships, paused relationships, or ambiguous same-name mother/orphan records are found.
 - Reuses an existing orphan identity across sponsors when its mother/orphan name match is unambiguous, preserving the one-orphan/multiple-sponsors data model.
@@ -245,3 +244,10 @@ These are source-only changes; no database migration or data rewrite is required
 - Departures remain reported by `mde_sponsor_departures.departure_date`, because those records are entered at month-end but belong to the departure month.
 - Database insertion timestamps are preserved as audit metadata and are not rewritten to simulate historical entry times.
 - A one-time October 2026 data-repair SQL script is provided under `database/maintenance/repair_october_2026_reporting_month.sql`. It aligns October 2026 monthly-entry and donation report months with their stored effective dates.
+
+
+## Informational same-month duplicate warnings — 2026-11-07
+
+The new-sponsor entry page checks the selected sponsor and reporting month against existing monthly entries after WhatsApp loading and while the form is edited. It displays the previous sponsor, mother/orphan, entry date, sponsorship amount, and service fee. An exact mother/orphan match is highlighted. The warning is informational only; the save handler repeats the lookup inside the save transaction and displays a post-save summary without rejecting the submission.
+
+Migration 009 removes the old unique index on `(sponsorship_id, report_month)`. This is necessary because otherwise MariaDB would reject an exact repeat even after the UI warning says saving is allowed. Existing rows are preserved. Apply `database/migrations/009_allow_repeat_monthly_sponsorship_entries.sql` once to existing installations; fresh installations receive the updated schema. Reports and exports continue to display each saved monthly row independently.
