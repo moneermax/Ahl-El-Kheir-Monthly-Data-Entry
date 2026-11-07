@@ -248,9 +248,7 @@ These are source-only changes; no database migration or data rewrite is required
 
 ## Informational same-month duplicate warnings — 2026-11-07
 
-The new-sponsor entry page checks the selected sponsor and reporting month against existing monthly entries after WhatsApp loading and while the form is edited. It displays the previous sponsor, mother/orphan, entry date, sponsorship amount, and service fee. An exact mother/orphan match is highlighted. The warning is informational only; the save handler repeats the lookup inside the save transaction and displays a post-save summary without rejecting the submission.
-
-Migration 009 removes the old unique index on `(sponsorship_id, report_month)`. This is necessary because otherwise MariaDB would reject an exact repeat even after the UI warning says saving is allowed. Existing rows are preserved. Apply `database/migrations/009_allow_repeat_monthly_sponsorship_entries.sql` once to existing installations; fresh installations receive the updated schema. Reports and exports continue to display each saved monthly row independently.
+The new-sponsor entry page checks the selected sponsor and reporting month against existing monthly entries after WhatsApp loading and while the form is edited. It displays previous sponsor, mother/orphan, entry date, sponsorship amount, and service fee; exact mother/orphan matches are highlighted. The warning remains visible for review, but save is now idempotent: identical sponsor/orphan/month allocations with identical financial amounts are skipped, differing amounts stop the entire transaction, and pre-existing multiple rows stop the transaction for manual reconciliation. Migration 009 originally removed the uniqueness restriction; migration 010 restores stronger uniqueness using sponsor + orphan + report month, including across separate sponsorship episodes.
 
 
 ## Delete prior monthly entries from duplicate warning — 2026-11-07
