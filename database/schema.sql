@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS mde_sponsorships (
       REFERENCES mde_orphans(id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- One row per sponsorship per reporting month. Amounts are stored as integer
+-- One row per sponsor/orphan allocation per reporting month. Amounts are stored as integer
 -- SDG units to avoid floating-point rounding errors.
 CREATE TABLE IF NOT EXISTS mde_monthly_sponsorship_entries (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
