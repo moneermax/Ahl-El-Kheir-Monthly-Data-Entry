@@ -46,43 +46,6 @@ try {
         exit;
     }
 
-    // Other donations are linked to a sponsorship/month, not to an individual
-    // repeat-entry row. Preserve them while any monthly row for that same
-    // sponsorship/month remains; remove and audit them only with the last row.
-    $remainingStmt = $pdo->prepare(
-        'SELECT COUNT(*)
-         FROM mde_monthly_sponsorship_entries
-         WHERE sponsorship_id = ? AND report_month = ? AND id <> ?'
-    );
-    $remainingStmt->execute([$entry['sponsorship_id'], $reportMonth, $entryId]);
-    $remainingEntries = (int) $remainingStmt->fetchColumn();
-
-    $deletedDonations = 0;
-    if ($remainingEntries === 0) {
-        $donationLock = $pdo->prepare(
-            'SELECT *
-             FROM mde_monthly_other_donations
-             WHERE sponsorship_id = ? AND report_month = ?
-             FOR UPDATE'
-        );
-        $donationLock->execute([$entry['sponsorship_id'], $reportMonth]);
-        $donations = $donationLock->fetchAll();
-
-        $auditDonation = $pdo->prepare(
-            "INSERT INTO mde_change_log (entity_type, entity_id, action, before_data, after_data)
-             VALUES ('donation', ?, 'delete', ?, 'null')"
-        );
-        $deleteDonation = $pdo->prepare('DELETE FROM mde_monthly_other_donations WHERE id = ?');
-        foreach ($donations as $donation) {
-            $auditDonation->execute([
-                (int) $donation['id'],
-                json_encode($donation, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
-            ]);
-            $deleteDonation->execute([(int) $donation['id']]);
-            $deletedDonations++;
-        }
-    }
-
     $auditEntry = $pdo->prepare(
         "INSERT INTO mde_change_log (entity_type, entity_id, action, before_data, after_data)
          VALUES ('monthly_entry', ?, 'delete', ?, 'null')"
@@ -100,8 +63,6 @@ try {
     echo json_encode([
         'success' => true,
         'entry_id' => $entryId,
-        'remaining_entries' => $remainingEntries,
-        'deleted_donations' => $deletedDonations,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $exception) {
     if ($pdo->inTransaction()) {
