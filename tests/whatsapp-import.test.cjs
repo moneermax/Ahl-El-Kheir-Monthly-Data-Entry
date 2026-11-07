@@ -821,4 +821,41 @@ assert.ok(twoSponsorRecords.every(r => !r.unrecognizedLines.some(line => /سجا
 assert.ok(importSource.includes("if(profile==='entry')return !!record.sponsor&&Parser.hasMotherNames(record)&&record.orphans.length>0;"), 'a sponsor record with complete family names can be loaded for review when the joining date is missing');
 assert.ok(importSource.includes('تاريخ الانضمام غير موجود في الرسالة؛ أدخله يدوياً قبل الحفظ.'), 'missing joining dates must be called out after loading and not silently inferred');
 
+
+const singleWordOrphansMessage = `الكفيل :بيان محمد السماني
+ الام :فاطمه جادو دليل
+ الايتام :1-حامده
+2-ميعاد
+3-محمد
+4-ابوبكر
+ الام :عاىشه يوسف محمد
+ 5-عادل
+6-عماد
+7-وسام
+8-احمد
+ المبلغ :80.000
+الخدمات :16.000
+التاريخ :31/10/2026
+❤️‍🔥
+
+ اي مبلغ اصافي يوضع  رصيد  لتغطيه الالتزامات السنويه
+عن طريق لمياء
+مشرفه ح ميساء`;
+const singleWordOrphans = parser.entry(singleWordOrphansMessage, 0);
+assert.equal(singleWordOrphans.sponsor, 'بيان محمد السماني');
+assert.deepEqual(Array.from(singleWordOrphans.families, f => f.mother), ['فاطمه جادو دليل', 'عاىشه يوسف محمد']);
+assert.deepEqual(Array.from(singleWordOrphans.families[0].orphans), ['حامده', 'ميعاد', 'محمد', 'ابوبكر']);
+assert.deepEqual(Array.from(singleWordOrphans.families[1].orphans), ['عادل', 'عماد', 'وسام', 'احمد']);
+assert.deepEqual(Array.from(singleWordOrphans.orphans), ['حامده', 'ميعاد', 'محمد', 'ابوبكر', 'عادل', 'عماد', 'وسام', 'احمد']);
+assert.equal(singleWordOrphans.sponsorship, '80000');
+assert.equal(singleWordOrphans.services, '16000');
+assert.equal(singleWordOrphans.date, '2026-10-31');
+assert.equal(singleWordOrphans.entered, 'لمياء');
+assert.equal(singleWordOrphans.supervisor, 'ميساء');
+assert.match(singleWordOrphans.notes, /أي مبلغ إضافي يوضع\s+رصيد\s+لتغطيه الالتزامات السنويه/);
+assert.equal(singleWordOrphans.unrecognizedLines.length, 0, 'numbered single-word orphans and the extra-amount instruction must not be left unclassified');
+assert.equal(parser.hasMotherNames(singleWordOrphans), true);
+assert.deepEqual(Array.from(parser.allocateEvenly(singleWordOrphans.sponsorship, singleWordOrphans.orphans.length)), Array(8).fill('10000'));
+assert.deepEqual(Array.from(parser.allocateEvenly(singleWordOrphans.services, singleWordOrphans.orphans.length)), Array(8).fill('2000'));
+
 console.log('WhatsApp parser tests passed.');
