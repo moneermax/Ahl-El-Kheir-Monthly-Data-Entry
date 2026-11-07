@@ -12,7 +12,7 @@ This is a standalone data-entry project. Never modify the separate Ahl El Kheir 
 ## Current implementation
 
 - Sponsor → mother → orphan entry register, with one row per orphan and merged sponsor/mother cells.
-- Existing sponsor selection and new sponsor entry.
+- Editable sponsor-name entry. Existing records are resolved automatically by name; repeated names require a matching file number, without a sponsor dropdown.
 - Per-orphan sponsorship and services amounts, with optional combined-total checks.
 - One or more other donations per orphan, stored against the exact `mde_sponsorships.id`.
 - WhatsApp parser queue for multiple sponsor records. The `بواسطة` operator and `المشرف` are independently extracted once from the complete pasted message and copied to every sponsor record split from that message.
@@ -273,3 +273,9 @@ The New Sponsors save handler now treats the allocation identity as sponsor + or
 - Fresh installations receive the same constraint from database/schema.sql. Existing installations must apply migration 010 after migration 009.
 
 Verification caveat: GitHub source has been updated, but PHP lint, MariaDB migration execution, concurrent-save tests, browser tests, and report/export reconciliation have not yet been run against the user's local database. Do not treat financial totals as certified until the migration preflight is clean, migration 010 succeeds, and the test plan passes.
+
+## Editable sponsor name in New Sponsors — 2026-11-07
+
+The New Sponsors register no longer displays or depends on an existing-sponsor dropdown. The sponsor name remains editable when pasted from WhatsApp or typed manually. On save, the handler reuses a single exact-name sponsor match; if multiple master records share the name, it requires a file number that matches exactly one record and refuses to guess or create another master sponsor. When an existing sponsor is reused, its type is preserved unless the operator explicitly chooses a type; a supplied file number can update the sponsor record. A genuinely unmatched name creates a new sponsor. The WhatsApp importer always loads the extracted sponsor name and file number into their editable fields.
+
+Automated syntax checks and live database/browser tests are still required after pulling this change.
