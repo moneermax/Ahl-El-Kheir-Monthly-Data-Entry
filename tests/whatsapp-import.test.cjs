@@ -792,6 +792,8 @@ const twoSponsorNumberedMessage = `الكفيلة: محاسن عبدالرحمن
 اليتيم : ١ مهدي مسعود
          ٢. وجن مسعود
           ٣.عثمان مسعود
+الام: رشا الصادق
+اليتيم : ٤.عصام هيثم عيسي
 الام: نجوي فضل السيد
 اليتيم : ٤.عصام هيثم عيسي
 اليتيم : ٥.ايمن اسماعيل
@@ -810,7 +812,7 @@ assert.equal(twoSponsorRecords.length, 2, 'two sponsor labels must produce two i
 assert.deepEqual(Array.from(twoSponsorRecords, r => r.sponsor), ['محاسن عبدالرحمن علي', 'محمد حامد بدوي']);
 assert.deepEqual(Array.from(twoSponsorRecords[0].families, f => f.mother), ['انتصار عبدالله سليمان', 'بلالة يوسف فضل الله']);
 assert.deepEqual(Array.from(twoSponsorRecords[0].orphans), ['سبا بلال', 'سجا بلال', 'عبدالله بلال', 'صبري علي', 'ابراهيم علي'], 'Arabic-numbered and indented continuation names must be extracted');
-assert.deepEqual(Array.from(twoSponsorRecords[1].families, f => f.mother), ['بثينة مهدي محمد', 'نجوي فضل السيد']);
+assert.deepEqual(Array.from(twoSponsorRecords[1].families, f => f.mother), ['بثينة مهدي محمد', 'رشا الصادق', 'نجوي فضل السيد']);
 assert.deepEqual(Array.from(twoSponsorRecords[1].orphans), ['مهدي مسعود', 'وجن مسعود', 'عثمان مسعود', 'عصام هيثم عيسي', 'ايمن اسماعيل'], 'Arabic and Western numbering styles must both be extracted');
 assert.deepEqual(Array.from(twoSponsorRecords, r => r.sponsorship), ['100000', '100000']);
 assert.deepEqual(Array.from(twoSponsorRecords, r => r.services), ['5000', '5000']);
