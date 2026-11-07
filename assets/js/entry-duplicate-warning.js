@@ -34,7 +34,7 @@
    'الخدمات: '+Number(item.services_amount).toLocaleString('en-US')
   ].join('\n');
   const message='هل تريد حذف هذا الإدخال الشهري السابق فقط؟\n\n'+details+
-   '\n\nلن يُحذف الكفيل أو الأم أو اليتيم أو علاقة الكفالة. إذا كان هذا آخر إدخال لنفس علاقة الكفالة في الشهر، فستُحذف معه التبرعات الأخرى المرتبطة بتلك العلاقة والشهر؛ أما إذا بقي إدخال آخر فستبقى التبرعات.';
+   '\n\nسيُحذف هذا الإدخال الشهري المحدد فقط. ستبقى علاقة الكفالة والكفيل والأم واليتيم وجميع التبرعات الأخرى كما هي؛ فالتبرعات سجلات مالية مستقلة ولا تُحذف تلقائياً مع إدخال الكفالة.';
   if(!window.confirm(message))return;
 
   button.disabled=true;
@@ -56,7 +56,7 @@
    const result=await response.json();
    if(!response.ok||!result.success)throw new Error(result.error||'تعذر حذف الإدخال المحدد.');
    await check();
-   appendNotice('تم حذف الإدخال السابق رقم '+result.entry_id+' وتحديث قائمة التكرارات.');
+   appendNotice('تم حذف الإدخال الشهري رقم '+result.entry_id+' فقط، مع الاحتفاظ بعلاقة الكفالة والتبرعات، وتم تحديث قائمة التكرارات.');
   }catch(error){
    button.disabled=false;
    button.textContent=originalText;
@@ -114,7 +114,7 @@
    const deleteButton=document.createElement('button');
    deleteButton.type='button';
    deleteButton.className='btn btn-outline-danger btn-sm';
-   deleteButton.textContent='حذف';
+   deleteButton.textContent='حذف الإدخال';
    deleteButton.setAttribute('aria-label','حذف الإدخال السابق رقم '+item.entry_id);
    deleteButton.addEventListener('click',()=>deleteEntry(item,deleteButton));
    actionCell.append(deleteButton);
