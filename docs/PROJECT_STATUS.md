@@ -251,3 +251,12 @@ These are source-only changes; no database migration or data rewrite is required
 The new-sponsor entry page checks the selected sponsor and reporting month against existing monthly entries after WhatsApp loading and while the form is edited. It displays the previous sponsor, mother/orphan, entry date, sponsorship amount, and service fee. An exact mother/orphan match is highlighted. The warning is informational only; the save handler repeats the lookup inside the save transaction and displays a post-save summary without rejecting the submission.
 
 Migration 009 removes the old unique index on `(sponsorship_id, report_month)`. This is necessary because otherwise MariaDB would reject an exact repeat even after the UI warning says saving is allowed. Existing rows are preserved. Apply `database/migrations/009_allow_repeat_monthly_sponsorship_entries.sql` once to existing installations; fresh installations receive the updated schema. Reports and exports continue to display each saved monthly row independently.
+
+
+## Delete prior monthly entries from duplicate warning — 2026-11-07
+
+The New Sponsors page now displays a per-row delete action beside each prior entry in the same-month duplicate warning. Deletion requires browser confirmation and a CSRF-protected POST request. The server verifies that the entry still belongs to the sponsor and reporting month currently being reviewed, then deletes only that monthly entry. Sponsor, mother, orphan, and sponsorship relationship master records are retained.
+
+Deletion is transactional and records the full before-data snapshot in `mde_change_log`. Other donations are linked to a sponsorship/report-month rather than an individual repeat-entry row: they are preserved while another monthly entry for that same sponsorship/month remains, and are deleted with audit snapshots only when the deleted row was the last monthly entry for that sponsorship/month. No schema migration is required.
+
+Live browser and MariaDB deletion tests are still required after pulling. Verify deletion of one of two repeated rows preserves the other row and its donations; verify deleting the final row removes only its month-linked donations and retains the sponsorship relationship and other months.
