@@ -36,7 +36,7 @@ The parser stages are:
 - Orphan labels include `الأيتام`, `الايتام`, `اليتيم`, `الطفل`, `الأطفال`, and spelling variants.
 - Orphans can be on the same line as the label, on subsequent lines, or numbered with slash, hyphen, dot, or underscore separators.
 - Multiple mothers and multiple orphans per mother are supported.
-- A bare continuation line is treated as an orphan only when it resembles a multi-word Arabic name. Ambiguous lines are not force-classified.
+- A bare continuation line is treated as an orphan only when it resembles a multi-word Arabic name. A numbered continuation line (for example `2-ميعاد`, `3-محمد`, or `٥.عادل`) may be a single-word Arabic name and is accepted while an orphan list is open. Ambiguous unnumbered lines are not force-classified.
 - Emoji and common punctuation around names are tolerated.
 
 ### Amounts and file numbers
@@ -85,7 +85,7 @@ The workbook and messages contain two source discrepancies that are deliberately
 - Missing sponsor, mother, or orphan data prevents loading an entry record. If those names are present but the joining date is absent, the entry can still be loaded for review; the date is cleared, called out for manual entry, and remains mandatory before saving. A departure with a sponsor may be loaded for review even if the source omits its departure date or (for a tree sponsor) orphan count; missing required values remain blank and must be completed before saving. Individual sponsors still require an orphan count.
 - Numbered orphan continuation lines accept Arabic-Indic or Western digits, optional punctuation (for example `٢. الاسم` or `٣ الاسم`), and indentation. These prefixes are removed from the stored orphan name.
 - Missing or ambiguous values remain blank; the parser does not invent replacements. A blank tree service fee is distinct from an explicit zero and is saved as NULL.
-- Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
+- Recognized supplementary instructions such as `أي مبلغ إضافي` (including common spelling variants) are preserved in notes, not interpreted as money or names. Unrecognized non-empty lines are surfaced in the warning area. The original message remains in the textarea and in each parsed record for review.
 - If an operator/supervisor name does not match exactly one available dropdown option, the dropdown is cleared and the value is copied into the notes for manual review. A stale previously selected person must never be silently retained. The full `هبه خلف الله` value from the reported message is included in both applicable dropdown lists.
 - Departure source reason text is folded into the general notes field; the departure page has no separate leave-reason control.
 - If a sponsor name matches multiple master records, the importer loads the remaining message data but leaves the sponsor selection blank and requires manual selection. Existing options show file number and record ID. It must never silently turn an ambiguous existing sponsor into a new master record.
