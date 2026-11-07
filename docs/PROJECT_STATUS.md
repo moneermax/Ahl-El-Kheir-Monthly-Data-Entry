@@ -279,3 +279,13 @@ Verification caveat: GitHub source has been updated, but PHP lint, MariaDB migra
 The New Sponsors register no longer displays or depends on an existing-sponsor dropdown. The sponsor name remains editable when pasted from WhatsApp or typed manually. On save, the handler reuses a single exact-name sponsor match; if multiple master records share the name, it requires a file number that matches exactly one record and refuses to guess or create another master sponsor. When an existing sponsor is reused, its type is preserved unless the operator explicitly chooses a type; a supplied file number can update the sponsor record. A genuinely unmatched name creates a new sponsor. The WhatsApp importer always loads the extracted sponsor name and file number into their editable fields.
 
 Automated syntax checks and live database/browser tests are still required after pulling this change.
+
+
+## WhatsApp entry parsing: separator and date robustness — 2026-11-07
+
+- New-sponsor parsing accepts slash and backslash separators after sponsor, orphan, mother, sponsorship, and services labels, in addition to colon-style separators.
+- The orphan-label variants `الأطفال`, `الاطفال`, and `اطفال` are recognized, including numbered continuation lines.
+- A standalone full date line is extracted even when spaces surround separators (for example, `7/ 11 / 2026`). Backslash-separated dates are also accepted and are no longer reported as unrecognized lines.
+- Numeric dates use day/month/year consistently. Thus `6/11/2026` means 6 November 2026 and `11/6/2026` means 11 June 2026. When both first components are 12 or less, the parser cannot infer a sender's alternative month/day convention; operators must verify the date against the source.
+- Sponsorship-duration phrases such as `كفالة 6شهور` are preserved in notes and are not interpreted as monetary amounts. The accompanying `المتبقي` / `زيادة مؤقتة` wording is retained as part of the note.
+- Isolated parser regression checks passed for both supplied messages, slash/backslash labels, spaced standalone dates, both day/month examples, and duration-without-amount handling. Browser form-population and local PHP/database tests remain required after pulling.
