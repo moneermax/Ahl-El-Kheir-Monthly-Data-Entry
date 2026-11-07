@@ -219,3 +219,10 @@ These are source-only changes; no database migration or data rewrite is required
 - The indicator label now explicitly says it is the last new sponsor registered.
 - Removed the test-only fallback sentence from departure name/file resolution. The inline hint is hidden when sponsor matching has no issue and appears only when manual correction or disambiguation is needed.
 - No database migration or data rewrite is required. Regression tests cover the master-record ordering and absence of the test-only hint.
+
+
+## WhatsApp entry parser correction — 2026-11-07
+
+- Arabic-Indic and Western numbered orphan names with optional punctuation and indentation are normalized before extraction; continuation names no longer remain in the unclassified warning list.
+- An entry record with a recognized sponsor, mother, and at least one orphan can be loaded for review when the source has no joining date. The date is cleared rather than guessed, and the operator is explicitly told to enter it manually before saving. The HTML required-date validation remains in place.
+- Added a regression case for the two-sponsor WhatsApp message format with multiple mothers and five orphans per sponsor.
