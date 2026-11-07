@@ -35,7 +35,7 @@ The parser stages are:
 - Mother labels include `الأم`, `الام`, `اسم الأم`, `الوالدة`, and spelling variants.
 - Orphan labels include `الأيتام`, `الايتام`, `اليتيم`, `الطفل`, `الأطفال`, and spelling variants.
 - Orphans can be on the same line as the label, on subsequent lines, or numbered with slash, hyphen, dot, or underscore separators.
-- Multiple mothers and multiple orphans per mother are supported.
+- Multiple mothers and multiple orphans per mother are supported. A mother may be followed by a numbered orphan continuation list even when the `الأيتام` label is not repeated; numbered single-word Arabic names are valid in that family context.
 - A bare continuation line is treated as an orphan only when it resembles a multi-word Arabic name. A numbered continuation line (for example `2-ميعاد`, `3-محمد`, or `٥.عادل`) may be a single-word Arabic name and is accepted while an orphan list is open. Ambiguous unnumbered lines are not force-classified.
 - Emoji and common punctuation around names are tolerated.
 
