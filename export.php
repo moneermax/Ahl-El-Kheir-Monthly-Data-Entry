@@ -21,33 +21,28 @@ if (!in_array($reportType, ['new', 'departures', 'both'], true)) {
 }
 $monthStart = $monthDate->format('Y-m-01');
 $monthEnd = $monthDate->modify('last day of this month')->format('Y-m-d');
+$entryMonthEnd = $monthDate->modify('first day of next month')->format('Y-m-d');
 $filenameMonth = $monthDate->format('Y-m');
 $year = $monthDate->format('Y');
 
 $newStmt = $pdo->prepare("
  SELECT sp.id AS sponsor_id, sp.sponsor_name, ss.id AS sponsorship_id,
-        first_dates.first_start AS joining_date, mo.id AS mother_id,
+        DATE(me.created_at) AS entry_created_date, mo.id AS mother_id,
         mo.mother_name, o.orphan_name,
         COALESCE(me.sponsorship_amount, 0) AS sponsorship_amount,
         COALESCE(me.services_amount, 0) AS services_amount,
         COALESCE(me.entered_by, '') AS entered_by,
         COALESCE(me.supervisor_name, '') AS supervisor_name,
         COALESCE(me.notes, '') AS notes
- FROM (
-   SELECT sponsor_id, MIN(start_date) AS first_start
-   FROM mde_sponsorships
-   GROUP BY sponsor_id
-   HAVING MIN(start_date) BETWEEN ? AND ?
- ) first_dates
- JOIN mde_sponsors sp ON sp.id = first_dates.sponsor_id
- JOIN mde_sponsorships ss ON ss.sponsor_id = sp.id
+ FROM mde_monthly_sponsorship_entries me
+ JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id
+ JOIN mde_sponsors sp ON sp.id = ss.sponsor_id
  JOIN mde_orphans o ON o.id = ss.orphan_id
  JOIN mde_mothers mo ON mo.id = o.mother_id
- LEFT JOIN mde_monthly_sponsorship_entries me
-   ON me.sponsorship_id = ss.id AND me.report_month = ?
- ORDER BY first_dates.first_start, sp.sponsor_name, mo.id, o.orphan_name
+ WHERE me.created_at >= ? AND me.created_at < ?
+ ORDER BY me.created_at, sp.sponsor_name, mo.id, o.orphan_name
 ");
-$newStmt->execute([$monthStart, $monthEnd, $monthStart]);
+$newStmt->execute([$monthStart, $entryMonthEnd]);
 $newRows = $newStmt->fetchAll();
 
 $donationStmt = $pdo->prepare("
@@ -73,10 +68,12 @@ foreach ($donationStmt->fetchAll() as $donation) {
 $sponsors = [];
 foreach ($newRows as $row) {
     $sponsorId = (int) $row['sponsor_id'];
-    if (!isset($sponsors[$sponsorId])) {
-        $sponsors[$sponsorId] = [
+    $groupKey = $sponsorId . '|' . $row['entry_created_date'];
+    if (!isset($sponsors[$groupKey])) {
+        $sponsors[$groupKey] = [
+            'sponsor_id' => $sponsorId,
             'sponsor_name' => $row['sponsor_name'],
-            'joining_date' => $row['joining_date'],
+            'entry_date' => $row['entry_created_date'],
             'rows' => [],
         ];
     }
@@ -90,11 +87,13 @@ foreach ($newRows as $row) {
         static fn(array $item): string => number_format((int) $item['amount']),
         $row['other_donation_items']
     ));
-    $sponsors[$sponsorId]['rows'][] = $row;
+    $sponsors[$groupKey]['rows'][] = $row;
 }
-foreach ($sponsors as $sponsorId => &$sponsor) {
-    if (!empty($sponsor['rows']) && !empty($legacyDonationsBySponsor[(int) $sponsorId])) {
-        $legacyItems = $legacyDonationsBySponsor[(int) $sponsorId];
+$legacyDonationAttached = [];
+foreach ($sponsors as &$sponsor) {
+    $sponsorId = (int) $sponsor['sponsor_id'];
+    if (!empty($sponsor['rows']) && !empty($legacyDonationsBySponsor[$sponsorId]) && !isset($legacyDonationAttached[$sponsorId])) {
+        $legacyItems = $legacyDonationsBySponsor[$sponsorId];
         $sponsor['rows'][0]['other_donation_items'] = array_merge($sponsor['rows'][0]['other_donation_items'], $legacyItems);
         $allItems = $sponsor['rows'][0]['other_donation_items'];
         $sponsor['rows'][0]['other_donations'] = implode('، ', array_map(
@@ -106,6 +105,7 @@ foreach ($sponsors as $sponsorId => &$sponsor) {
             static fn(array $item): string => number_format((int) $item['amount']),
             $allItems
         ));
+        $legacyDonationAttached[$sponsorId] = true;
     }
 }
 unset($sponsor);
@@ -136,7 +136,7 @@ $dateText = static function (?string $value): string {
 $amountText = static fn(mixed $value): string => number_format((int) $value);
 $escape = static fn(mixed $value): string => htmlspecialchars((string) ($value ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-$newHeaders = ['الرقم','إسم الكفيل','تاريخ الإنضمام','إسم الأم','إسم اليتيم','قيمة الكفالة','الخدمات','نوع التبرع','قيمة التبرع','بواسطة','المشرف','ملاحظات'];
+$newHeaders = ['الرقم','إسم الكفيل','تاريخ الإدخال','إسم الأم','إسم اليتيم','قيمة الكفالة','الخدمات','نوع التبرع','قيمة التبرع','بواسطة','المشرف','ملاحظات'];
 $departureHeaders = ['الرقم','ملف','إسم الكفيل','تاريخ المغادرة','عدد الأيتام','قيمة الكفالة','خدمات','آخر سداد','ملاحظات'];
 $newFlatRows = [];
 $serial = 0;
@@ -144,7 +144,7 @@ foreach ($sponsors as $sponsor) {
     $serial++;
     foreach ($sponsor['rows'] as $row) {
         $newFlatRows[] = [
-            $serial, $sponsor['sponsor_name'], $dateText($sponsor['joining_date']),
+            $serial, $sponsor['sponsor_name'], $dateText($sponsor['entry_date']),
             $row['mother_name'], $row['orphan_name'], (int) $row['sponsorship_amount'],
             (int) $row['services_amount'], $row['other_donation_types'], $row['other_donation_amounts'],
             $row['entered_by'], $row['supervisor_name'], $row['notes'],
