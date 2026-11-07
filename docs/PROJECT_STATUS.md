@@ -235,3 +235,13 @@ These are source-only changes; no database migration or data rewrite is required
 - Other donations in the new-sponsor report are selected by their own `created_at` timestamp for the same calendar month.
 - The on-screen report and CSV, PDF, and Excel exports use the same save-date rule. The Excel template's date heading is changed to `تاريخ الإدخال` at export time without changing the template layout.
 - No database migration or data rewrite is required. Existing rows use their stored database insertion timestamps.
+
+
+## Reporting month separated from database insertion timestamp — 2026-11-07
+
+- New-sponsor reports and all export formats filter monthly sponsorship rows by `mde_monthly_sponsorship_entries.report_month`, not the database insertion timestamp `created_at`.
+- The displayed new-sponsor date comes from `mde_monthly_sponsorship_entries.entry_date` (the joining/effective date), and the report heading is `تاريخ الانضمام`.
+- Other donations are selected by their own `report_month`; their recorded `donation_date` remains the effective date.
+- Departures remain reported by `mde_sponsor_departures.departure_date`, because those records are entered at month-end but belong to the departure month.
+- Database insertion timestamps are preserved as audit metadata and are not rewritten to simulate historical entry times.
+- A one-time October 2026 data-repair SQL script is provided under `database/maintenance/repair_october_2026_reporting_month.sql`. It aligns October 2026 monthly-entry and donation report months with their stored effective dates.
