@@ -199,13 +199,16 @@ function mde_manage_render(PDO $pdo, string $query, string $csrf): string
                     echo '</td>';
                     $first = false;
                 }
-                echo '<td class="sponsor-span-cell"><div class="small fw-semibold">' . mde_h($item['start_date'] ?? '—') . '</div>';
+                echo '<td class="sponsor-span-cell"><div class="small fw-semibold">' . mde_h($item['entry_date'] ?? $item['start_date'] ?? '—') . '</div>';
+                if ($item['entry_date'] && $item['start_date'] && $item['entry_date'] !== $item['start_date']) {
+                    echo '<div class="small text-secondary">بداية العلاقة: ' . mde_h($item['start_date']) . '</div>';
+                }
                 echo '<div class="small text-secondary">' . ($item['report_month'] ? 'شهر ' . mde_h(substr((string) $item['report_month'], 0, 7)) : 'لا يوجد إدخال شهري') . '</div>';
                 if ($item['monthly_id']) {
-                    echo '<div class="manage-input d-none mt-1"><input type="date" class="form-control form-control-sm" name="monthly[' . (int) $item['monthly_id'] . '][entry_date]" form="' . $sponsorForm . '" value="' . mde_h($item['entry_date']) . '" required></div>';
-                    echo '<form method="post" class="mt-1" onsubmit="return confirm(this.dataset.confirm)" data-confirm="سيُحذف هذا الإدخال الشهري والتبرعات الأخرى المرتبطة باليتيم في الشهر نفسه فقط. ستبقى علاقة الكفالة وبقية الأشهر. هل تريد المتابعة؟">';
+                    echo '<div class="manage-input d-none mt-1"><input type="date" class="form-control form-control-sm" data-message-key="' . mde_h($messageKey) . '" name="monthly[' . (int) $item['monthly_id'] . '][entry_date]" form="' . $sponsorForm . '" value="' . mde_h($item['entry_date']) . '" required></div>';
+                    echo '<form method="post" class="mt-1" onsubmit="return confirm(this.dataset.confirm)" data-confirm="سيُحذف إدخال هذا اليتيم لهذا الشهر فقط مع التبرعات المرتبطة به. لن تُحذف إدخالات بقية الأيتام أو الأشهر، وستبقى علاقة الكفالة. هل تريد المتابعة؟">';
                     echo '<input type="hidden" name="_csrf" value="' . mde_h($csrf) . '"><input type="hidden" name="action" value="delete_monthly"><input type="hidden" name="sponsor_id" value="' . $sid . '"><input type="hidden" name="monthly_id" value="' . (int) $item['monthly_id'] . '"><input type="hidden" name="q" value="' . mde_h($query) . '">';
-                    echo '<button type="submit" class="btn btn-link btn-sm text-danger p-0">حذف الشهر</button></form>';
+                    echo '<button type="submit" class="btn btn-link btn-sm text-danger p-0">حذف إدخال هذا اليتيم</button></form>';
                 }
                 echo '</td>';
                 if (!isset($seenMothers[$mid])) {
@@ -432,8 +435,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $monthly = $_POST['monthly'] ?? [];
         if (!is_array($monthly)) throw new InvalidArgumentException('بيانات الإدخالات الشهرية غير صالحة.');
-        $monthlySelect = $pdo->prepare('SELECT me.id, me.entry_date, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name, me.notes FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
-        $monthlyUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, sponsorship_amount=?, services_amount=?, notes=? WHERE id=?');
+        $monthlySelect = $pdo->prepare('SELECT me.id, me.sponsorship_id, me.sponsor_id, me.orphan_id, me.report_month, me.entry_date, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name, me.notes FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
+        $monthlyUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, report_month=?, sponsorship_amount=?, services_amount=?, notes=? WHERE id=?');
+        $monthlyConflict = $pdo->prepare('SELECT id FROM mde_monthly_sponsorship_entries WHERE sponsor_id = ? AND orphan_id = ? AND report_month = ? AND id <> ? LIMIT 1 FOR UPDATE');
+        $donationsForMove = $pdo->prepare('SELECT * FROM mde_monthly_other_donations WHERE sponsorship_id = ? AND report_month = ? FOR UPDATE');
+        $moveDonationMonth = $pdo->prepare('UPDATE mde_monthly_other_donations SET report_month = ? WHERE id = ?');
         foreach ($monthly as $id => $values) {
             $id = filter_var($id, FILTER_VALIDATE_INT);
             if (!$id || !is_array($values)) throw new InvalidArgumentException('أحد معرّفات الإدخال الشهري غير صحيح.');
@@ -441,15 +447,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $before = $monthlySelect->fetch();
             if (!$before) throw new InvalidArgumentException('أحد الإدخالات الشهرية لا يتبع هذا الكفيل.');
             $date = mde_manage_date(trim((string) ($values['entry_date'] ?? $before['entry_date'])), 'تاريخ الإدخال');
+            $newReportMonth = mde_month_start($date);
+            if ($newReportMonth !== $before['report_month']) {
+                $monthlyConflict->execute([$before['sponsor_id'], $before['orphan_id'], $newReportMonth, $id]);
+                if ($monthlyConflict->fetchColumn()) {
+                    throw new InvalidArgumentException('لا يمكن نقل إدخال «' . $date . '» إلى شهر ' . substr($newReportMonth, 0, 7) . ' لأن لليتيم إدخالاً آخر مسجلاً للكفيل نفسه في ذلك الشهر. راجع السجل الموجود أولاً؛ لم يتم نقل أي جزء من مجموعة الكفيل.');
+                }
+            }
             $amount = filter_var($values['sponsorship_amount'] ?? $before['sponsorship_amount'], FILTER_VALIDATE_INT);
             $services = filter_var($values['services_amount'] ?? $before['services_amount'], FILTER_VALIDATE_INT);
             if ($amount === false || $amount < 0 || $services === false || $services < 0) {
                 throw new InvalidArgumentException('المبالغ يجب أن تكون أعداداً صحيحة غير سالبة.');
             }
             $notes = trim((string) ($values['notes'] ?? $before['notes']));
-            $after = ['entry_date' => $date, 'sponsorship_amount' => $amount, 'services_amount' => $services, 'entered_by' => $before['entered_by'], 'supervisor_name' => $before['supervisor_name'], 'notes' => $notes ?: null];
-            $monthlyUpdate->execute([$date, $amount, $services, $notes ?: null, $id]);
+            $after = ['report_month' => $newReportMonth, 'entry_date' => $date, 'sponsorship_amount' => $amount, 'services_amount' => $services, 'entered_by' => $before['entered_by'], 'supervisor_name' => $before['supervisor_name'], 'notes' => $notes ?: null];
+            $monthlyUpdate->execute([$date, $newReportMonth, $amount, $services, $notes ?: null, $id]);
             mde_manage_log($pdo, 'monthly_entry', (int) $id, $before, $after);
+            if ($newReportMonth !== $before['report_month']) {
+                $donationsForMove->execute([$before['sponsorship_id'], $before['report_month']]);
+                foreach ($donationsForMove->fetchAll() as $donation) {
+                    $donationAfter = $donation;
+                    $donationAfter['report_month'] = $newReportMonth;
+                    $moveDonationMonth->execute([$newReportMonth, (int) $donation['id']]);
+                    mde_manage_log($pdo, 'donation', (int) $donation['id'], $donation, $donationAfter);
+                }
+            }
         }
 
         $messages = $_POST['messages'] ?? [];
@@ -554,6 +576,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
   if (editing) { status.textContent = 'احفظ أو ألغِ التعديل المفتوح قبل تغيير البحث.'; return; }
   clearTimeout(timer);
   timer = setTimeout(search, 180);
+ });
+ results.addEventListener('input', event => {
+  const dateInput = event.target.closest('input[type="date"][data-message-key]');
+  if (!dateInput) return;
+  const key = dateInput.dataset.messageKey;
+  if (!key) return;
+  results.querySelectorAll('input[type="date"][data-message-key="' + key + '"]').forEach(input => {
+   if (input !== dateInput) input.value = dateInput.value;
+  });
  });
  results.addEventListener('click', event => {
   const group = event.target.closest('[data-sponsor-group]');
