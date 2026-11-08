@@ -51,7 +51,7 @@ function mde_manage_message_key(array $row): string
 {
     return hash('sha256', implode("\0", [
         (string) ($row['sponsor_id'] ?? ''),
-        (string) ($row['report_month'] ?? ''),
+        // Keep the submission identity stable when an edit moves its report month.
         (string) ($row['monthly_created_at'] ?? ''),
         (string) ($row['entered_by'] ?? ''),
         (string) ($row['supervisor_name'] ?? ''),
