@@ -440,6 +440,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $monthlyConflict = $pdo->prepare('SELECT id FROM mde_monthly_sponsorship_entries WHERE sponsor_id = ? AND orphan_id = ? AND report_month = ? AND id <> ? LIMIT 1 FOR UPDATE');
         $donationsForMove = $pdo->prepare('SELECT * FROM mde_monthly_other_donations WHERE sponsorship_id = ? AND report_month = ? FOR UPDATE');
         $moveDonationMonth = $pdo->prepare('UPDATE mde_monthly_other_donations SET report_month = ? WHERE id = ?');
+        $relationshipDateSelect = $pdo->prepare('SELECT id, start_date, end_date, status FROM mde_sponsorships WHERE id = ? AND sponsor_id = ? FOR UPDATE');
+        $relationshipDateUpdate = $pdo->prepare('UPDATE mde_sponsorships SET start_date = ? WHERE id = ?');
+        $otherRelationshipEntries = $pdo->prepare('SELECT COUNT(*) FROM mde_monthly_sponsorship_entries WHERE sponsorship_id = ? AND id <> ?');
         foreach ($monthly as $id => $values) {
             $id = filter_var($id, FILTER_VALIDATE_INT);
             if (!$id || !is_array($values)) throw new InvalidArgumentException('أحد معرّفات الإدخال الشهري غير صحيح.');
@@ -463,6 +466,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $after = ['report_month' => $newReportMonth, 'entry_date' => $date, 'sponsorship_amount' => $amount, 'services_amount' => $services, 'entered_by' => $before['entered_by'], 'supervisor_name' => $before['supervisor_name'], 'notes' => $notes ?: null];
             $monthlyUpdate->execute([$date, $newReportMonth, $amount, $services, $notes ?: null, $id]);
             mde_manage_log($pdo, 'monthly_entry', (int) $id, $before, $after);
+            $relationshipDateSelect->execute([$before['sponsorship_id'], $sponsorId]);
+            $relationshipBefore = $relationshipDateSelect->fetch();
+            if ($relationshipBefore && $relationshipBefore['start_date'] === $before['entry_date']) {
+                $otherRelationshipEntries->execute([$before['sponsorship_id'], $id]);
+                if ((int) $otherRelationshipEntries->fetchColumn() === 0) {
+                    $relationshipAfter = $relationshipBefore;
+                    $relationshipAfter['start_date'] = $date;
+                    $relationshipDateUpdate->execute([$date, (int) $before['sponsorship_id']]);
+                    mde_manage_log($pdo, 'sponsorship', (int) $before['sponsorship_id'], $relationshipBefore, $relationshipAfter);
+                }
+            }
             if ($newReportMonth !== $before['report_month']) {
                 $donationsForMove->execute([$before['sponsorship_id'], $before['report_month']]);
                 foreach ($donationsForMove->fetchAll() as $donation) {
