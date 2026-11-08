@@ -117,8 +117,8 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
             };
             $setFormula('F145', 'SUM(F5:F144)');
             $setFormula('G145', 'SUM(G5:G144)');
-            $setFormula('F308', 'SUM(F5:F307)');
-            $setFormula('G308', 'SUM(G5:G307)');
+            $setFormula('F308', 'SUM(F5:F144)+SUM(F146:F307)');
+            $setFormula('G308', 'SUM(G5:G144)+SUM(G146:G307)');
             if ($dom->save($path) === false) throw new RuntimeException('تعذر حفظ ورقة Excel.');
             return;
         }
