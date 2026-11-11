@@ -975,6 +975,7 @@ assert.equal(exactUserDepartures[5].type, 'tree');
 assert.equal(exactUserDepartures[5].count, '', 'missing tree orphan count must remain blank, not become zero');
 assert.equal(exactUserDepartures[5].services, '', 'missing tree services must remain blank, not become zero');
 assert.ok(exactUserDepartures.every(r => r.raw.trim().length > 0), 'each review record retains its original source text');
+assert.ok(!exactUserDepartures[0].unrecognizedLines.includes('غير متاح'), 'the standalone unavailable-contact status is recognized as a departure note');
 
 // Responsive departure review must use the existing page style and fit the viewport.
 const indexSource = fs.readFileSync('index.php', 'utf8');
