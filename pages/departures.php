@@ -329,7 +329,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
 ?>
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
     <h1 class="h3 mb-0">تسجيل مغادرة كفيل</h1>
-    <span class="badge text-bg-secondary">المبالغ بالجنيه السوداني</span>
+    <span class="badge text-bg-danger">المبالغ بالجنيه السوداني</span>
 </div>
 <p class="text-muted mb-3">يمكنك تسجيل مغادرة كفيل موجود أو إدخال كفيل جديد لم يسبق تسجيله في هذه الأداة.</p>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
