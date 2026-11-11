@@ -40,15 +40,15 @@ unset($_SESSION['mde_flash']);
         .required:after{content:' *';color:#c0392b}
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
-        .entry-register-wrap{border:1px solid #c5d2ca;border-radius:.5rem;background:#fff;overflow-x:auto}.departure-register{min-width:1280px}
+        .entry-register-wrap{border:1px solid #c5d2ca;border-radius:.5rem;background:#fff;overflow-x:auto}.departure-register{min-width:0}
         .departure-mode-bar{display:flex;align-items:center;flex-wrap:wrap;gap:.75rem;background:#f1f7f3;border:1px solid #c5d2ca;border-radius:.5rem;padding:.65rem .85rem}
         .departure-mode-bar .form-check{margin:0}
         .departure-submit-bar{background:#f1f7f3;border:1px solid #c5d2ca;border-radius:.5rem;padding:.65rem .85rem}
         .departure-submit-bar .form-text{max-width:72rem}
-        .departure-batch-table{min-width:1180px;margin-bottom:0;font-size:.78rem}
+        .departure-batch-table{width:100%;min-width:0;table-layout:fixed;margin-bottom:0;font-size:.78rem;overflow-wrap:anywhere}
         .departure-batch-table thead th{background:#dcebe2;color:#203a34;white-space:nowrap;vertical-align:middle}
         .departure-batch-table td{vertical-align:middle}
-        .departure-batch-table .form-control,.departure-batch-table .form-select{min-width:90px;font-size:.78rem}
+        .departure-batch-table .form-control,.departure-batch-table .form-select{width:100%;min-width:0;font-size:.78rem}
         .entry-register{width:100%;table-layout:fixed;margin:0;font-size:.78rem;border-collapse:collapse}
         .entry-register th,.entry-register td{border:1px solid #d5dfd9}
         .entry-register th{text-align:center;vertical-align:middle;font-weight:700;padding:.4rem .2rem;font-size:.74rem;color:#203a34}
@@ -77,7 +77,42 @@ unset($_SESSION['mde_flash']);
         .totals-bar .form-label{font-size:.72rem;color:#52645b;margin-bottom:.15rem}
         .totals-field{width:170px}.totals-actual{min-width:190px}
         .totals-status{flex:1 1 220px;font-size:.8rem;color:#2f7a52}.totals-status.is-bad{color:#c0392b;font-weight:700}
-    </style>
+    
+        /* Departure page keeps the entry register's visual language, but never scrolls sideways. */
+        .departure-register-wrap{overflow:visible}
+        .departure-register th,.departure-register td{overflow-wrap:anywhere;word-break:normal}
+        .departure-register .form-control,.departure-register .form-select{width:100%;min-width:0;font-size:.76rem}
+        .departure-mode-bar,.departure-submit-bar{background:#fbf0f1;border-color:#e4c3c8}
+        .departure-mode-bar{border-inline-start:4px solid #9b3447}
+        .departure-submit-bar{border-inline-start:4px solid #9b3447}
+        .departure-submit-bar .btn-danger{background:#9b3447;border-color:#9b3447}
+        .departure-submit-bar .btn-danger:hover{background:#7e2939;border-color:#7e2939}
+        .departure-batch-table{border-color:#e4c3c8}
+        .departure-batch-table thead th{background:#f2dfe2;color:#51232d;white-space:normal}
+        .departure-batch-table td{overflow-wrap:anywhere;min-width:0}
+        .departure-batch-wrap{overflow:visible}
+        @media(max-width:767.98px){
+          #departureRegister,#departureRegister tbody{display:block;width:100%}
+          #departureRegister thead{display:none}
+          #departureRegister tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;padding:.65rem;background:#fff}
+          #departureRegister td{display:flex;flex-direction:column;min-width:0;padding:.45rem;border:1px solid #e1d5d7;border-radius:.35rem;background:#fff}
+          #departureRegister td::before{content:attr(data-label);display:block;margin-bottom:.25rem;color:#713441;font-size:.7rem;font-weight:700}
+          #departureRegister td.seq-cell{grid-column:1/-1;display:block;padding:.2rem .4rem;border:0;background:#fbf0f1;color:#713441}
+          #departureRegister td.seq-cell::before{display:none}
+          #departureRegister td.sponsor-span-cell:last-child{grid-column:1/-1}
+          #departureRegister .form-control,#departureRegister .form-select{min-width:0;max-width:100%;font-size:.78rem}
+          #departureRegister input[type=date],#departureRegister input[type=month]{font-size:.72rem}
+          #departureBatchPanel .table-responsive{overflow:visible}
+          .departure-batch-table,.departure-batch-table tbody{display:block;width:100%}
+          .departure-batch-table thead{display:none}
+          .departure-batch-table tbody{display:grid;gap:.75rem}
+          .departure-batch-table tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;padding:.65rem;border:1px solid #e4c3c8;border-inline-start:4px solid #9b3447;border-radius:.5rem;background:#fff}
+          .departure-batch-table td{display:flex;flex-direction:column;min-width:0;padding:.35rem;border:0}
+          .departure-batch-table td::before{content:attr(data-label);display:block;margin-bottom:.2rem;color:#713441;font-size:.7rem;font-weight:700}
+          .departure-batch-table td:first-child,.departure-batch-table td:last-child,.departure-batch-table td:nth-child(2),.departure-batch-table td:nth-child(11){grid-column:1/-1}
+          .departure-batch-table td .form-control{min-width:0;width:100%}
+        }
+</style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark mb-4">
