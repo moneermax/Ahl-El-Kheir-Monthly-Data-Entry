@@ -91,7 +91,7 @@ unset($_SESSION['mde_flash']);
         .departure-batch-table thead th{background:#f2dfe2;color:#51232d;white-space:normal}
         .departure-batch-table td{overflow-wrap:anywhere;min-width:0}
         .departure-batch-wrap{overflow:visible}
-        @media(max-width:767.98px){
+        @media(max-width:1199.98px){
           #departureRegister,#departureRegister tbody{display:block;width:100%}
           #departureRegister thead{display:none}
           #departureRegister tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;padding:.65rem;background:#fff}
