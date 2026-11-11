@@ -7,8 +7,8 @@ if (!function_exists('mde_h')) {
 
 require __DIR__ . '/../includes/reference_options.php';
 
-$expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء'];
-$expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء'];
+$expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء'];
+$expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء'];
 
 if ($mdeEnteredByOptions !== $expectedEnteredBy) {
     throw new RuntimeException('The entry operator list differs from the reviewed source list.');
@@ -25,8 +25,8 @@ if (mde_person_option_key('ح ميساء') !== mde_person_option_key('ميساء
 if (mde_person_option_key('هناء خلف الله') !== mde_person_option_key('هناء')) {
     throw new RuntimeException('The confirmed full-name alias must resolve to the canonical هناء option.');
 }
-if (mde_person_option_key('هبه') === mde_person_option_key('هبه خلف الله')) {
-    throw new RuntimeException('Distinct full names must remain distinct personnel options.');
+if (mde_person_option_key('هبه') !== mde_person_option_key('هبه خلف الله')) {
+    throw new RuntimeException('The confirmed هبه خلف الله alias must resolve to the canonical هبه option.');
 }
 if (in_array('مياده ساره', $mdeSupervisorOptions, true) || in_array('مها ميساء', $mdeSupervisorOptions, true)) {
     throw new RuntimeException('Combined spreadsheet cell values must not appear as individual supervisors.');
