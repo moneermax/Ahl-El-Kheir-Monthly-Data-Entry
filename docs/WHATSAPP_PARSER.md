@@ -77,6 +77,8 @@ Departure messages use a separate segmentation path; the entry parser remains in
 - Amount labels may be directly adjacent to their values, for example `الكفالة62000` and `خدمات8000`. Unlabelled slash pairs such as `100.000/20.000`, `27.000/2000`, and `28000/2000` are interpreted as sponsorship/services.
 - Unlabelled explanatory lines are retained in departure notes. The original raw message remains attached to every record.
 - File headings are read only when they occupy their own line; a mention of another file inside a note must not silently change the record's file context.
+- Standalone departure status phrases such as `غير متاح`, `ما داخل قروب`, and `ماداخل قروب` are retained as explanatory notes, not treated as sponsor names or unexplained parser residue.
+- The complete six-sponsor message beginning `⛔كفلاء طلعو⛔` is a fixed regression case. It verifies file 25 for sponsors 1–3, file 24 for sponsors 4–5, the tree section for sponsor 6, the shared 31/10/2026 departure date, slash-pair amounts, month-only last-payment values, and blank tree count/services. Missing values remain blank.
 
 The workbook and messages contain two source discrepancies that are deliberately not auto-corrected: one message says file `2024` where the October workbook row shows file `24`, and one tree-message name says `محمد عثمان جمعة` where the October workbook row shows `الطيب عثمان جمعه`. The parser preserves the text actually pasted. These require human reconciliation, not fuzzy name/file substitution.
 
@@ -90,6 +92,7 @@ The workbook and messages contain two source discrepancies that are deliberately
 - Departure source reason text is folded into the general notes field; the departure page has no separate leave-reason control.
 - If a sponsor name matches multiple master records, the importer loads the remaining message data but leaves the sponsor selection blank and requires manual selection. Existing options show file number and record ID. It must never silently turn an ambiguous existing sponsor into a new master record.
 - The existing multi-record queue, explicit user confirmation, save button, expected-total validation, and remove-after-successful-save flow remain in the DOM integration module.
+- The departure page retains the New Sponsors page's existing form/table visual language and structure; a muted burgundy accent distinguishes the departure workflow without introducing a different dashboard design. The single-record register and batch review fit the viewport without horizontal scrolling. On narrow screens, both become stacked labelled fields/cards; vertical scrolling is expected and horizontal scrolling is not.
 - Previously departed sponsors remain selectable for a new month's departure record; inactive status is informational, not a parser/import rejection.
 - A tested departure payload builder combines any extracted reason with general notes, matching the source workbook's single-notes-field structure.
 
@@ -120,6 +123,8 @@ The suite covers the historical cases and the exact reported failure, including:
 - Multiple sponsor segmentation and isolation of one sponsor's family/amount fields from the next.
 - Missing optional values, unrecognized-line warnings, and preservation of raw text.
 - Mixed-format previous-month departure messages, shared final departure dates, last-payment month ranges, and October workbook-derived tree rows with absent/present service fees and absent/explicit-zero orphan counts.
+- The exact complete six-sponsor departure message supplied on 2026-11-11, including its file-heading transitions, shared date, separate sponsor amounts, last-paid month ranges, unavailable-contact status, and tree record with omitted count/services.
+- Responsive departure layout contracts: no fixed 1280px/1180px minimum widths, viewport-fitting single and batch layouts, and labelled stacked cards at mobile widths.
 - The form payload and the adapter calls used to populate sponsor, file, date, operator, supervisor, notes, families, orphan names, amount allocations, and totals.
 
 JavaScript syntax checks:
