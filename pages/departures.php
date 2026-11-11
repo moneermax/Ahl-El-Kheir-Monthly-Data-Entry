@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
              LIMIT 1 FOR UPDATE'
         );
         $savedCount = 0;
+        $sponsorDepartureDates = [];
         foreach ($rows as $index => $row) {
             $rowNo = (int) $index + 1;
             if (!is_array($row)) {
@@ -156,9 +157,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
                 $sponsorId, $sponsorNameSnapshot, $fileNumber !== '' ? $fileNumber : null, $departureDate, $lastPaidDate,
                 $count, $amount, $services, $enteredBy, $supervisorName, $notes,
             ]);
-            $endSponsorships->execute([$departureDate, $sponsorId, $departureDate]);
-            $syncSponsor->execute([$sponsorId]);
+            if (!isset($sponsorDepartureDates[$sponsorId]) || $departureDate < $sponsorDepartureDates[$sponsorId]) {
+                $sponsorDepartureDates[$sponsorId] = $departureDate;
+            }
             $savedCount++;
+        }
+        foreach ($sponsorDepartureDates as $sponsorId => $effectiveDepartureDate) {
+            $endSponsorships->execute([$effectiveDepartureDate, $sponsorId, $effectiveDepartureDate]);
+            $syncSponsor->execute([$sponsorId]);
         }
         $pdo->commit();
         mde_flash('success', "تم حفظ {$savedCount} سجلات مغادرة مستقلة في عملية واحدة.");
