@@ -34,8 +34,10 @@ const entryRegisterSource = fs.readFileSync('assets/js/entry-register.js', 'utf8
 const reportPageSource = fs.readFileSync('pages/reports.php', 'utf8');
 const exportSource = fs.readFileSync('export.php', 'utf8');
 assert.match(entryPageSource, /FROM mde_sponsors\s+ORDER BY id DESC\s+LIMIT 1/, 'last sponsor indicator must show the most recently created sponsor master record');
-assert.ok(entryPageSource.includes('data-file='), 'existing sponsor choices must expose their file number for safe manual disambiguation');
-assert.ok(entryPageSource.includes('سجل #<?= (int)$existing[\'id\'] ?>'), 'entry sponsor options must expose a stable record identifier when names repeat');
+assert.ok(entryPageSource.includes('id="sponsorName"') && entryPageSource.includes('id="fileNumber"'), 'new-entry form must expose editable sponsor-name and file-number fields');
+assert.ok(entryPageSource.includes('$sponsorMatches = $findSponsorStmt->fetchAll();'), 'entry save must resolve sponsor masters from the exact editable name');
+assert.ok(entryPageSource.includes('if (count($sponsorMatches) > 1)') && entryPageSource.includes('count($fileMatches) !== 1'), 'duplicate sponsor names must require a file number that selects exactly one master record');
+assert.ok(entryPageSource.includes('لم يتم اختيار أي سجل تلقائياً ولم يتم إنشاء كفيل جديد'), 'ambiguous sponsor matches must fail safely instead of guessing or creating a duplicate master');
 assert.ok(departurePageSource.includes('سجل #<?= (int) $s[\'id\'] ?>'), 'departure sponsor options must expose a stable record identifier when names repeat');
 assert.ok(departurePageSource.includes("isset($_POST['departure_batch'])"), 'departure page must accept a multi-row batch submission');
 assert.ok(departurePageSource.includes('foreach ($rows as $index => $row)'), 'every submitted departure row must be validated and persisted separately');
@@ -55,7 +57,7 @@ assert.ok(importSource.includes("hint.textContent=result.message||'';hint.hidden
 
 assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
 assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
-assert.ok(entryRegisterSource.includes("fileNumber.value=existing.selectedOptions[0].dataset.file||''"), 'manual sponsor selection must restore or clear its master file number');
+assert.ok(entryRegisterSource.includes("fileNumber=q('#fileNumber')"), 'entry register must bind the editable file-number field');
 assert.match(entryPageSource, /FROM mde_sponsors\s+ORDER BY id DESC\s+LIMIT 1/, 'the last-sponsor indicator must follow the newest sponsor master ID, not a monthly row');
 assert.ok(!entryPageSource.includes('FROM mde_monthly_sponsorship_entries AS monthly'), 'the last-sponsor indicator must not infer the last new sponsor from a monthly row');
 assert.ok(entryPageSource.includes('departure_date >= rel.start_date'), 'historical departures must close only sponsorship episodes effective by their date');
