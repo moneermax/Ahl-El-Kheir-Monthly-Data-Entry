@@ -358,7 +358,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         <span class="badge text-bg-light border">سجل مستقل لكل كفيل</span>
     </div>
     <fieldset id="singleDepartureFields" class="border-0 p-0 m-0">
-    <div class="entry-register-wrap">
+    <div class="entry-register-wrap departure-register-wrap">
         <table class="entry-register departure-register" id="departureRegister">
             <colgroup>
                 <col style="width:3%">
@@ -388,8 +388,8 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
             </thead>
             <tbody>
                 <tr>
-                    <td class="seq-cell fw-bold text-center">1</td>
-                    <td class="sponsor-span-cell">
+                    <td class="seq-cell fw-bold text-center" data-label="#">1</td>
+                    <td class="sponsor-span-cell" data-label="الكفيل">
                         <div id="existingSponsorFields" class="<?= $selectedMode === 'new' ? 'd-none' : '' ?>">
                             <label class="form-label required small" for="departureSponsorName">اسم الكفيل (قابل للتعديل)</label>
                             <input type="text" class="form-control form-control-sm" name="sponsor_name_snapshot" id="departureSponsorName" maxlength="255" value="<?= mde_h($old['sponsor_name_snapshot'] ?? '') ?>" <?= $selectedMode === 'existing' ? 'required' : 'disabled' ?>>
@@ -417,32 +417,32 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
                             <textarea class="form-control form-control-sm" name="new_sponsor_notes" id="newSponsorNotes" rows="2" placeholder="ملاحظات عن الكفيل" <?= $selectedMode === 'new' ? '' : 'disabled' ?>><?= mde_h($old['new_sponsor_notes'] ?? '') ?></textarea>
                         </div>
                     </td>
-                    <td class="sponsor-span-cell">
+                    <td class="sponsor-span-cell" data-label="رقم الملف">
                         <input class="form-control form-control-sm mb-1" name="file_number" id="existingFileNumber" maxlength="100" placeholder="الملف" value="<?= mde_h($old['file_number'] ?? '') ?>" <?= $selectedMode === 'new' ? 'disabled' : '' ?>>
                         <input class="form-control form-control-sm" name="file_number" id="newFileNumber" maxlength="100" placeholder="الملف" value="<?= mde_h($old['file_number'] ?? '') ?>" <?= $selectedMode === 'new' ? '' : 'disabled' ?>>
                     </td>
-                    <td>
+                    <td data-label="تاريخ المغادرة">
                         <input type="date" class="form-control form-control-sm date-input" name="departure_date" id="departureDate" value="<?= mde_h($old['departure_date'] ?? '') ?>" required>
                     </td>
-                    <td>
+                    <td data-label="آخر سداد">
                         <input type="month" class="form-control form-control-sm" name="last_paid_month" id="lastPaidMonth" value="<?= mde_h($old['last_paid_month'] ?? '') ?>">
                     </td>
-                    <td>
+                    <td data-label="عدد الأيتام">
                         <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="orphan_count" id="orphanCount" value="<?= mde_h($old['orphan_count'] ?? '') ?>">
                     </td>
-                    <td>
+                    <td data-label="الكفالة">
                         <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="sponsorship_amount" id="sponsorshipAmount" value="<?= mde_h($old['sponsorship_amount'] ?? '0') ?>">
                     </td>
-                    <td>
+                    <td data-label="الخدمات">
                         <input type="number" min="0" step="1" class="form-control form-control-sm text-center" name="services_amount" id="servicesAmount" value="<?= mde_h($old['services_amount'] ?? '') ?>">
                     </td>
-                    <td class="sponsor-span-cell">
+                    <td class="sponsor-span-cell" data-label="بواسطة / المشرف">
                         <div class="small mb-1">بواسطة</div>
                         <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'اختر الاسم', (string) ($old['entered_by'] ?? '')); ?>
                         <div class="small mt-2 mb-1">المشرف</div>
                         <?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'اختر الاسم', (string) ($old['supervisor_name'] ?? '')); ?>
                     </td>
-                    <td class="sponsor-span-cell">
+                    <td class="sponsor-span-cell" data-label="ملاحظات">
                         <label class="form-label small" for="departureNotes">ملاحظات كما وردت في المصدر</label>
                         <textarea class="form-control form-control-sm notes-input" name="notes" id="departureNotes" rows="4"><?= mde_h($old['notes'] ?? '') ?></textarea>
                     </td>
@@ -454,7 +454,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
 
     <section id="departureBatchPanel" class="d-none mt-3">
         <div class="alert alert-info py-2">مراجعة متعددة: كل صف يمثل كفيلاً وسجل مغادرة مستقلاً. يمكنك تعديل القيم أو حذف الصفوف قبل الحفظ.</div>
-        <div class="table-responsive">
+        <div class="table-responsive departure-batch-wrap">
             <table class="table table-bordered table-sm align-middle departure-batch-table">
                 <thead><tr><th>#</th><th>الكفيل</th><th>الملف</th><th>المغادرة</th><th>آخر سداد</th><th>الأيتام</th><th>الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th><th>ملاحظات</th><th></th></tr></thead>
                 <tbody id="departureBatchRows"></tbody>
