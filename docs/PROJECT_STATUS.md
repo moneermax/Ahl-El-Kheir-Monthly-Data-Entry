@@ -9,6 +9,18 @@
 
 This is a standalone data-entry project. Never modify the separate Ahl El Kheir management-system repository or database.
 
+## Departure page visual alignment — 2026-11-11
+
+The departure page now uses the same full-browser-width main content area as New Sponsors while retaining its own departure register and workflow. Its page heading follows the entry-page heading hierarchy and displays the SDG amount context. The existing/new sponsor selector is presented as a distinct section bar, the register has its own heading, the batch-review table has matching register header treatment and deliberate horizontal scrolling, and the submission guidance/action area uses the shared pale-green panel treatment.
+
+Implementation commits on `main`:
+- `7c13cd4` — departure page heading, sponsor-mode section, register heading, batch table class, and submit-panel hooks.
+- `124c9d8` — full-width departure content wrapper and scoped departure styling in the shared application shell.
+
+Preservation scope: no changes were made to parser JavaScript, the WhatsApp DOM adapter, POST field names, element IDs/data attributes, SQL, database schema, validation, transaction handling, or save/redirect logic. The `departure` WhatsApp profile and single/batch review flow remain in place.
+
+Verification status: these changes were committed to GitHub directly from the reviewed remote source. PHP lint, JavaScript syntax checks, the Node regression suite, and local browser/database tests have **not** been run in this session because the local XAMPP repository is not mounted here. Run the documented checks after pulling, then complete the browser sequence in the continuation prompt. Do not treat the visual alignment as browser-verified until that is done.
+
 ## Current implementation
 
 - Sponsor → mother → orphan entry register, with one row per orphan and merged sponsor/mother cells.
