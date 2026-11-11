@@ -198,7 +198,7 @@ function renderDepartureBatch(batchRecords) {
   notes.rows=2;td.append(notes);
   td=cell('إجراء');
   const remove=document.createElement('button');remove.type='button';remove.className='btn btn-outline-danger btn-sm';remove.textContent='حذف';
-  remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>row.cells[0].textContent=String(i+1));});
+  remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>{row.cells[0].textContent=String(i+1);row.querySelectorAll('[name]').forEach(el=>{el.name=el.name.replace(/^departures\\[\\d+\\]/,'departures['+i+']');});});});
   td.append(remove);body.append(tr);
  });
  if(!body.rows.length)return false;
