@@ -55,8 +55,8 @@ assert.ok(!importSource.includes('رقم الملف في الرسالة لا ي�
 assert.ok(!importSource.includes('سيُحفظ الاسم ورقم الملف في سجل المغادرة فقط.'), 'the test-only departure snapshot hint must not be shown');
 assert.ok(importSource.includes("hint.textContent=result.message||'';hint.hidden=!result.message"), 'departure resolution hints appear only when there is an actual matching issue');
 
-assert.ok(importSource.includes('ambiguousSponsor'), 'the entry/departure adapter must not silently convert ambiguous sponsor matches into new masters');
-assert.ok(importSource.includes('else if(matches.length>1)'), 'multiple same-name sponsors must enter the manual disambiguation path');
+assert.ok(importSource.includes("success=set($('#sponsorName'),value)"), 'entry WhatsApp import must populate the editable sponsor name directly');
+assert.ok(importSource.includes("const fileInput=$('#entryForm').elements.file_number"), 'entry WhatsApp import must populate the editable file-number field without sponsor dropdown resolution');
 assert.ok(entryRegisterSource.includes("fileNumber=q('#fileNumber')"), 'entry register must bind the editable file-number field');
 assert.match(entryPageSource, /FROM mde_sponsors\s+ORDER BY id DESC\s+LIMIT 1/, 'the last-sponsor indicator must follow the newest sponsor master ID, not a monthly row');
 assert.ok(!entryPageSource.includes('FROM mde_monthly_sponsorship_entries AS monthly'), 'the last-sponsor indicator must not infer the last new sponsor from a monthly row');
