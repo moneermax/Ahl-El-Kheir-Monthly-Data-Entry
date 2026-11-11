@@ -916,4 +916,74 @@ assert.equal(feminineSpellingAndEmptyChildrenLabel.supervisor, 'ميساء');
 assert.ok(!feminineSpellingAndEmptyChildrenLabel.warnings.some(w => /اسم الكفيل غير واضح|لم يتم استخراج أسماء الأيتام/u.test(w)), 'the reported sponsor and orphan extraction warnings must disappear');
 assert.equal(feminineSpellingAndEmptyChildrenLabel.unrecognizedLines.length, 0, 'numbered one-word children must not be left as unrecognized lines');
 
+
+const exactUserDepartureBatch = [
+  '⛔كفلاء طلعو⛔',
+  'ملف 25',
+  '1• انس فتح الرحمن احمد محمد',
+  '100.000/20.000',
+  'عدد الايتام 10',
+  'ماداخل قروب',
+  'السبب عدم تواجده في الواتس والاتصال',
+  'غير متاح',
+  'اخر سداد سبتمبر',
+  '2•التجاني محمد الشايب',
+  'سبتمبر /اكتوبر',
+  'عدد الايتام 1',
+  '27.000/2000',
+  'داخل قروب الشجرة رجال ح ياخد فرصه لحين السداد',
+  'السبب عدم الرد في الواتس والاتصال',
+  '3• آمن عمر  عبد الحليم',
+  'اخر سداد اكتوبر',
+  'عدد الايتام :2',
+  '30000/4000',
+  'طلب الالغاء ليس لديه علي المقدرة علي الالتزام',
+  'ملف 24',
+  '3• ابو عمر محمد يونس',
+  'عددالايتام : 4',
+  '50000/8000',
+  'ماداخل قروب',
+  'نسبة لتواجده في الخلا ح يرجع ويسدد',
+  'اخر سداد سبتمبر',
+  '5• ايهاب عمر علي',
+  'عدد الايتام :1',
+  'سبتمبر/اكتوبر',
+  '28000/2000',
+  'ما داخل قروب',
+  'السبب عايز مهله لحين توفر المال وسيسدد',
+  'ملف الشجرة',
+  '6• الطيب عثمان جمعه',
+  '2000',
+  'اكتوبر',
+  '31/10/2026'
+].join('\n');
+const exactUserDepartures = parser.splitDepartures(exactUserDepartureBatch, '2026-11-05');
+assert.equal(exactUserDepartures.length, 6, 'the complete user-supplied WhatsApp batch must split into six sponsor departures');
+assert.deepEqual(Array.from(exactUserDepartures, r => r.sponsor), [
+  'انس فتح الرحمن احمد محمد', 'التجاني محمد الشايب', 'آمن عمر عبد الحليم',
+  'ابو عمر محمد يونس', 'ايهاب عمر علي', 'الطيب عثمان جمعه'
+]);
+assert.deepEqual(Array.from(exactUserDepartures, r => r.file), ['25', '25', '25', '24', '24', '🌳']);
+assert.deepEqual(Array.from(exactUserDepartures, r => r.count), ['10', '1', '2', '4', '1', '']);
+assert.deepEqual(Array.from(exactUserDepartures, r => r.sponsorship), ['100000', '27000', '30000', '50000', '28000', '2000']);
+assert.deepEqual(Array.from(exactUserDepartures, r => r.services), ['20000', '2000', '4000', '8000', '2000', '']);
+assert.deepEqual(Array.from(exactUserDepartures, r => r.lastPaid), [
+  '2026-09', '2026-10', '2026-10', '2026-09', '2026-10', '2026-10'
+]);
+assert.ok(exactUserDepartures.every(r => r.date === '2026-10-31'), 'the trailing date applies to every sponsor in the complete batch');
+assert.equal(exactUserDepartures[5].type, 'tree');
+assert.equal(exactUserDepartures[5].count, '', 'missing tree orphan count must remain blank, not become zero');
+assert.equal(exactUserDepartures[5].services, '', 'missing tree services must remain blank, not become zero');
+assert.ok(exactUserDepartures.every(r => r.raw.trim().length > 0), 'each review record retains its original source text');
+
+// Responsive departure review must use the existing page style and fit the viewport.
+const indexSource = fs.readFileSync('index.php', 'utf8');
+assert.ok(indexSource.includes('.departure-register-wrap{overflow:visible}'), 'departure single-record register must not use horizontal scrolling');
+assert.ok(indexSource.includes('.departure-batch-wrap{overflow:visible}'), 'departure batch wrapper must not use horizontal scrolling');
+assert.ok(indexSource.includes('#departureRegister td::before{content:attr(data-label)'), 'single departure fields become labelled stacked fields on narrow screens');
+assert.ok(indexSource.includes('.departure-batch-table tr{display:grid;'), 'batch departures become stacked review cards on narrow screens');
+assert.ok(!indexSource.includes('.departure-register{min-width:1280px}'), 'departure register must not force a 1280px minimum width');
+assert.ok(!indexSource.includes('.departure-batch-table{min-width:1180px'), 'departure batch must not force a 1180px minimum width');
+assert.ok(importSource.includes('td.dataset.label=label'), 'dynamic batch fields expose labels for their responsive card layout');
+
 console.log('WhatsApp parser tests passed.');
