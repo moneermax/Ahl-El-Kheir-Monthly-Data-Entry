@@ -1,69 +1,73 @@
-# New Chat Prompt — Redesign the Departures Page
+# Continuation Prompt — Verify the Departures Page Redesign
 
-Continue the Ahl El Kheir Monthly Data Entry project. Redesign the Departures page so it looks and feels as close as practical to the New Sponsors page, while preserving all departure-specific functionality, fields, validations, parsing, and save behaviour.
+Continue the Ahl El Kheir Monthly Data Entry project after the departure-page visual alignment commits.
 
-## Start immediately — required first actions
+## Current baseline
 
-1. Read README.md, docs/PROJECT_STATUS.md, docs/WHATSAPP_PARSER.md, and this prompt completely.
-2. Inspect the latest GitHub main commit and local repository state before editing. The user's latest known local update is d912bc6; confirm rather than assume.
-3. Inspect the complete current source of pages/entry.php (visual reference), pages/departures.php (target), shared stylesheets/page CSS, assets/js/whatsapp-parser.js, assets/js/whatsapp-import.js, includes/whatsapp_import.php, and scripts loaded by either page.
-4. Identify actual visual/layout differences from source. If screenshots or exact user-reported defects are unavailable, do not invent defects. Use New Sponsors as the reference.
-5. THEN START IMPLEMENTING IMMEDIATELY. Do not stop after an audit, plan, or list of recommendations. Ask a question only if an essential requirement cannot be inferred from the existing implementation and project rules.
+- Repository: `moneermax/Ahl-El-Kheir-Monthly-Data-Entry`
+- Branch: `main` only
+- Local path: `/opt/lampp/htdocs/MonthlyDataEntry`
+- URL: `http://localhost/MonthlyDataEntry/`
+- Database: `ahl_el_kheir_monthly_data`
+- Stack: Linux Mint 22.3, XAMPP, PHP 8.2, MariaDB 10.4, procedural PHP, Bootstrap 5.3 RTL, vanilla JavaScript, TCPDF.
+- Separate management system at `/opt/lampp/htdocs/AhlElKheir` is off-limits.
 
-## Environment
+The user confirmed the local checkout was clean and synchronized with GitHub at `31a0c57` before these changes. The following commits were then made on GitHub `main`:
+- `7c13cd4` — align departure page heading, sponsor-mode section, register heading, batch table and submit area.
+- `124c9d8` — make departure page full-width like New Sponsors and add scoped departure panel/batch-table styling.
 
-- GitHub: moneermax/Ahl-El-Kheir-Monthly-Data-Entry
-- Local path: /opt/lampp/htdocs/MonthlyDataEntry
-- URL: http://localhost/MonthlyDataEntry/
-- Database: ahl_el_kheir_monthly_data
-- Branch: main only
-- Linux Mint 22.3, XAMPP, PHP 8.2, MariaDB 10.4, procedural PHP, Bootstrap 5.3 RTL, vanilla JavaScript, TCPDF.
-- This project is separate from /opt/lampp/htdocs/AhlElKheir. Never modify that project or its database.
+## First actions
 
-## Design objective
+1. Inspect `git status --short --branch` and `git log -3 --oneline --decorate`.
+2. Confirm the local checkout is still clean before pulling. Do not overwrite local work.
+3. Pull the latest `main` normally.
+4. Read `docs/PROJECT_STATUS.md`, `README.md`, `pages/departures.php`, `pages/entry.php`, and `index.php`.
+5. Inspect the diff for the two UI commits. Confirm no parser, adapter, SQL, save-handler, POST-name, ID, or data-attribute changes slipped in.
 
-Make Departures visually consistent with New Sponsors in page/container width, spacing, typography, heading hierarchy, RTL alignment, cards/panels, borders, padding, form labels and control sizing, help/validation text, button hierarchy, register/table density, and responsive behaviour. Wide registers must remain readable and may scroll horizontally on narrow screens.
+## Required automated checks
 
-Do not mechanically copy the New Sponsors form structure. Departure data is different. The goal is a consistent design system, not identical fields or workflow.
+Run from the repository root:
 
-## Functionality that must remain unchanged
+```bash
+php -l pages/departures.php
+php -l index.php
+node --check assets/js/whatsapp-parser.js
+node --check assets/js/whatsapp-import.js
+node tests/whatsapp-import.test.cjs
+```
 
-1. Sponsor mode: existing registered sponsor; register a new sponsor and depart them; mode switching and correct enabled/disabled/required field behaviour.
-2. Sponsor identity/file: existing sponsor matching by name and file number; ambiguous-name handling; editable departure sponsor-name snapshot without renaming the master sponsor; existing/new file-number semantics.
-3. Departure fields: departure date, last-paid month, orphan count (including existing tree-specific optional behaviour), sponsorship/services snapshots, notes/source details, and new-sponsor phone/address/type/details where applicable.
-4. WhatsApp import: preserve shared import integration and departure profile. Preserve departure-specific parsing: numbered records, file-number context headings, letter-group headings, tree sections, standalone cancellation messages, shared dates, last-paid month handling, amount pairs, and notes. Preserve review-before-save; parsing must never autosave. Preserve multi-record batch review, sponsor matching, and return to single-record entry.
-5. Save/data integrity: preserve POST names, IDs, data attributes, server-side validation, database writes, redirects/flash messages, and batch atomicity. Do not change schema or add migrations for a visual-only task. Do not weaken validation or silently convert missing values to zero.
+Also inspect the exact diff and confirm the departure-specific DOM hooks still exist:
+- `#departureForm`, `#departureBatchFlag`, `#singleDepartureFields`
+- `#modeExisting`, `#modeNew`, `#departureSponsor`, `#departureSponsorName`, `#departureSponsorId`
+- `#existingFileNumber`, `#newFileNumber`, `#departureDate`, `#lastPaidMonth`
+- `#orphanCount`, `#sponsorshipAmount`, `#servicesAmount`, `#departureNotes`
+- `#departureBatchPanel`, `#departureBatchRows`, `#departureBatchCancel`
+- WhatsApp panel `data-profile="departure"`, `#whatsappAnalyze`, `#whatsappApply`, `#whatsappApplyAll`.
 
-## Critical technical guardrails
+## Browser/database verification
 
-- Both pages use includes/whatsapp_import.php, with profiles entry and departure respectively.
-- Both share assets/js/whatsapp-parser.js and assets/js/whatsapp-import.js, but the parser has separate entry/family and departure parsing paths. Do not replace departure parsing with entry parsing or refactor parser logic merely to make the pages look alike.
-- New Sponsors uses #entryForm, .entry-register-wrap, and #entryRegister, with sponsor/mother/orphan rows and per-orphan amounts/donations.
-- Departures uses #departureForm, .entry-register-wrap, #departureRegister, existing/new sponsor mode controls, and #departureBatchPanel / #departureBatchRows.
-- The DOM adapter in assets/js/whatsapp-import.js depends on specific IDs/selectors. Preserve them unless every dependency is traced and updated together.
-- Prefer shared design tokens/classes or tightly scoped departure-page CSS/markup changes. Avoid broad rewrites and conflicting duplicate CSS.
-- Do not modify unrelated New Sponsors behaviour to achieve visual parity.
+Use the local browser at `http://localhost/MonthlyDataEntry/?page=departures` and verify:
 
-## Implementation and verification
+1. Existing sponsor mode: match an existing sponsor by name/file; confirm its master sponsor name is not changed when editing the departure snapshot.
+2. New sponsor mode: enter a genuinely new sponsor, type, file number, and optional contact details; switch modes both ways and confirm disabled/required fields behave correctly.
+3. Import one departure message: inspect all extracted fields, correct them if needed, and save only through the normal submit button.
+4. Import multiple departures: review every row, test sponsor matching and edits, remove a row, then save the batch once; verify atomic save behaviour.
+5. Return to single-record mode and confirm the original form works.
+6. Trigger a validation failure and confirm no partial write occurs.
+7. Complete one successful save and verify the flash/redirect and departure report.
+8. Test a narrow viewport: heading and controls should wrap cleanly; registers should scroll horizontally without squeezing text or breaking the page.
 
-- Implement the redesign after the initial source review; do not return with only an audit.
-- Compare final Departures markup/styles directly against New Sponsors.
-- Run: php -l pages/departures.php; node --check assets/js/whatsapp-parser.js; node --check assets/js/whatsapp-import.js; node tests/whatsapp-import.test.cjs. Also lint any other PHP files changed.
-- Review the diff for accidental changes to form names, IDs, data attributes, parser logic, SQL, or save handlers.
-- Provide one concise browser test sequence: existing sponsor, new sponsor, one imported departure, multi-record import/batch, return to single mode, validation failure, successful save, and narrow viewport.
-- Separate automated checks from tests requiring the user's local browser/database. Never claim tests not actually performed.
-- Update docs/PROJECT_STATUS.md, docs/CHATGPT_CONTINUATION_PROMPT.md, and affected feature documentation after implementation.
+Do not claim any browser/database test passed unless it was actually performed. Report automated checks separately from local interactive tests.
 
-## Working rules
+## Guardrails
 
-- Be direct, critical, and efficient. Challenge assumptions; no empty reassurance.
-- Inspect current docs and source before editing.
-- Keep work on main only. Do not create branches unless explicitly requested.
-- Inspect local changes before pulling or overwriting anything. Preserve staged, untracked, ignored, backup, and configuration files.
-- Never use destructive Git commands: no reset --hard, git clean, git restore, or force push.
-- Do not modify local config/database.php.
-- Do not touch the separate Ahl El Kheir management system/database.
-- Commit and push complete changes to GitHub so the user can pull and test. If Git authentication fails, report the exact error; do not improvise destructive workarounds.
-- Give one concise, complete test plan after implementation.
+- Preserve departure-specific parsing in `assets/js/whatsapp-parser.js`; do not replace it with entry/family parsing.
+- Preserve `assets/js/whatsapp-import.js` adapter selectors, batch queue, review-before-save, and return-to-single mode.
+- Do not change server-side validations, SQL, transaction boundaries, redirect/flash behaviour, form names, IDs, data attributes, or schema for a visual-only task.
+- Do not modify `config/database.php`.
+- Keep all work on `main`; no branches unless explicitly requested.
+- Never use destructive Git commands: no `reset --hard`, `git clean`, `git restore`, or force push.
+- Preserve staged, untracked, ignored, backup, and configuration files.
+- Do not touch the separate Ahl El Kheir management system or database.
 
-BEGIN NOW: read the listed documentation, inspect current main and both page implementations, then implement the Departures visual redesign in this session.
+After verification, update this document and `docs/PROJECT_STATUS.md` with actual results, then commit and push any necessary fixes to `main`.
