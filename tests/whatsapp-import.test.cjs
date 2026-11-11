@@ -53,7 +53,7 @@ assert.ok(departurePageSource.includes('sponsor_name_snapshot, file_number_snaps
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
 assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("name(index,'sponsor_name_snapshot')"), 'batch rows submit master ID and editable name snapshot');
 assert.ok(importSource.includes("name(index,'sponsor_mode')") && importSource.includes("'new_sponsor_name'") && importSource.includes("name(index,'new_sponsor_type')"), 'each batch record can explicitly select an existing sponsor or create a new sponsor with a type');
-assert.ok(importSource.includes("add(f.date,'departure_date','date')"), 'each batch row submits its departure date');
+assert.ok(importSource.includes("const name=(index,field)=>'departures['+index+']['+field+']';") && importSource.includes("add(f.date,'departure_date','date','تاريخ المغادرة')"), 'each batch row submits its departure date using the indexed departures field name');
 assert.ok(importSource.includes('function resolveDepartureSponsor('), 'departure matching resolves name and file number without a visible sponsor menu');
 assert.ok(importSource.includes('الاسم موجود لأكثر من كفيل'), 'ambiguous same-name records require a unique file number');
 assert.ok(!importSource.includes('رقم الملف في الرسالة لا يطابق رقم الملف المسجل؛ راجع الاختيار'), 'a unique name match is not rejected for a differing file number');
