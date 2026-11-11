@@ -437,7 +437,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!is_array($monthly)) throw new InvalidArgumentException('بيانات الإدخالات الشهرية غير صالحة.');
         $monthlySelect = $pdo->prepare('SELECT me.id, me.sponsorship_id, me.sponsor_id, me.orphan_id, me.report_month, me.entry_date, me.sponsorship_amount, me.services_amount, me.entered_by, me.supervisor_name, me.notes FROM mde_monthly_sponsorship_entries me JOIN mde_sponsorships ss ON ss.id = me.sponsorship_id WHERE me.id = ? AND ss.sponsor_id = ? FOR UPDATE');
         $monthlyUpdate = $pdo->prepare('UPDATE mde_monthly_sponsorship_entries SET entry_date=?, report_month=?, sponsorship_amount=?, services_amount=?, notes=? WHERE id=?');
-        $monthlyConflict = $pdo->prepare('SELECT id FROM mde_monthly_sponsorship_entries WHERE sponsor_id = ? AND orphan_id = ? AND report_month = ? AND id <> ? LIMIT 1 FOR UPDATE');
         $donationsForMove = $pdo->prepare('SELECT * FROM mde_monthly_other_donations WHERE sponsorship_id = ? AND report_month = ? FOR UPDATE');
         $moveDonationMonth = $pdo->prepare('UPDATE mde_monthly_other_donations SET report_month = ? WHERE id = ?');
         $relationshipDateSelect = $pdo->prepare('SELECT id, start_date, end_date, status FROM mde_sponsorships WHERE id = ? AND sponsor_id = ? FOR UPDATE');
@@ -451,12 +450,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$before) throw new InvalidArgumentException('أحد الإدخالات الشهرية لا يتبع هذا الكفيل.');
             $date = mde_manage_date(trim((string) ($values['entry_date'] ?? $before['entry_date'])), 'تاريخ الإدخال');
             $newReportMonth = mde_month_start($date);
-            if ($newReportMonth !== $before['report_month']) {
-                $monthlyConflict->execute([$before['sponsor_id'], $before['orphan_id'], $newReportMonth, $id]);
-                if ($monthlyConflict->fetchColumn()) {
-                    throw new InvalidArgumentException('لا يمكن نقل إدخال «' . $date . '» إلى شهر ' . substr($newReportMonth, 0, 7) . ' لأن لليتيم إدخالاً آخر مسجلاً للكفيل نفسه في ذلك الشهر. راجع السجل الموجود أولاً؛ لم يتم نقل أي جزء من مجموعة الكفيل.');
-                }
-            }
             $amount = filter_var($values['sponsorship_amount'] ?? $before['sponsorship_amount'], FILTER_VALIDATE_INT);
             $services = filter_var($values['services_amount'] ?? $before['services_amount'], FILTER_VALIDATE_INT);
             if ($amount === false || $amount < 0 || $services === false || $services < 0) {
