@@ -4,11 +4,7 @@ declare(strict_types=1);
 /** Fill the original two-sheet Excel register without changing its design. */
 function mde_export_xlsx_from_template(string $monthInput, array $sponsors, array $departures, callable $dateText, string $reportType = 'both'): never
 {
-    $novemberTemplatePath = dirname(__DIR__) . '/docs/Ahl_El_Kheir_Women_Organization_November.xlsx';
-    $preserveNovemberLayout = $monthInput === '2026-11' && is_file($novemberTemplatePath);
-    $templatePath = $preserveNovemberLayout
-        ? $novemberTemplatePath
-        : dirname(__DIR__) . '/templates/monthly-register-template.xlsx';
+    $templatePath = dirname(__DIR__) . '/templates/monthly-register-template.xlsx';
     if (!class_exists(ZipArchive::class) || !class_exists(DOMDocument::class) || !is_file($templatePath)) {
         http_response_code(503);
         exit('قالب Excel أو امتدادات ZIP/XML غير متاحة.');
@@ -45,7 +41,7 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         exit('تعذر إنشاء ملف Excel مؤقت.');
     }
 
-    $buildWorksheet = static function (string $path, int $columnCount, array $rows, array $dynamicMerges, string $title, ?array $total = null, bool $preserveSourceLayout = false) use ($columnIndex, $columnName): void {
+    $buildWorksheet = static function (string $path, int $columnCount, array $rows, array $dynamicMerges, string $title, ?array $total = null) use ($columnIndex, $columnName): void {
         $dom = new DOMDocument('1.0', 'UTF-8');
         $dom->preserveWhiteSpace = false;
         if (!$dom->load($path)) throw new RuntimeException('تعذر قراءة ورقة Excel.');
@@ -53,16 +49,16 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         $sheetData = $dom->getElementsByTagNameNS($ns, 'sheetData')->item(0);
         if (!$sheetData) throw new RuntimeException('بيانات ورقة Excel غير موجودة.');
         $headers = [];
-        $sourceRows = [];
         $prototype = null;
         foreach ($sheetData->childNodes as $child) {
             if (!($child instanceof DOMElement) || $child->localName !== 'row') continue;
             $n = (int)$child->getAttribute('r');
             if ($n >= 1 && $n <= 4) $headers[] = $child->cloneNode(true);
-            if ($n >= 5) $sourceRows[$n] = $child;
             if ($n === 5) $prototype = $child->cloneNode(true);
         }
         if (!($prototype instanceof DOMElement)) throw new RuntimeException('صف تنسيق البيانات غير موجود.');
+        while ($sheetData->firstChild) $sheetData->removeChild($sheetData->firstChild);
+        foreach ($headers as $header) $sheetData->appendChild($header);
 
         $writeCell = static function (DOMElement $cell, mixed $value, string $kind) use ($dom, $ns): void {
             while ($cell->firstChild) $cell->removeChild($cell->firstChild);
@@ -82,49 +78,6 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
                 $cell->appendChild($is);
             }
         };
-
-        if ($preserveSourceLayout) {
-            // November's supplied workbook is the authoritative layout. Its 87 source rows,
-            // original row heights, row-specific styles, spacer rows, numbering area, and merges
-            // are retained; only cell values and the known-bad total formulas are replaced.
-            if (count($rows) !== 87) {
-                throw new RuntimeException('قالب نوفمبر الأصلي يتطلب 87 صف يتيم بالضبط؛ تم إيقاف التصدير لتجنب تغيير تخطيط الملف.');
-            }
-            foreach ($rows as $index => $values) {
-                $rowNumber = 5 + $index;
-                $row = $sourceRows[$rowNumber] ?? null;
-                if (!($row instanceof DOMElement)) {
-                    throw new RuntimeException('صف المصدر الأصلي غير موجود في قالب نوفمبر: ' . $rowNumber);
-                }
-                foreach ($row->childNodes as $cell) {
-                    if (!($cell instanceof DOMElement) || $cell->localName !== 'c') continue;
-                    if (!preg_match('/^([A-Z]+)/', $cell->getAttribute('r'), $m)) continue;
-                    $col = $m[1];
-                    $value = $values[$columnIndex($col)] ?? null;
-                    $writeCell($cell, $value, is_int($value) || is_float($value) ? 'number' : 'text');
-                }
-            }
-            $setFormula = static function (string $reference, string $formula) use ($dom, $ns): void {
-                foreach ($dom->getElementsByTagNameNS($ns, 'c') as $cell) {
-                    if (!($cell instanceof DOMElement) || $cell->getAttribute('r') !== $reference) continue;
-                    while ($cell->firstChild) $cell->removeChild($cell->firstChild);
-                    $f = $dom->createElementNS($ns, 'f');
-                    $f->appendChild($dom->createTextNode($formula));
-                    $cell->appendChild($f);
-                    return;
-                }
-                throw new RuntimeException('خلية إجمالي غير موجودة في قالب نوفمبر: ' . $reference);
-            };
-            $setFormula('F145', 'SUM(F5:F144)');
-            $setFormula('G145', 'SUM(G5:G144)');
-            $setFormula('F308', 'SUM(F5:F144)+SUM(F146:F307)');
-            $setFormula('G308', 'SUM(G5:G144)+SUM(G146:G307)');
-            if ($dom->save($path) === false) throw new RuntimeException('تعذر حفظ ورقة Excel.');
-            return;
-        }
-
-        while ($sheetData->firstChild) $sheetData->removeChild($sheetData->firstChild);
-        foreach ($headers as $header) $sheetData->appendChild($header);
 
         $rowNumber=5;
         foreach ($rows as $values) {
@@ -279,10 +232,8 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
         }
         $total=[0=>'المجموع',5=>$sumSponsorship,6=>$sumServices,'_styles'=>['A'=>114,'B'=>115,'C'=>115,'D'=>115,'E'=>116,'F'=>54,'G'=>54,'H'=>69,'I'=>41]];
         $merges2=['A'.(5+count($rows2)).':E'.(5+count($rows2))];
-        $buildWorksheet($workDir.'/xl/worksheets/sheet1.xml',12,$rows1,$merges1,$monthTitle,$total1,$preserveNovemberLayout);
-        if (!$preserveNovemberLayout || count($departures) > 0) {
-            $buildWorksheet($workDir.'/xl/worksheets/sheet2.xml',9,$rows2,$merges2,$monthTitle,$total);
-        }
+        $buildWorksheet($workDir.'/xl/worksheets/sheet1.xml',12,$rows1,$merges1,$monthTitle,$total1);
+        $buildWorksheet($workDir.'/xl/worksheets/sheet2.xml',9,$rows2,$merges2,$monthTitle,$total);
 
         // The source workbook has a fixed print area from its old data. Expand it to this report.
         $workbookPath=$workDir.'/xl/workbook.xml';
@@ -300,24 +251,14 @@ function mde_export_xlsx_from_template(string $monthInput, array $sponsors, arra
                 if ($view instanceof DOMElement) $view->setAttribute('activeTab', $reportType === 'new' ? '0' : '1');
             }
         }
-        if (!$preserveNovemberLayout) {
-            foreach ($workbookDom->getElementsByTagNameNS($mainNs,'definedName') as $definedName) {
-                if (!($definedName instanceof DOMElement) || $definedName->getAttribute('name') !== '_xlnm.Print_Area') continue;
-                if ($definedName->getAttribute('localSheetId') === '0') {
-                    $definedName->textContent = "'كفلاء جدد2026'!$A$1:$L$" . (5 + count($rows1));
-                } elseif ($definedName->getAttribute('localSheetId') === '1') {
-                    $definedName->textContent = "'كفلاء طلعوا2026'!$A$1:$I$" . (5 + count($rows2));
-                }
+        foreach ($workbookDom->getElementsByTagNameNS($mainNs,'definedName') as $definedName) {
+            if (!($definedName instanceof DOMElement) || $definedName->getAttribute('name') !== '_xlnm.Print_Area') continue;
+            if ($definedName->getAttribute('localSheetId') === '0') {
+                $definedName->textContent = "'كفلاء جدد2026'!$A$1:$L$" . (5 + count($rows1));
+            } elseif ($definedName->getAttribute('localSheetId') === '1') {
+                $definedName->textContent = "'كفلاء طلعوا2026'!$A$1:$I$" . (5 + count($rows2));
             }
         }
-        $calcPr = $workbookDom->getElementsByTagNameNS($mainNs, 'calcPr')->item(0);
-        if (!$calcPr) {
-            $calcPr = $workbookDom->createElementNS($mainNs, 'calcPr');
-            $workbookDom->documentElement->appendChild($calcPr);
-        }
-        $calcPr->setAttribute('calcMode', 'auto');
-        $calcPr->setAttribute('fullCalcOnLoad', '1');
-        $calcPr->setAttribute('forceFullCalc', '1');
         if ($workbookDom->save($workbookPath)===false) throw new RuntimeException('تعذر حفظ إعدادات طباعة Excel.');
 
         $output=new ZipArchive();

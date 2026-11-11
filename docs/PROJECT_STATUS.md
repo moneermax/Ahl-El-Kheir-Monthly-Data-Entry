@@ -23,7 +23,7 @@ This is a standalone data-entry project. Never modify the separate Ahl El Kheir 
 ## Existing-record reuse and duplicate protection — 2026-11-04
 
 The entry save handler now reuses exact, unambiguous existing mother and orphan records instead of creating new person IDs for every monthly entry. It then:
-- Reuses the sponsor/orphan relationship when exactly one historical relationship covers the entry date. Multiple monthly rows for the same sponsor/orphan and reporting month are permitted when intentionally re-entered; the entry page warns with previous date, orphan, sponsorship amount, and service fee but never blocks saving.
+- Reuses the sponsor/orphan relationship when exactly one historical relationship covers the entry date. The monthly business key is sponsor + orphan + reporting month: an identical existing allocation with identical sponsorship and service amounts is skipped; differing amounts or multiple pre-existing rows stop the entire submission for manual review. The warning is informational, but backend validation and the unique database key enforce the rule.
 - Preserves ended relationships and creates a new sponsorship episode when no active or paused episode exists.
 - Stops when duplicate active relationships, paused relationships, or ambiguous same-name mother/orphan records are found.
 - Reuses an existing orphan identity across sponsors when its mother/orphan name match is unambiguous, preserving the one-orphan/multiple-sponsors data model.
@@ -44,6 +44,9 @@ Existing installations must apply migrations in order, once each, to `ahl_el_khe
 
 - 003: audit log.
 - 004: nullable `sponsorship_id` on `mde_monthly_other_donations`, foreign key to `mde_sponsorships`. Required for per-orphan other donations. It does not rewrite legacy rows.
+- 009 and 010: migration 009 is historical; migration 010 establishes sponsor/orphan/report-month uniqueness and the composite sponsorship identity constraint. Preflight duplicate groups before applying migration 010; never delete or merge rows automatically.
+- 011: creates persistent, role-separated operator and supervisor options used by the entry form's add-to-list controls.
+- 012 and 013: historical pair for databases that temporarily allowed repeated monthly allocations; migration 013 restores the strict unique key. The final schema must be unique.
 
 Fresh installations should import `database/schema.sql`, which includes the latest schema version.
 

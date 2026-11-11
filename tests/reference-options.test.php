@@ -7,7 +7,7 @@ if (!function_exists('mde_h')) {
 
 require __DIR__ . '/../includes/reference_options.php';
 
-$expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله'];
+$expectedEnteredBy = ['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء'];
 $expectedSupervisors = ['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء'];
 
 if ($mdeEnteredByOptions !== $expectedEnteredBy) {
@@ -21,6 +21,9 @@ if (count($mdeEnteredByOptions) !== count(array_unique($mdeEnteredByOptions)) ||
 }
 if (mde_person_option_key('ح ميساء') !== mde_person_option_key('ميساء') || in_array('ح ميساء', $mdeSupervisorOptions, true)) {
     throw new RuntimeException('A standalone role prefix must not create a duplicate person option.');
+}
+if (mde_person_option_key('هناء خلف الله') !== mde_person_option_key('هناء')) {
+    throw new RuntimeException('The confirmed full-name alias must resolve to the canonical هناء option.');
 }
 if (mde_person_option_key('هبه') === mde_person_option_key('هبه خلف الله')) {
     throw new RuntimeException('Distinct full names must remain distinct personnel options.');

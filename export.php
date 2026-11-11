@@ -39,7 +39,7 @@ $newStmt = $pdo->prepare("
  JOIN mde_orphans o ON o.id = ss.orphan_id
  JOIN mde_mothers mo ON mo.id = o.mother_id
  WHERE me.report_month = ?
- ORDER BY me.id ASC
+ ORDER BY sp.created_at ASC, sp.id ASC, me.id ASC
 ");
 $newStmt->execute([$monthStart]);
 $newRows = $newStmt->fetchAll();

@@ -6,8 +6,9 @@ declare(strict_types=1);
 function mde_person_option_key(string $person): string
 {
     $person = trim($person);
-    // Confirmed alias: retain هناء as the canonical display name.
+    // Confirmed aliases: use the short canonical display names in both menus.
     if ($person === 'هناء خلف الله') $person = 'هناء';
+    if ($person === 'هبه خلف الله') $person = 'هبه';
     $person = preg_replace('/^ح\s+/u', '', $person) ?? $person;
     $person = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}]/u', '', $person) ?? $person;
     $person = strtr($person, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ى' => 'ي', 'ة' => 'ه']);
@@ -26,8 +27,8 @@ function mde_unique_person_options(array $options): array
     return $unique;
 }
 // The same person may legitimately appear in both lists.
-$mdeEnteredByOptions = mde_unique_person_options(['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء']);
-$mdeSupervisorOptions = mde_unique_person_options(['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء']);
+$mdeEnteredByOptions = mde_unique_person_options(['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء']);
+$mdeSupervisorOptions = mde_unique_person_options(['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هناء']);
 
 /** Render a personnel picker. Use a native select in the horizontally scrollable entry register. */
 function mde_person_dropdown(string $id, string $name, array $options, string $placeholder = 'اختر الاسم', string $selected = '', bool $nativeSelect = false): void
