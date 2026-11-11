@@ -9,6 +9,7 @@ const parser = context.window.MDEWhatsAppParser;
 assert.ok(parser, 'parser API should be available for tests');
 const importHelpers = context.window.MDEWhatsAppImportHelpers;
 assert.ok(importHelpers, 'browser import helpers should be available for regression tests');
+assert.equal(importHelpers.normalizePersonnelName('هناء خلف الله'), 'هناء', 'confirmed full-name alias resolves to the canonical short dropdown name');
 const duplicateSponsorOptions = { options: [
   { value: '11', textContent: 'سلمي حسن الرشيد — ملف 24 · سجل #11', disabled: false },
   { value: '12', textContent: 'سلمي حسن الرشيد — ملف 25 · سجل #12', disabled: false }

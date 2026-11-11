@@ -22,7 +22,7 @@ try {
     }
     $name = preg_replace('/^ح\\s+/u', '', $name) ?? $name;
     $name = preg_replace('/\\s+/u', ' ', trim($name)) ?? trim($name);
-    if ($name === '' || mb_strlen($name, 'UTF-8') > 190 || !preg_match('/^[\\p{Arabic} .\\'-]+$/u', $name)) {
+    if ($name === '' || mb_strlen($name, 'UTF-8') > 190 || !preg_match('~^[\p{Arabic} .-]+$~u', $name)) {
         throw new InvalidArgumentException('أدخل اسماً عربياً صحيحاً لا يتجاوز 190 حرفاً.');
     }
     $normalized = mde_person_option_key($name);

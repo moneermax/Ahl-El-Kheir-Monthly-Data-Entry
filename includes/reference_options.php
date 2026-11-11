@@ -5,7 +5,10 @@ declare(strict_types=1);
 // A leading standalone ح is a role prefix, not part of a person's name.
 function mde_person_option_key(string $person): string
 {
-    $person = preg_replace('/^ح\s+/u', '', trim($person)) ?? trim($person);
+    $person = trim($person);
+    // Confirmed alias: retain هناء as the canonical display name.
+    if ($person === 'هناء خلف الله') $person = 'هناء';
+    $person = preg_replace('/^ح\s+/u', '', $person) ?? $person;
     $person = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}]/u', '', $person) ?? $person;
     $person = strtr($person, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ى' => 'ي', 'ة' => 'ه']);
     return strtolower(preg_replace('/\s+/u', ' ', trim($person)) ?? trim($person));

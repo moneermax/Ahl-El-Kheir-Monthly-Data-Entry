@@ -36,15 +36,16 @@ function resolveDepartureSponsor(select,sponsorName,fileNumber) {
  if(fileMatches.length===1)return {id:fileMatches[0].value,ambiguous:false,message:''};
  return {id:'',ambiguous:false,message:matches.length===0?'لم يتم العثور على سجل مطابق؛ راجع الاسم ورقم الملف':'رقم الملف لا يحدد سجلاً واحداً؛ راجع البيانات'};
 }
-window.MDEWhatsAppImportHelpers={matchingSponsorOptions,resolveDepartureSponsor};
+window.MDEWhatsAppImportHelpers={matchingSponsorOptions,resolveDepartureSponsor,normalizePersonnelName};
 function departureSponsorMatches(name) {
  const select=$('#departureSponsor');
  const matches=matchingSponsorOptions(select,name);
  return {active:matches.filter(option=>option.dataset.active!=='0'),inactive:matches.filter(option=>option.dataset.active==='0')};
 }
+function normalizePersonnelName(name) { const normalized=normalizeName(name); return normalized==='هناء خلف الله'?'هناء':normalized; }
 function choose(select,name) {
  if (!select || !name) return false;
- const wanted=normalizeName(name);
+ const wanted=normalizePersonnelName(name);
  if (select.matches('[data-person-dropdown-value]')) {
   const root=select.closest('[data-person-dropdown]');
   if(!root){
