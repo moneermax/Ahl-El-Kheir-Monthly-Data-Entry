@@ -139,10 +139,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             WHERE rel.sponsor_id = ? AND rel.orphan_id = ? ORDER BY rel.id FOR UPDATE");
         $insertSponsorshipStmt = $pdo->prepare("INSERT INTO mde_sponsorships (sponsor_id, orphan_id, start_date, status) VALUES (?, ?, ?, 'active')");
         $monthlyStmt = $pdo->prepare('INSERT INTO mde_monthly_sponsorship_entries (sponsorship_id, sponsor_id, orphan_id, report_month, entry_date, sponsorship_amount, services_amount, entered_by, supervisor_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $existingMonthlyStmt = $pdo->prepare('SELECT me.id, me.sponsorship_id, me.entry_date, me.sponsorship_amount, me.services_amount FROM mde_monthly_sponsorship_entries me WHERE me.sponsor_id = ? AND me.orphan_id = ? AND me.report_month = ? ORDER BY me.id FOR UPDATE');
         $donationStmt = $pdo->prepare('INSERT INTO mde_monthly_other_donations (sponsor_id, sponsorship_id, report_month, donation_date, donation_type, amount, entered_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
         $existingDonationCountStmt = $pdo->prepare('SELECT COUNT(*) FROM mde_monthly_other_donations WHERE sponsor_id = ? AND sponsorship_id = ? AND report_month = ? AND donation_date = ? AND donation_type = ? AND amount = ?');
 
         $insertedOrphans = 0;
+        $skippedOrphans = 0;
         $donationOccurrences = [];
         $submittedPairs = [];
         foreach ($families as $family) {
@@ -190,39 +192,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $orphanId = (int) $pdo->lastInsertId();
                 }
 
-                // Every valid submission creates its own monthly financial row.
-                // The duplicate warning is informational; relationship-period checks
-                // still ensure this row references the episode covering entryDate.
-                $findLinksStmt->execute([$sponsorId, $orphanId]);
-                $links = $findLinksStmt->fetchAll();
+                // The business key is sponsor + orphan + reporting month, not a
+                // particular historical sponsorship episode. Reuse an existing
+                // monthly allocation before considering a new relationship episode.
+                $existingMonthlyStmt->execute([$sponsorId, $orphanId, $month]);
+                $existingMonthlyRows = $existingMonthlyStmt->fetchAll();
+                if (count($existingMonthlyRows) > 1) {
+                    $existingIds = implode(', ', array_map(static fn(array $row): string => (string) $row['id'], $existingMonthlyRows));
+                    throw new InvalidArgumentException('توجد بالفعل عدة إدخالات شهرية لهذا الكفيل واليتيم في شهر التقرير نفسه (السجلات: ' . $existingIds . '). أوقفنا العملية كاملة حتى تتم مراجعة التكرارات الموجودة؛ لم تتم إضافة أي مبلغ.');
+                }
+                $skipMonthlyInsert = false;
+                if ($existingMonthlyRows) {
+                    $existingMonthly = $existingMonthlyRows[0];
+                    if ((int) $existingMonthly['sponsorship_amount'] !== $amount
+                        || (int) $existingMonthly['services_amount'] !== $services) {
+                        throw new InvalidArgumentException('هذا اليتيم مسجل بالفعل في شهر التقرير نفسه، لكن مبالغ الكفالة أو الخدمات مختلفة عن السجل المحفوظ. لم نضف سجلاً ولم نستبدل المبالغ. راجع السجل من صفحة إدارة البيانات وصححه صراحةً بعد المقارنة.');
+                    }
+                    $sponsorshipId = (int) $existingMonthly['sponsorship_id'];
+                    $skipMonthlyInsert = true;
+                    $skippedOrphans++;
+                }
+
+                if (!$skipMonthlyInsert) {
+                    $findLinksStmt->execute([$sponsorId, $orphanId]);
+                    $links = $findLinksStmt->fetchAll();
                 $eligibleLinks = array_values(array_filter($links, static function (array $link) use ($entryDate): bool {
-                    if ($link['start_date'] > $entryDate) { return false; }
+                    if ($link['start_date'] > $entryDate) {
+                        return false;
+                    }
                     $effectiveEndDate = $link['end_date'];
-                    if ($link['recorded_end_date'] !== null && ($effectiveEndDate === null || $link['recorded_end_date'] < $effectiveEndDate)) {
+                    if ($link['recorded_end_date'] !== null
+                        && ($effectiveEndDate === null || $link['recorded_end_date'] < $effectiveEndDate)) {
                         $effectiveEndDate = $link['recorded_end_date'];
                     }
-                    if ($link['status'] === 'ended' && $effectiveEndDate === null) { return false; }
+                    if ($link['status'] === 'ended' && $effectiveEndDate === null) {
+                        return false;
+                    }
                     return $effectiveEndDate === null || $effectiveEndDate >= $entryDate;
                 }));
                 if (count($eligibleLinks) > 1) {
                     throw new InvalidArgumentException('توجد أكثر من فترة كفالة تغطي تاريخ الإدخال لهذا الكفيل واليتيم. أوقفنا الحفظ حتى تتم مراجعة الفترات التاريخية.');
                 }
-                if ($eligibleLinks && $eligibleLinks[0]['status'] === 'paused') {
-                    throw new InvalidArgumentException('توجد كفالة معلّقة تغطي تاريخ الإدخال لهذا الكفيل واليتيم. راجع حالتها قبل إدخال الشهر.');
-                }
-                $futureLinks = array_filter($links, static fn(array $link): bool => $link['start_date'] > $entryDate);
-                if ($eligibleLinks) {
-                    $sponsorshipId = (int) $eligibleLinks[0]['id'];
-                } else {
-                    if ($futureLinks) {
-                        throw new InvalidArgumentException('تاريخ الإدخال أسبق من بداية الكفالة الحالية، ولا يوجد سجل تاريخي يغطي هذا التاريخ. راجع تاريخ الانضمام والمغادرة قبل الحفظ.');
+
+                    if ($eligibleLinks && $eligibleLinks[0]['status'] === 'paused') {
+                        throw new InvalidArgumentException('توجد كفالة معلّقة تغطي تاريخ الإدخال لهذا الكفيل واليتيم. راجع حالتها قبل إدخال الشهر.');
                     }
-                    // Create a distinct episode only when no recorded relationship covers this date.
-                    $insertSponsorshipStmt->execute([$sponsorId, $orphanId, $entryDate]);
-                    $sponsorshipId = (int) $pdo->lastInsertId();
+
+                    $futureLinks = array_filter($links, static fn(array $link): bool => $link['start_date'] > $entryDate);
+                    if ($eligibleLinks) {
+                        $sponsorshipId = (int) $eligibleLinks[0]['id'];
+                    } else {
+                        if ($futureLinks) {
+                            throw new InvalidArgumentException('تاريخ الإدخال أسبق من بداية الكفالة الحالية، ولا يوجد سجل تاريخي يغطي هذا التاريخ. راجع تاريخ الانضمام والمغادرة قبل الحفظ.');
+                        }
+                        // Create a distinct episode only when no recorded relationship covers this date.
+                        $insertSponsorshipStmt->execute([$sponsorId, $orphanId, $entryDate]);
+                        $sponsorshipId = (int) $pdo->lastInsertId();
+                    }
+
+                    $monthlyStmt->execute([$sponsorshipId, $sponsorId, $orphanId, $month, $entryDate, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null]);
+                    $insertedOrphans++;
                 }
-                $monthlyStmt->execute([$sponsorshipId, $sponsorId, $orphanId, $month, $entryDate, $amount, $services, $enteredBy ?: null, $supervisor ?: null, $notes ?: null]);
-                $insertedOrphans++;
 
                 $orphanDonations = $orphan['donations'] ?? [];
                 if (!is_array($orphanDonations)) {
@@ -284,7 +314,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $syncSponsorStatus->execute([$sponsorId]);
 
         $pdo->commit();
-        mde_flash('success', 'تم حفظ ' . $insertedOrphans . ' تخصيصات شهرية جديدة بنجاح.');
+        if ($insertedOrphans === 0 && $skippedOrphans > 0) {
+            mde_flash('info', 'لم تتم إضافة صفوف مالية جديدة: تم التعرف على ' . $skippedOrphans . ' تخصيصاً مطابقاً موجوداً بالفعل وتخطيه، لذلك لم تتغير إجماليات التقرير.');
+        } elseif ($skippedOrphans > 0) {
+            mde_flash('success', 'تمت إضافة ' . $insertedOrphans . ' تخصيصات جديدة وتخطي ' . $skippedOrphans . ' تخصيصات مطابقة موجودة مسبقاً. لم تُكرر المبالغ الموجودة.');
+        } else {
+            mde_flash('success', 'تم حفظ ' . $insertedOrphans . ' تخصيصات شهرية جديدة بنجاح.');
+        }
         mde_redirect('entry', ['whatsapp_saved' => '1']);
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
