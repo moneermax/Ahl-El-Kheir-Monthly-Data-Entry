@@ -327,7 +327,10 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
     $selectedMode = 'existing';
 }
 ?>
-<h1 class="h3 mb-3">تسجيل مغادرة كفيل</h1>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <h1 class="h3 mb-0">تسجيل مغادرة كفيل</h1>
+    <span class="badge text-bg-secondary">المبالغ بالجنيه السوداني</span>
+</div>
 <p class="text-muted mb-3">يمكنك تسجيل مغادرة كفيل موجود أو إدخال كفيل جديد لم يسبق تسجيله في هذه الأداة.</p>
 <?php if ($error): ?><div class="alert alert-danger"><?= mde_h($error) ?></div><?php endif; ?>
 
@@ -336,8 +339,9 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
     <input type="hidden" name="_csrf" value="<?= mde_h(mde_csrf_token()) ?>">
     <input type="hidden" name="departure_batch" id="departureBatchFlag" value="0">
 
-    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-        <span class="form-label required mb-0">بيانات الكفيل</span>
+    <section class="departure-mode-bar mb-3" aria-labelledby="departureModeHeading">
+      <div class="d-flex flex-wrap align-items-center gap-3">
+        <h2 class="h6 mb-0 required" id="departureModeHeading">بيانات الكفيل</h2>
         <div class="form-check">
             <input class="form-check-input" type="radio" name="sponsor_mode" id="modeExisting" value="existing" <?= $selectedMode === 'existing' ? 'checked' : '' ?>>
             <label class="form-check-label" for="modeExisting">كفيل مسجل</label>
@@ -346,8 +350,13 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
             <input class="form-check-input" type="radio" name="sponsor_mode" id="modeNew" value="new" <?= $selectedMode === 'new' ? 'checked' : '' ?>>
             <label class="form-check-label" for="modeNew">تسجيل كفيل جديد ومغادرته</label>
         </div>
-    </div>
+      </div>
+    </section>
 
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h2 class="h5 mb-0">سجل المغادرة</h2>
+        <span class="badge text-bg-light border">سجل مستقل لكل كفيل</span>
+    </div>
     <fieldset id="singleDepartureFields" class="border-0 p-0 m-0">
     <div class="entry-register-wrap">
         <table class="entry-register departure-register" id="departureRegister">
@@ -446,7 +455,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
     <section id="departureBatchPanel" class="d-none mt-3">
         <div class="alert alert-info py-2">مراجعة متعددة: كل صف يمثل كفيلاً وسجل مغادرة مستقلاً. يمكنك تعديل القيم أو حذف الصفوف قبل الحفظ.</div>
         <div class="table-responsive">
-            <table class="table table-bordered table-sm align-middle">
+            <table class="table table-bordered table-sm align-middle departure-batch-table">
                 <thead><tr><th>#</th><th>الكفيل</th><th>الملف</th><th>المغادرة</th><th>آخر سداد</th><th>الأيتام</th><th>الكفالة</th><th>الخدمات</th><th>بواسطة</th><th>المشرف</th><th>ملاحظات</th><th></th></tr></thead>
                 <tbody id="departureBatchRows"></tbody>
             </table>
@@ -454,7 +463,7 @@ if (!in_array($selectedMode, ['existing', 'new'], true)) {
         <button type="button" class="btn btn-outline-secondary btn-sm" id="departureBatchCancel">العودة إلى الإدخال الفردي</button>
     </section>
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+    <div class="departure-submit-bar d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
         <p class="form-text mb-0">لن تُحفظ البيانات إلا بعد استكمال تاريخ المغادرة والتحقق من القيم. تتم عملية إنهاء الكفالات النشطة للكفيل كاملة أو لا يُحفظ منها شيء.</p>
         <button type="submit" class="btn btn-danger px-5">تسجيل المغادرة</button>
     </div>
