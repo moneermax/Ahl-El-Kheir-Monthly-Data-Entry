@@ -41,6 +41,14 @@ unset($_SESSION['mde_flash']);
         .mde-person-dropdown .dropdown-menu{max-height:16rem;overflow-y:auto;text-align:right}
         .mde-person-dropdown .dropdown-item{text-align:right}
         .entry-register-wrap{border:1px solid #c5d2ca;border-radius:.5rem;background:#fff;overflow-x:auto}.departure-register{min-width:1280px}
+        .departure-mode-bar{display:flex;align-items:center;flex-wrap:wrap;gap:.75rem;background:#f1f7f3;border:1px solid #c5d2ca;border-radius:.5rem;padding:.65rem .85rem}
+        .departure-mode-bar .form-check{margin:0}
+        .departure-submit-bar{background:#f1f7f3;border:1px solid #c5d2ca;border-radius:.5rem;padding:.65rem .85rem}
+        .departure-submit-bar .form-text{max-width:72rem}
+        .departure-batch-table{min-width:1180px;margin-bottom:0;font-size:.78rem}
+        .departure-batch-table thead th{background:#dcebe2;color:#203a34;white-space:nowrap;vertical-align:middle}
+        .departure-batch-table td{vertical-align:middle}
+        .departure-batch-table .form-control,.departure-batch-table .form-select{min-width:90px;font-size:.78rem}
         .entry-register{width:100%;table-layout:fixed;margin:0;font-size:.78rem;border-collapse:collapse}
         .entry-register th,.entry-register td{border:1px solid #d5dfd9}
         .entry-register th{text-align:center;vertical-align:middle;font-weight:700;padding:.4rem .2rem;font-size:.74rem;color:#203a34}
@@ -85,7 +93,7 @@ unset($_SESSION['mde_flash']);
   </div>
  </div>
 </nav>
-<main class="<?= $page === 'entry' ? 'container-fluid entry-page-wrap' : 'container page-wrap' ?> pb-5">
+<main class="<?= in_array($page, ['entry', 'departures'], true) ? 'container-fluid entry-page-wrap' : 'container page-wrap' ?> pb-5">
  <?php if ($flash): ?>
   <div class="alert alert-<?= mde_h($flash['type']) ?>"><?= mde_h($flash['message']) ?></div>
  <?php endif; ?>
