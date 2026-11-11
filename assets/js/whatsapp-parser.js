@@ -65,7 +65,7 @@ function departureFileHeading(line){
  const m=n.match(/^(?:رقم\s+)?ملف(?:\s+رقم)?\s*[:：=-]?\s*(\d{1,4})$/u);
  return m?m[1]:null;
 }
-function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|داخل\s+قروب\s+الشجره(?:\s+.*)?|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز(?:\s+.*)?|مسدده\s+(?:الى|الي)\s+شهر.*|طلب\s+الالغاء.*)$/u.test(norm(line));}
+function departureNoteLine(line){return /^(?:ماموجوده?\s+في\s+القروب|ما?موجوده?\s+ف\s+القروب|ما?\s*داخل\s+قروب(?:\s+.*)?|غير\s+متاح|داخل\s+قروب\s+الشجره(?:\s+.*)?|طلعت\s+من\s+القروب|طلعت\s+بدون\s+عجز(?:\s+.*)?|مسدده\s+(?:الى|الي)\s+شهر.*|طلب\s+الالغاء.*)$/u.test(norm(line));}
 function departureNameLine(line){
  if(departureNoteLine(line))return'';
  const cleanLine=clean(stripEmoji(line).replace(/^\s*\d+\s*[/／•.)_-]\s*/u,''));
