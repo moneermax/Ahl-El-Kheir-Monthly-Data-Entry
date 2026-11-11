@@ -80,6 +80,10 @@ unset($_SESSION['mde_flash']);
     
         /* Departure page keeps the entry register's visual language, but never scrolls sideways. */
         .departure-register-wrap{overflow:visible}
+        [data-whatsapp-import][data-profile="departure"]{border-color:#e4c3c8!important}
+        [data-whatsapp-import][data-profile="departure"] .btn-success{background:#9b3447;border-color:#9b3447}
+        [data-whatsapp-import][data-profile="departure"] .btn-outline-success{color:#9b3447;border-color:#9b3447}
+        [data-whatsapp-import][data-profile="departure"] .btn-outline-success:hover{color:#fff;background:#9b3447}
         .departure-register th,.departure-register td{overflow-wrap:anywhere;word-break:normal}
         .departure-register .form-control,.departure-register .form-select{width:100%;min-width:0;font-size:.76rem}
         .departure-mode-bar,.departure-submit-bar{background:#fbf0f1;border-color:#e4c3c8}
