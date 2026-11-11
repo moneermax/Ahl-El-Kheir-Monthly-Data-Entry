@@ -306,3 +306,30 @@ When both the day and month components are 12 or less, the parser still loads th
 - If neither number matches the context month, the parser retains day/month/year as its fallback.
 - The previous generic warning that always assumed day/month/year for ambiguous numeric dates was removed.
 - Regression checks passed for slash, colon, hyphen, backslash, ISO, and spaced dates, including both date orders and standalone-line extraction.
+
+
+## Current task — Departure page visual redesign (2026-11-11)
+
+The next task is a UI/UX redesign of pages/departures.php. The user reports that the departure page has a different visual design from the New Sponsors page and multiple design issues. The target is to make it look and behave visually as close as practical to pages/entry.php while preserving every departure-specific workflow and parser behaviour.
+
+Source facts confirmed on current main after parser fix commit d912bc6:
+
+- Both pages load shared WhatsApp modules through includes/whatsapp_import.php, with profile entry on New Sponsors and departure on Departures.
+- They share assets/js/whatsapp-parser.js and assets/js/whatsapp-import.js, but the parser has separate entry/family parsing and departure segmentation/extraction paths. Do not collapse or replace those paths during a visual redesign.
+- New Sponsors uses #entryForm, .entry-register-wrap, #entryRegister, sponsor/family/orphan rows, per-orphan sponsorship/services, and per-orphan other donations.
+- Departures uses #departureForm, .entry-register-wrap, #departureRegister, existing-vs-new sponsor mode, sponsor details, departure date, last-paid month, orphan count, sponsorship/services snapshots, notes, and batch panel #departureBatchPanel / #departureBatchRows.
+- Departure save logic includes existing sponsor resolution, optional new sponsor creation, departure snapshot validation, and batch workflow. Preserve it unless a separate bug is demonstrated.
+- Exact visual defects have not yet been itemized. Inspect both full page implementations and identify concrete inconsistencies; do not invent observed defects.
+
+Acceptance criteria:
+1. Use New Sponsors as the visual reference for page width, spacing, typography, heading hierarchy, card treatment, form-control sizing, buttons, RTL alignment, register/table presentation, borders, and responsive behaviour.
+2. Keep departure labels, fields, validation, sponsor modes, file-number resolution, single-record submission, multi-record queue, return-to-single-entry action, and save semantics intact.
+3. Keep departure register columns and meaning specific to departures; do not copy the New Sponsors orphan/family/donation data model.
+4. Make single-departure and batch-review layouts consistent with the New Sponsors design language and usable on narrow screens.
+5. Preserve element IDs, names, data attributes, and JS hooks consumed by whatsapp-import.js, inline scripts, and server handlers unless every dependency is traced and updated together.
+6. Do not change parser logic or departure parsing semantics as part of a design-only task.
+7. Update documentation after implementation and distinguish automated checks from manual browser tests.
+
+Suggested verification: PHP lint for pages/departures.php; JS syntax checks for affected scripts; node tests/whatsapp-import.test.cjs; test existing sponsor, new sponsor, imported single record, imported multi-record batch, return to single-entry mode, narrow viewport, validation, and failed-save preservation. No database migration is expected for a visual-only redesign.
+
+Latest known local checkout was updated to main commit d912bc6; user confirmed the reported New Sponsors WhatsApp message populates correctly after hard refresh. Confirm current state before relying on this baseline.
