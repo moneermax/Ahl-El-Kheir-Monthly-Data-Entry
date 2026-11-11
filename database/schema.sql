@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS mde_monthly_sponsorship_entries (
     PRIMARY KEY (id),
     KEY idx_mde_monthly_sponsorship_month (report_month),
     KEY idx_mde_monthly_sponsorship_sponsor (sponsorship_id),
-    KEY idx_mde_monthly_sponsor_orphan_month (sponsor_id, orphan_id, report_month),
+    UNIQUE KEY uq_mde_monthly_sponsor_orphan_month (sponsor_id, orphan_id, report_month),
     KEY idx_mde_monthly_sponsorship_entry_date (entry_date),
     CONSTRAINT fk_mde_monthly_sponsorship_identity
       FOREIGN KEY (sponsorship_id, sponsor_id, orphan_id)
