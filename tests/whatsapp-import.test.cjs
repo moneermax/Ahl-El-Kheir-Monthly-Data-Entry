@@ -45,6 +45,7 @@ assert.ok(departurePageSource.includes('$pdo->beginTransaction();') && departure
 assert.ok(departurePageSource.includes('last_paid_month <=> ?') && departurePageSource.includes('services_amount_snapshot <=> ?'), 'departure duplicate detection compares nullable fields rather than treating blanks as zero');
 assert.ok(departurePageSource.includes('AND departure_date = ?') && departurePageSource.includes('sponsorship_amount_snapshot = ?') && departurePageSource.includes('COALESCE(notes,'), 'duplicate protection is scoped to exact same-date full records');
 assert.ok(!departurePageSource.includes('$processedSponsorIds'), 'different departure records for the same sponsor are not rejected merely because the sponsor ID repeats');
+assert.ok(departurePageSource.includes('$sponsorDepartureDates[$sponsorId]') && departurePageSource.includes('$effectiveDepartureDate'), 'multiple valid records for one sponsor close active sponsorships using the earliest date in the batch');
 assert.ok(departurePageSource.includes('INSERT INTO mde_sponsor_departures'), 'each batch row must create an independent departure record');
 assert.ok(departurePageSource.includes('id="departureBatchRows"'), 'departure page must render editable per-sponsor batch rows');
 assert.ok(departurePageSource.includes('name="sponsor_name_snapshot"') && departurePageSource.includes('id="departureSponsorName"'), 'departure name is editable and saved as a per-departure snapshot');
