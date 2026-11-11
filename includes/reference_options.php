@@ -23,8 +23,8 @@ function mde_unique_person_options(array $options): array
     return $unique;
 }
 // The same person may legitimately appear in both lists.
-$mdeEnteredByOptions = mde_unique_person_options(['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'هناء خلف الله']);
-$mdeSupervisorOptions = mde_unique_person_options(['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء', 'ح ميساء']);
+$mdeEnteredByOptions = mde_unique_person_options(['أروى عباس', 'ايمان', 'ساره', 'سجود', 'فاطمه', 'لمياء', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء']);
+$mdeSupervisorOptions = mde_unique_person_options(['ساره', 'فاطمه', 'مها', 'مياده', 'ميساء', 'هبه', 'هبه خلف الله', 'هناء']);
 
 /** Render a personnel picker. Use a native select in the horizontally scrollable entry register. */
 function mde_person_dropdown(string $id, string $name, array $options, string $placeholder = 'اختر الاسم', string $selected = '', bool $nativeSelect = false): void
@@ -49,4 +49,15 @@ function mde_person_dropdown(string $id, string $name, array $options, string $p
         echo '<li><button type="button" class="dropdown-item' . ($active ? ' active' : '') . '" role="menuitemradio" aria-checked="' . ($active ? 'true' : 'false') . '" data-person-dropdown-option data-value="' . mde_h($person) . '">' . mde_h($person) . '</button></li>';
     }
     echo '</ul></div>';
+}
+
+/** Load user-added choices without merging the operator and supervisor roles. */
+if (isset($pdo) && $pdo instanceof PDO) {
+    $personnelStmt = $pdo->query('SELECT role, display_name FROM mde_personnel_options ORDER BY id');
+    foreach ($personnelStmt->fetchAll() as $personnelRow) {
+        if ($personnelRow['role'] === 'operator') $mdeEnteredByOptions[] = (string) $personnelRow['display_name'];
+        if ($personnelRow['role'] === 'supervisor') $mdeSupervisorOptions[] = (string) $personnelRow['display_name'];
+    }
+    $mdeEnteredByOptions = mde_unique_person_options($mdeEnteredByOptions);
+    $mdeSupervisorOptions = mde_unique_person_options($mdeSupervisorOptions);
 }

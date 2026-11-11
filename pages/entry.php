@@ -402,8 +402,16 @@ $lastSavedSponsorName = $pdo->query(
  </td>
  <td class="sponsor-span-cell"><input type="date" class="form-control form-control-sm date-input" name="entry_date" id="entryDate" aria-label="تاريخ الانضمام" required value="<?= date('Y-m-d') ?>"></td>
  <td class="sponsor-span-cell">
-  <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة', '', true); ?>
-  <div class="mt-1"><?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'المشرف', '', true); ?></div>
+  <div class="personnel-option-editor" data-personnel-role="operator">
+   <?php mde_person_dropdown('enteredBy', 'entered_by', $mdeEnteredByOptions, 'بواسطة', '', true); ?>
+   <div class="input-group input-group-sm mt-1"><input type="text" class="form-control" maxlength="190" placeholder="إضافة اسم موظف" aria-label="اسم موظف جديد" data-personnel-new-input><button type="button" class="btn btn-outline-primary" data-personnel-add>إضافة</button></div>
+   <div class="small text-muted" data-personnel-status aria-live="polite"></div>
+  </div>
+  <div class="personnel-option-editor mt-1" data-personnel-role="supervisor">
+   <?php mde_person_dropdown('supervisorName', 'supervisor_name', $mdeSupervisorOptions, 'المشرف', '', true); ?>
+   <div class="input-group input-group-sm mt-1"><input type="text" class="form-control" maxlength="190" placeholder="إضافة اسم مشرف" aria-label="اسم مشرف جديد" data-personnel-new-input><button type="button" class="btn btn-outline-primary" data-personnel-add>إضافة</button></div>
+   <div class="small text-muted" data-personnel-status aria-live="polite"></div>
+  </div>
  </td>
  <td class="sponsor-span-cell"><textarea class="form-control form-control-sm notes-input" name="notes" id="entryNotes" rows="3" aria-label="ملاحظات"></textarea></td>
  </tr></tbody></table>
@@ -434,3 +442,4 @@ $lastSavedSponsorName = $pdo->query(
 </template>
 <script src="assets/js/entry-register.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/entry-register.js') ?>" defer></script>
 <script src="assets/js/entry-duplicate-warning.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/entry-duplicate-warning.js') ?>" defer></script>
+<script src="assets/js/personnel-options.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/personnel-options.js') ?>" defer></script>

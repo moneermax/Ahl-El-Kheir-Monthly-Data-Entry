@@ -166,6 +166,17 @@ CREATE TABLE IF NOT EXISTS mde_change_log (
     KEY idx_mde_change_log_changed_at (changed_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Persistent operator and supervisor choices; role membership is independent.
+CREATE TABLE IF NOT EXISTS mde_personnel_options (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    role ENUM('operator','supervisor') NOT NULL,
+    display_name VARCHAR(190) NOT NULL,
+    normalized_name VARCHAR(190) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_mde_personnel_role_name (role, normalized_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Keeps a small, explicit record of schema installation/version for this tool.
 CREATE TABLE IF NOT EXISTS mde_schema_version (
     version INT UNSIGNED NOT NULL,
@@ -173,4 +184,4 @@ CREATE TABLE IF NOT EXISTS mde_schema_version (
     PRIMARY KEY (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT IGNORE INTO mde_schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);

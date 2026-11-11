@@ -27,7 +27,7 @@ const ALL=[...new Set(Object.values(L).flat().concat(SPECIAL.flat()))].sort((a,b
 const stop=ALL.map(esc).join('|');
 const end='(?=\\s+(?:\\d+\\s*[/._)-]\\s*)?(?:'+stop+')\\s*(?:[:=：-]|\\s)|[؛;\\n|]|$)';
 function value(t,labels){const alts=labels.map(x=>x.includes('\\s')?x:esc(x)).join('|');const m=String(t??'').match(new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+alts+')(?:\\s*[:=：/\\\\-]\\s*|\\s+|(?=[0-9٠-٩۰-۹]))([^؛;\\n|]+?)'+end,'iu'));return m?clean(m[1]):'';}
-function values(t,labels){const alts=labels.map(x=>x.includes('\\s')?x:esc(x)).join('|');const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:\\d+\\s*[/._)-]\\s*)?(?:'+alts+')(?:\\s*[:=：/\\\\-]\\s*|\\s+)([^؛;\\n|]+?)'+end,'giu');return [...String(t??'').matchAll(re)].map(m=>clean(m[1])).filter(Boolean);}
+function values(t,labels){const alts=labels.map(x=>x.includes('\\s')?x:esc(x)).join('|');const re=new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:\\d+\\s*[/._)-]\\s*)?(?:'+alts+')(?:\\s*[:=：/\\\\-]\\s*|\\s+|(?=[0-9٠-٩۰-۹]))([^؛;\\n|]+?)'+end,'giu');return [...String(t??'').matchAll(re)].map(m=>clean(m[1])).filter(Boolean);}
 function noteValue(t,labels){const alts=labels.map(esc).join('|');const m=String(t??'').match(new RegExp('(?:^|[؛;\\n|\\s])\\s*(?:'+alts+')[ \\t]*(?:[:=：/\\\\-][ \\t]*)?([^؛;\\n|]+?)'+end,'iu'));return m?clean(m[1]):'';}
 function fileValue(t){return value(t,L.file)||((norm(t).match(/(?:رجعت\s+ل)?ملف(?:ها)?\s*[:=：-]?\s*(\d+)/u)||[])[1]||'');}
 function num(v){const s=norm(v).replace(/[٬,،.\s]/g,'').replace(/[^\d]/g,'');return s?String(Number(s)):'';}

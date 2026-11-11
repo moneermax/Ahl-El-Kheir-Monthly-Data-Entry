@@ -863,4 +863,24 @@ assert.equal(parser.hasMotherNames(singleWordOrphans), true);
 assert.deepEqual(Array.from(parser.allocateEvenly(singleWordOrphans.sponsorship, singleWordOrphans.orphans.length)), Array(8).fill('10000'));
 assert.deepEqual(Array.from(parser.allocateEvenly(singleWordOrphans.services, singleWordOrphans.orphans.length)), Array(8).fill('2000'));
 
+
+const compactAmountMessage = `الكفيل= عبادة عبد الصامت قمر الدين
+اليتيم =روعة النيل خالد
+الام =ريان عبد الفاتح محمود
+كفالة10.000
+خدمات3000
+🤍🧨
+10/ 11 / 2026
+عن طريق هناء خلف الله
+مشرفه ح هناء خلف الله`;
+const compactAmountEntry = parser.entry(compactAmountMessage, 0, '2026-11-11');
+assert.equal(compactAmountEntry.sponsor, 'عبادة عبد الصامت قمر الدين');
+assert.equal(compactAmountEntry.orphans[0], 'روعة النيل خالد');
+assert.equal(compactAmountEntry.mother, 'ريان عبد الفاتح محمود');
+assert.equal(compactAmountEntry.sponsorship, '10000', 'compact كفالة10.000 must normalize to 10000');
+assert.equal(compactAmountEntry.services, '3000', 'compact خدمات3000 must normalize to 3000');
+assert.equal(compactAmountEntry.date, '2026-11-10');
+assert.equal(compactAmountEntry.entered, 'هناء خلف الله');
+assert.equal(compactAmountEntry.supervisor, 'هناء خلف الله');
+
 console.log('WhatsApp parser tests passed.');
