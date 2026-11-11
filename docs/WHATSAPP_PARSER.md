@@ -137,3 +137,27 @@ php -l pages/entry.php
 ```
 
 The automated form-adapter test is not a substitute for a live browser test. A browser verification must still confirm the generated dynamic rows and dropdown labels on the actual entry page before claiming end-to-end UI verification.
+
+
+## Arabic empty child-list label and sponsor spelling regression — 2026-11-11
+
+The New Sponsors parser regression reported on 2026-11-11 was fixed in commit d912bc68178a97c66f7b38f52f5afde21f3c0614 (PR #2). The parser now accepts the common sponsor-label spelling الكفيله as well as الكفيلة, including sponsor-record splitting. An empty child-list label such as الاطفال: no longer closes the orphan-list context; following numbered names, including single-word names, are extracted as children.
+
+Regression input:
+
+    الكفيله :ريان الحافظ عبدالرحمن
+     الام :رحاب يحي موسي
+     الاطفال:
+    1-عبدالكريم
+     2-مزن
+     3-محسن
+     الكفاله :30.000
+    الخدمات :6000
+    التاريخ :11/11/2026
+    🤍
+    عن طريق لمياء
+    مشرفه ح ميساء
+
+Expected extraction: sponsor ريان الحافظ عبدالرحمن; mother رحاب يحي موسي; children عبدالكريم, مزن, محسن; sponsorship 30000; services 6000; date 2026-11-11; operator لمياء; supervisor ميساء. Automated parser regression checks passed, and the user confirmed that the browser form populated correctly after pulling the merge and hard-refreshing.
+
+Scope clarification: label normalization is shared, but empty child-list continuation is part of the entry/family extraction path. Departure records use their own segmentation and extraction workflow; this regression is not a blanket departure-parser fix.
