@@ -43,8 +43,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
              ) THEN 1 ELSE 0 END
              WHERE sponsor.id = ?"
         );
+        $duplicateDeparture = $pdo->prepare(
+            'SELECT id FROM mde_sponsor_departures
+             WHERE sponsor_id = ? AND departure_date = ?
+               AND COALESCE(sponsor_name_snapshot, \'\') = COALESCE(?, \'\')
+               AND COALESCE(file_number_snapshot, \'\') = COALESCE(?, \'\')
+               AND last_paid_month <=> ?
+               AND orphan_count_snapshot <=> ?
+               AND sponsorship_amount_snapshot = ?
+               AND services_amount_snapshot <=> ?
+               AND COALESCE(entered_by, \'\') = COALESCE(?, \'\')
+               AND COALESCE(supervisor_name, \'\') = COALESCE(?, \'\')
+               AND reason IS NULL
+               AND COALESCE(notes, \'\') = COALESCE(?, \'\')
+             LIMIT 1 FOR UPDATE'
+        );
         $savedCount = 0;
-        $processedSponsorIds = [];
         foreach ($rows as $index => $row) {
             $rowNo = (int) $index + 1;
             if (!is_array($row)) {
@@ -122,22 +136,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
                 $sponsorType = $newType;
                 $sponsorNameSnapshot = $sponsorName;
             }
-            if (isset($processedSponsorIds[$sponsorId])) {
-                throw new InvalidArgumentException("السجل رقم {$rowNo}: تم اختيار الكفيل نفسه أكثر من مرة داخل الدفعة.");
-            }
-            $processedSponsorIds[$sponsorId] = true;
             if ($count === null && $sponsorType !== 'tree') {
                 throw new InvalidArgumentException("السجل رقم {$rowNo}: عدد الأيتام مطلوب للكفيل الفردي.");
             }
             if ($services === null && $sponsorType !== 'tree') {
                 throw new InvalidArgumentException("السجل رقم {$rowNo}: مبلغ الخدمات مطلوب للكفيل الفردي.");
             }
+            $enteredBy = trim((string) ($row['entered_by'] ?? '')) ?: null;
+            $supervisorName = trim((string) ($row['supervisor_name'] ?? '')) ?: null;
+            $notes = trim((string) ($row['notes'] ?? '')) ?: null;
+            $duplicateDeparture->execute([
+                $sponsorId, $departureDate, $sponsorNameSnapshot, $fileNumber !== '' ? $fileNumber : null,
+                $lastPaidDate, $count, $amount, $services, $enteredBy, $supervisorName, $notes,
+            ]);
+            if ($duplicateDeparture->fetchColumn()) {
+                throw new InvalidArgumentException("السجل رقم {$rowNo}: يوجد سجل مغادرة مطابق بالكامل للكفيل والتاريخ والبيانات نفسها. لم تتم إضافة نسخة مكررة.");
+            }
             $insertDeparture->execute([
                 $sponsorId, $sponsorNameSnapshot, $fileNumber !== '' ? $fileNumber : null, $departureDate, $lastPaidDate,
-                $count, $amount, $services,
-                trim((string) ($row['entered_by'] ?? '')) ?: null,
-                trim((string) ($row['supervisor_name'] ?? '')) ?: null,
-                trim((string) ($row['notes'] ?? '')) ?: null,
+                $count, $amount, $services, $enteredBy, $supervisorName, $notes,
             ]);
             $endSponsorships->execute([$departureDate, $sponsorId, $departureDate]);
             $syncSponsor->execute([$sponsorId]);
@@ -265,6 +282,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
             throw new InvalidArgumentException('مبلغ الخدمات مطلوب للكفيل الفردي. يمكن تركه فارغاً لكفيل الشجرة إذا لم يرد في الرسالة.');
         }
 
+        $enteredBy = trim((string) ($_POST['entered_by'] ?? '')) ?: null;
+        $supervisorName = trim((string) ($_POST['supervisor_name'] ?? '')) ?: null;
+        $notes = trim((string) ($_POST['notes'] ?? '')) ?: null;
+        $duplicateDeparture = $pdo->prepare(
+            'SELECT id FROM mde_sponsor_departures
+             WHERE sponsor_id = ? AND departure_date = ?
+               AND COALESCE(sponsor_name_snapshot, \'\') = COALESCE(?, \'\')
+               AND COALESCE(file_number_snapshot, \'\') = COALESCE(?, \'\')
+               AND last_paid_month <=> ?
+               AND orphan_count_snapshot <=> ?
+               AND sponsorship_amount_snapshot = ?
+               AND services_amount_snapshot <=> ?
+               AND COALESCE(entered_by, \'\') = COALESCE(?, \'\')
+               AND COALESCE(supervisor_name, \'\') = COALESCE(?, \'\')
+               AND reason IS NULL
+               AND COALESCE(notes, \'\') = COALESCE(?, \'\')
+             LIMIT 1 FOR UPDATE'
+        );
+        $duplicateDeparture->execute([
+            $sponsorId, $departureDate, $sponsorNameSnapshot, $fileNumber !== '' ? $fileNumber : null,
+            $lastPaidDate, $count, $amount, $services, $enteredBy, $supervisorName, $notes,
+        ]);
+        if ($duplicateDeparture->fetchColumn()) {
+            throw new InvalidArgumentException('يوجد سجل مغادرة مطابق بالكامل للكفيل والتاريخ والبيانات نفسها. لم تتم إضافة نسخة مكررة.');
+        }
+
         $stmt = $pdo->prepare(
             'INSERT INTO mde_sponsor_departures
              (sponsor_id, sponsor_name_snapshot, file_number_snapshot, departure_date, last_paid_month,
@@ -281,10 +324,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['departure_batch']) &&
             $count,
             $amount,
             $services,
-            trim((string) ($_POST['entered_by'] ?? '')) ?: null,
-            trim((string) ($_POST['supervisor_name'] ?? '')) ?: null,
+            $enteredBy,
+            $supervisorName,
             null,
-            trim((string) ($_POST['notes'] ?? '')) ?: null,
+            $notes,
         ]);
 
         $end = $pdo->prepare(
