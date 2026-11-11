@@ -248,8 +248,7 @@ These are source-only changes; no database migration or data rewrite is required
 
 ## Informational same-month duplicate warnings — 2026-11-07
 
-The new-sponsor entry page checks the selected sponsor and reporting month against existing monthly entries after WhatsApp loading and while the form is edited. It displays previous sponsor, mother/orphan, entry date, sponsorship amount, and service fee; exact mother/orphan matches are highlighted. The warning remains visible for review, but save is now idempotent: identical sponsor/orphan/month allocations with identical financial amounts are skipped, differing amounts stop the entire transaction, and pre-existing multiple rows stop the transaction for manual reconciliation. Migration 009 originally removed the uniqueness restriction; migration 010 restores stronger uniqueness using sponsor + orphan + report month, including across separate sponsorship episodes.
-
+The new-sponsor entry page checks the selected sponsor and reporting month against existing monthly entries after WhatsApp loading and while the form is edited. It displays previous sponsor, mother/orphan, entry date, sponsorship amount, and service fee; exact mother/orphan matches are highlighted. The warning is informational and does not prevent saving another legitimate monthly row. Each saved row remains separately identifiable and editable.
 
 ## Delete prior monthly entries from duplicate warning — 2026-11-07
 
@@ -260,19 +259,15 @@ Deletion is transactional and records the full before-data snapshot in `mde_chan
 Live browser and MariaDB deletion tests are still required after pulling. Verify that the selected monthly entry disappears, other monthly entries remain, all other donations remain unchanged, and the sponsorship relationship and all master records remain.
 
 
-## Duplicate-safe monthly financial saves — 2026-11-07
+## Repeatable monthly financial saves — 2026-11-07
 
-The New Sponsors save handler now treats the allocation identity as sponsor + orphan + selected report month, regardless of which historical sponsorship episode currently represents that relationship.
+Each valid New Sponsors submission creates a separate monthly financial row, even when the same sponsor and orphan already have an entry in the selected reporting month. Amounts are never silently overwritten, merged, or skipped. The duplicate warning remains informational, and the management page allows each row to be edited independently.
 
-- If exactly one matching monthly allocation exists and its sponsorship/services amounts are identical, the save skips that monthly row. Re-importing the same message therefore does not add another sponsorship or services amount to monthly reports.
-- If a matching allocation exists but either financial amount differs, the entire submission is rolled back and the operator is directed to compare/correct the existing row through data management. The save never silently overwrites financial values.
-- If more than one matching monthly row already exists, the entire submission is stopped and the existing row IDs are shown for reconciliation.
-- New allocations are inserted normally. Sponsor-level row locking serializes concurrent submissions for the same sponsor. Identical other-donation lines are deduplicated by sponsorship, report month, date, type, and amount, using occurrence counts so repeated identical lines within a single source message are retained.
-- Migration 010 adds sponsor_id/orphan_id identity columns to monthly rows, a composite foreign key ensuring those IDs match the linked sponsorship, and a unique key on (sponsor_id, orphan_id, report_month). This protects the business key across separate historical sponsorship episodes as well as ordinary repeated saves.
-- Before applying migration 010 to an existing database, run database/maintenance/audit_monthly_duplicate_entries.sql. It must return zero rows. Existing repeated rows are not automatically deleted or merged because their financial meaning must be reviewed. The migration then backfills the identity columns and adds the database constraint.
-- Fresh installations receive the same constraint from database/schema.sql. Existing installations must apply migration 010 after migration 009.
+Migration 010 added sponsor_id/orphan_id identity columns and a composite foreign key so every monthly row must match its linked sponsorship relationship. It also introduced a unique sponsor/orphan/report-month index, which conflicted with the intended repeat-entry workflow. Migration 012 removes only that unique index and replaces it with a non-unique lookup index; the composite foreign key and sponsorship identity constraint remain in place. Fresh installations use the non-unique index directly in database/schema.sql.
 
-Verification caveat: GitHub source has been updated, but PHP lint, MariaDB migration execution, concurrent-save tests, browser tests, and report/export reconciliation have not yet been run against the user's local database. Do not treat financial totals as certified until the migration preflight is clean, migration 010 succeeds, and the test plan passes.
+The save handler continues to resolve the sponsorship episode using the submitted entry date and historical departure dates. It does not attach a repeat row to an unrelated or future sponsorship episode. Sponsor-level row locking remains in place to serialize concurrent submissions. Independent other-donation line handling is unchanged.
+
+Migration 012 must be applied once to existing databases after migration 010. It preserves all existing monthly rows and amounts; it changes only the index constraint. Local migration execution, PHP lint, regression tests, and browser/database testing are required after pulling.
 
 ## Editable sponsor name in New Sponsors — 2026-11-07
 
