@@ -891,4 +891,29 @@ assert.equal(compactAmountEntry.date, '2026-11-10');
 assert.equal(compactAmountEntry.entered, 'هناء خلف الله');
 assert.equal(compactAmountEntry.supervisor, 'هناء خلف الله');
 
+
+const feminineSpellingAndEmptyChildrenLabelMessage = `الكفيله :ريان الحافظ عبدالرحمن 
+ الام :رحاب يحي موسي 
+ الاطفال:
+1-عبدالكريم
+ 2-مزن 
+ 3-محسن 
+ الكفاله :30.000
+الخدمات :6000
+التاريخ :11/11/2026
+🤍
+عن طريق لمياء
+مشرفه ح ميساء`;
+const feminineSpellingAndEmptyChildrenLabel = parser.entry(feminineSpellingAndEmptyChildrenLabelMessage, 0, '2026-11-11');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.sponsor, 'ريان الحافظ عبدالرحمن', 'الكفيله spelling must be accepted as a sponsor label');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.mother, 'رحاب يحي موسي');
+assert.deepEqual(Array.from(feminineSpellingAndEmptyChildrenLabel.orphans), ['عبدالكريم', 'مزن', 'محسن'], 'numbered one-word child names after an empty الاطفال label must remain in the orphan-list context');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.sponsorship, '30000');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.services, '6000');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.date, '2026-11-11');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.entered, 'لمياء');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.supervisor, 'ميساء');
+assert.ok(!feminineSpellingAndEmptyChildrenLabel.warnings.some(w => /اسم الكفيل غير واضح|لم يتم استخراج أسماء الأيتام/u.test(w)), 'the reported sponsor and orphan extraction warnings must disappear');
+assert.equal(feminineSpellingAndEmptyChildrenLabel.unrecognizedLines.length, 0, 'numbered one-word children must not be left as unrecognized lines');
+
 console.log('WhatsApp parser tests passed.');
