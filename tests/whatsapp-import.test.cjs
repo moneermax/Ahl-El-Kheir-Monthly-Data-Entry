@@ -48,6 +48,7 @@ assert.ok(departurePageSource.includes('name="sponsor_name_snapshot"') && depart
 assert.ok(departurePageSource.includes('sponsor_name_snapshot, file_number_snapshot'), 'departure save persists the edited name snapshot');
 assert.ok(importSource.includes('function renderDepartureBatch(batchRecords)'), 'WhatsApp importer must populate every parsed departure in the batch editor');
 assert.ok(importSource.includes("name(index,'sponsor_id')") && importSource.includes("name(index,'sponsor_name_snapshot')"), 'batch rows submit master ID and editable name snapshot');
+assert.ok(importSource.includes("name(index,'sponsor_mode')") && importSource.includes("name(index,'new_sponsor_name')") && importSource.includes("name(index,'new_sponsor_type')"), 'each batch record can explicitly select an existing sponsor or create a new sponsor with a type');
 assert.ok(importSource.includes("add(f.date,'departure_date','date')"), 'each batch row submits its departure date');
 assert.ok(importSource.includes('function resolveDepartureSponsor('), 'departure matching resolves name and file number without a visible sponsor menu');
 assert.ok(importSource.includes('الاسم موجود لأكثر من كفيل'), 'ambiguous same-name records require a unique file number');
