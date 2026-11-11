@@ -162,7 +162,7 @@ function departureResidualNotes(t){
   if(departureHeader(line)||departureFileHeading(line)!==null)return false;
   if(/^\d{1,3}\s*[•.)/_-]/u.test(line))return false;
   if(!sponsorRemoved&&departureNameLine(line)){sponsorRemoved=true;return false;}
-  const reasonMatch=line.match(/(?:^|\s)(?:سبب\s+المغادره|سبب\s+الانسحاب|السبب)\s*[:=：-]?\s*(.*)$/u);
+  const reasonMatch=line.match(/(?:^|\s)(?:سبب\s+المغادرة|سبب\s+الانسحاب|السبب)\s*[:=：-]?\s*(.*)$/u);
   if(reasonMatch){const before=line.slice(0,reasonMatch.index).trim();return before||false;}
   const n=norm(line);
   if(ALL.some(label=>n.startsWith(norm(label)))||/^\d[\d,،٬. ]*\s*خدمات/u.test(n)||/^\d[\d٠-٩۰-۹.,،٬ ]*\s*\/\s*[\d٠-٩۰-۹.,،٬ ]+$/u.test(line)||/^طلب\s+الالغاء/u.test(n))return false;
