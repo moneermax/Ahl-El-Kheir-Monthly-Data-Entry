@@ -158,25 +158,34 @@ function renderDepartureBatch(batchRecords) {
   const cell=label=>{const td=document.createElement('td');td.dataset.label=label;tr.append(td);return td;};
   let td=cell('#');td.className='text-center fw-bold';td.textContent=String(index+1);
   td=cell('الكفيل');
-  const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');
+  const mode=document.createElement('select');mode.name=name(index,'sponsor_mode');mode.className='form-select form-select-sm mb-1';
+  [['existing','كفيل مسجل'],['new','تسجيل كفيل جديد']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;mode.append(option);});
   const sponsorId=makeField('input','hidden',name(index,'sponsor_id'),'');
   const sponsorName=makeField('input','text',name(index,'sponsor_name_snapshot'),f.sponsor,'اسم الكفيل كما ورد في الرسالة');
   sponsorName.maxLength=255;
+  const typeLabel=document.createElement('small');typeLabel.className='text-muted d-block mt-1';typeLabel.textContent='نوع الكفيل عند الإنشاء';
+  const newType=document.createElement('select');newType.name=name(index,'new_sponsor_type');newType.className='form-select form-select-sm mt-1';
+  [['individual','فردي'],['tree','🌳 شجرة']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;newType.append(option);});
+  newType.value=f.type==='tree'?'tree':'individual';newType.disabled=true;newType.hidden=true;
   const hint=document.createElement('small');hint.className='text-muted d-block mt-1';
   const warning=document.createElement('small');warning.className='text-warning-emphasis d-block mt-1';
   warning.textContent=(record.warnings||[]).join(' · ');
-  td.append(mode,sponsorId,sponsorName,hint,warning);
+  td.append(mode,sponsorId,sponsorName,typeLabel,newType,hint,warning);
   const add=(value,field,kind,label)=>{
    const c=cell(label),el=makeField('input',kind,name(index,field),value);
    c.append(el);return el;
   };
   const fileInput=add(f.file,'file_number','text','الملف');
   const refresh=()=>{
+   const isNew=mode.value==='new';
+   sponsorName.name=name(index,isNew?'new_sponsor_name':'sponsor_name_snapshot');
+   newType.disabled=!isNew;newType.hidden=!isNew;typeLabel.hidden=!isNew;
+   if(isNew){sponsorId.value='';hint.textContent='سيُنشأ كفيل جديد عند حفظ الدفعة؛ تأكد أولاً من عدم وجود سجل مطابق.';hint.hidden=false;hint.classList.remove('text-danger');hint.classList.add('text-muted');return;}
    const result=resolveDepartureSponsor(sourceSelect,sponsorName.value,fileInput.value);
    sponsorId.value=result.id;hint.textContent=result.message||'';hint.hidden=!result.message;
    hint.classList.toggle('text-danger',!!result.message);hint.classList.toggle('text-muted',!result.message);
   };
-  sponsorName.addEventListener('input',refresh);fileInput.addEventListener('input',refresh);refresh();
+  mode.addEventListener('change',refresh);sponsorName.addEventListener('input',refresh);fileInput.addEventListener('input',refresh);refresh();
   add(f.date,'departure_date','date','تاريخ المغادرة');
   add(f.lastPaid,'last_paid_month','month','آخر سداد');
   add(f.count,'orphan_count','number','عدد الأيتام');
