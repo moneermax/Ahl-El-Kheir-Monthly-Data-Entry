@@ -1004,5 +1004,6 @@ assert.ok(indexSource.includes('.departure-batch-table tr{display:grid;'), 'batc
 assert.ok(!indexSource.includes('.departure-register{min-width:1280px}'), 'departure register must not force a 1280px minimum width');
 assert.ok(!indexSource.includes('.departure-batch-table{min-width:1180px'), 'departure batch must not force a 1180px minimum width');
 assert.ok(importSource.includes('td.dataset.label=label'), 'dynamic batch fields expose labels for their responsive card layout');
+assert.ok(importSource.includes("row.querySelectorAll('[name]')") && importSource.includes("/^departures\\[\\d+\\]/"), 'removing a batch card reindexes all submitted field names as well as the visible row numbers');
 
 console.log('WhatsApp parser tests passed.');
