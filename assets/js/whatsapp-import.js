@@ -142,21 +142,61 @@ function applyDeparture(record,options={}) {
 function renderDepartureBatch(batchRecords) {
  const panel=$('#departureBatchPanel'),body=$('#departureBatchRows'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag'),sourceSelect=$('#departureSponsor');
  if(!panel||!body||!fieldset||!flag||!sourceSelect)return false;
- body.replaceChildren();const name=(index,field)=>'departures['+index+']['+field+']';
- const makeField=(tag,type,fieldName,value,placeholder='')=>{const el=document.createElement(tag);if(tag==='input')el.type=type;el.name=fieldName;el.className='form-control form-control-sm';if(value!==undefined&&value!==null)el.value=String(value);if(placeholder)el.placeholder=placeholder;if(type==='number'){el.min='0';el.step='1';}return el;};
- batchRecords.forEach((record,index)=>{const payload=Parser.buildDepartureFormPayload(record),f=payload.fields,tr=document.createElement('tr'),cell=()=>{const td=document.createElement('td');tr.append(td);return td;};
-  let td=cell();td.className='text-center fw-bold';td.textContent=String(index+1);td=cell();td.style.minWidth='220px';
-  const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing'),sponsorId=makeField('input','hidden',name(index,'sponsor_id'),'');
-  const sponsorName=makeField('input','text',name(index,'sponsor_name_snapshot'),f.sponsor,'اسم الكفيل كما ورد في الرسالة');sponsorName.maxLength=255;const hint=document.createElement('small');hint.className='text-muted d-block mt-1';td.append(mode,sponsorId,sponsorName,hint);
-  const add=(value,field,kind='text')=>{const c=cell(),el=makeField('input',kind,name(index,field),value);c.append(el);return el;},fileInput=add(f.file,'file_number');
-  const refresh=()=>{const result=resolveDepartureSponsor(sourceSelect,sponsorName.value,fileInput.value);sponsorId.value=result.id;hint.textContent=result.message||'';hint.hidden=!result.message;hint.classList.toggle('text-danger',!!result.message);hint.classList.toggle('text-muted',!result.message);};
+ body.replaceChildren();
+ const name=(index,field)=>'departures['+index+']['+field+']';
+ const makeField=(tag,type,fieldName,value,placeholder='')=>{
+  const el=document.createElement(tag);
+  if(tag==='input')el.type=type;
+  el.name=fieldName;el.className='form-control form-control-sm';
+  if(value!==undefined&&value!==null)el.value=String(value);
+  if(placeholder)el.placeholder=placeholder;
+  if(type==='number'){el.min='0';el.step='1';}
+  return el;
+ };
+ batchRecords.forEach((record,index)=>{
+  const payload=Parser.buildDepartureFormPayload(record),f=payload.fields,tr=document.createElement('tr');
+  const cell=label=>{const td=document.createElement('td');td.dataset.label=label;tr.append(td);return td;};
+  let td=cell('#');td.className='text-center fw-bold';td.textContent=String(index+1);
+  td=cell('الكفيل');
+  const mode=makeField('input','hidden',name(index,'sponsor_mode'),'existing');
+  const sponsorId=makeField('input','hidden',name(index,'sponsor_id'),'');
+  const sponsorName=makeField('input','text',name(index,'sponsor_name_snapshot'),f.sponsor,'اسم الكفيل كما ورد في الرسالة');
+  sponsorName.maxLength=255;
+  const hint=document.createElement('small');hint.className='text-muted d-block mt-1';
+  const warning=document.createElement('small');warning.className='text-warning-emphasis d-block mt-1';
+  warning.textContent=(record.warnings||[]).join(' · ');
+  td.append(mode,sponsorId,sponsorName,hint,warning);
+  const add=(value,field,kind,label)=>{
+   const c=cell(label),el=makeField('input',kind,name(index,field),value);
+   c.append(el);return el;
+  };
+  const fileInput=add(f.file,'file_number','text','الملف');
+  const refresh=()=>{
+   const result=resolveDepartureSponsor(sourceSelect,sponsorName.value,fileInput.value);
+   sponsorId.value=result.id;hint.textContent=result.message||'';hint.hidden=!result.message;
+   hint.classList.toggle('text-danger',!!result.message);hint.classList.toggle('text-muted',!result.message);
+  };
   sponsorName.addEventListener('input',refresh);fileInput.addEventListener('input',refresh);refresh();
-  add(f.date,'departure_date','date');add(f.lastPaid,'last_paid_month','month');add(f.count,'orphan_count','number');add(f.sponsorship,'sponsorship_amount','number');add(f.services,'services_amount','number');add(f.entered,'entered_by');add(f.supervisor,'supervisor_name');
-  td=cell();td.style.minWidth='190px';const notes=makeField('textarea','',name(index,'notes'),payload.notes);notes.rows=2;td.append(notes);td=cell();const remove=document.createElement('button');remove.type='button';remove.className='btn btn-outline-danger btn-sm';remove.textContent='حذف';remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>row.cells[0].textContent=String(i+1));});td.append(remove);body.append(tr);
+  add(f.date,'departure_date','date','تاريخ المغادرة');
+  add(f.lastPaid,'last_paid_month','month','آخر سداد');
+  add(f.count,'orphan_count','number','عدد الأيتام');
+  add(f.sponsorship,'sponsorship_amount','number','الكفالة');
+  add(f.services,'services_amount','number','الخدمات');
+  add(f.entered,'entered_by','text','بواسطة');
+  add(f.supervisor,'supervisor_name','text','المشرف');
+  td=cell('ملاحظات');
+  const notes=makeField('textarea','',name(index,'notes'),payload.notes);
+  notes.rows=2;td.append(notes);
+  td=cell('إجراء');
+  const remove=document.createElement('button');remove.type='button';remove.className='btn btn-outline-danger btn-sm';remove.textContent='حذف';
+  remove.addEventListener('click',()=>{tr.remove();[...body.rows].forEach((row,i)=>row.cells[0].textContent=String(i+1));});
+  td.append(remove);body.append(tr);
  });
- if(!body.rows.length)return false;fieldset.disabled=true;fieldset.classList.add('d-none');panel.classList.remove('d-none');flag.value='1';const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='حفظ جميع سجلات المغادرة';return true;
+ if(!body.rows.length)return false;
+ fieldset.disabled=true;fieldset.classList.add('d-none');panel.classList.remove('d-none');flag.value='1';
+ const submit=$('#departureForm button[type="submit"]');if(submit)submit.textContent='حفظ جميع سجلات المغادرة';
+ return true;
 }
-
 function leaveDepartureBatch(){
  const panel=$('#departureBatchPanel'),fieldset=$('#singleDepartureFields'),flag=$('#departureBatchFlag');
  if(!panel||!fieldset||!flag)return;
