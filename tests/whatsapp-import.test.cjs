@@ -977,6 +977,19 @@ assert.equal(exactUserDepartures[5].services, '', 'missing tree services must re
 assert.ok(exactUserDepartures.every(r => r.raw.trim().length > 0), 'each review record retains its original source text');
 assert.ok(!exactUserDepartures[0].unrecognizedLines.includes('غير متاح'), 'the standalone unavailable-contact status is recognized as a departure note');
 
+const inlineDepartureReason = parser.departure([
+  'انس فتح الرحمن احمد محمد',
+  'عدد الايتام: 1',
+  'قيمة الكفالة: 10000',
+  'الخدمات: 1000',
+  'تاريخ المغادرة: 31/10/2026',
+  'ما داخل قروب السبب عايز مهله لحين توفر المال وسيسدد'
+].join('\n'), 0, '2026-10-31');
+assert.equal(inlineDepartureReason.reason, 'عايز مهله لحين توفر المال وسيسدد');
+assert.equal(inlineDepartureReason.notes, 'ما داخل قروب', 'text before an inline reason remains a note without duplicating the reason');
+assert.equal(parser.buildDepartureFormPayload(inlineDepartureReason).notes, 'عايز مهله لحين توفر المال وسيسدد | ما داخل قروب');
+
+
 // Responsive departure review must use the existing page style and fit the viewport.
 const indexSource = fs.readFileSync('index.php', 'utf8');
 assert.ok(indexSource.includes('.departure-register-wrap{overflow:visible}'), 'departure single-record register must not use horizontal scrolling');
